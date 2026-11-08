@@ -4,7 +4,7 @@ import { requireApi } from "@/lib/auth/authGuards";
 import { lockmeboxEnabled } from "@/lib/constants";
 import { errorResponse } from "@/lib/serviceResult";
 import { structuredLog } from "@/lib/serverLog";
-import { LOCKMEBOX_NAME_RE } from "@/lib/lockmeboxProtocol";
+import { LOCKMEBOX_NAME_RE } from "@/lib/box/lockmeboxProtocol";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

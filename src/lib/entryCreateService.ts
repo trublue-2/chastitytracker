@@ -8,8 +8,8 @@ import { applyEntryFulfilment } from "@/lib/entryFulfilment";
 import { triggerPostLockInspection } from "@/lib/kontrollen/autoKontrolleService";
 import { boltFieldsFor } from "@/lib/lockPending";
 import { findPendingLockTx, findPendingOpenTx, openAwaitsBolt } from "@/lib/lockCommit";
-import { boxCommandForEntry, setBoxCommandForUser } from "@/lib/boxCommand";
-import { announceBoxCommand } from "@/lib/boxCommandNotify";
+import { boxCommandForEntry, setBoxCommandForUser } from "@/lib/box/boxCommand";
+import { announceBoxCommand } from "@/lib/box/boxCommandNotify";
 import { notifyControllersAboutEntry } from "@/lib/entryNotify";
 import type { EntryGuardCode, EntryValidationCode } from "@/lib/entryErrors";
 

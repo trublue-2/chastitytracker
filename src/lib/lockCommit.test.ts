@@ -10,10 +10,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  */
 
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
-vi.mock("@/lib/boxPhotoDueService", () => ({ markBoxPhotoDue: vi.fn() }));
+vi.mock("@/lib/box/boxPhotoDueService", () => ({ markBoxPhotoDue: vi.fn() }));
 
 import { lockAwaitsBolt, openAwaitsBolt, boxReportedLockedSafe } from "./lockCommit";
-import { markBoxPhotoDue } from "@/lib/boxPhotoDueService";
+import { markBoxPhotoDue } from "@/lib/box/boxPhotoDueService";
 
 type BoxRow = { locked: boolean; reportedLocked: boolean | null; lastSyncAt: Date | null; kind?: string };
 

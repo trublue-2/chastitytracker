@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { bleBridgeKey } from "@/lib/constants";
-import { LOCKMEBOX_COMMAND_LETTER, type LockmeboxCommand } from "@/lib/lockmeboxProtocol";
+import { LOCKMEBOX_COMMAND_LETTER, type LockmeboxCommand } from "@/lib/box/lockmeboxProtocol";
 
 /**
  * Die verschlüsselte Hälfte des LockMeBox-Protokolls — nur auf dem Server.

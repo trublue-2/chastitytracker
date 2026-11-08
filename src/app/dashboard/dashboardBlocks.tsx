@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { getIsLocked, userHasBox } from "@/lib/queries";
-import { isBoxPhotoDue } from "@/lib/boxPhotoDue";
+import { isBoxPhotoDue } from "@/lib/box/boxPhotoDue";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { block, type StackBlock } from "@/lib/blockStack";
@@ -26,7 +26,7 @@ import {
 } from "@/lib/utils";
 import { wearHourPairsByCategory } from "@/lib/sessionModel";
 import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/goalSegments";
-import type { Translate } from "@/lib/boxStatus";
+import type { Translate } from "@/lib/box/boxStatus";
 import { currentOrNextCleaningWindow } from "@/lib/cleaningService";
 import { datedWindowLabel } from "@/lib/weekdays";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireBoxSync } from "@/lib/boxSync";
+import { requireBoxSync } from "@/lib/box/boxSync";
 import { BOX_EVENT_TYPES } from "@/lib/constants";
 import { boxReportedLockedSafe } from "@/lib/lockCommit";
 

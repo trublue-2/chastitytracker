@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { boxPhotoDueSince } from "@/lib/boxPhotoDueService";
+import { boxPhotoDueSince } from "@/lib/box/boxPhotoDueService";
 import { getOpenKontrollen, getActiveLockPeriod, getActiveWearSessions, getActiveOrgasmusAnforderung, getInterruptedLockPeriod, getCurrentLockKeyInBox, pendingLockCallAt, pendingOpenCallAt, getOpenLockRequests } from "@/lib/queries";
 import {
   buildLockState, mapOpenKontrolle, mapActiveLockPeriod, mapOpenOrgasmusAnforderung,
@@ -15,7 +15,7 @@ import { getOffenses, offenseRowState, type OffenseRow } from "@/lib/mcp/ledger"
 import { offenseNeedsAttention } from "@/lib/strafbuch/offenseTypes";
 import { queryNotes } from "@/lib/mcp/notes";
 import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
-import { toBoxKind, toPendingCommand, boxFailsafeWarnings, boxIsPhysicallyLocked, boxBoltOpenDespiteLocked, type BoxFailsafeWarning, type BoxKind } from "@/lib/boxStatus";
+import { toBoxKind, toPendingCommand, boxFailsafeWarnings, boxIsPhysicallyLocked, boxBoltOpenDespiteLocked, type BoxFailsafeWarning, type BoxKind } from "@/lib/box/boxStatus";
 import { getEvaluatedTasks, loadTaskProofViews, type EvaluatedTask, type TaskProofView } from "@/lib/tasks/taskIntervals";
 import { isTaskOpen, needsKeyholderReview, firstOutOfOrderProof, ownProofDeadline, type TaskLike, proofDueOffsetPending,} from "@/lib/tasks/tasks";
 import { taskProofState } from "@/lib/tasks/taskView";
@@ -56,7 +56,7 @@ export interface BoxStateView {
    *  Sub ist noch verschlossen". `null` = Spiegel und Absicht sind einig.
    *
    *  ACHTUNG, kein Freibrief: eine laufende Keyholder-Sperrzeit überschreibt ein `"open"` NICHT.
-   *  Die Vorrang-Regel steht als Code in `boxSollLocked` (src/lib/boxStatus.ts) — dort ist auch
+   *  Die Vorrang-Regel steht als Code in `boxSollLocked` (src/lib/box/boxStatus.ts) — dort ist auch
    *  begründet, warum sie nur den Spiegel-Anteil schlägt und nicht die Sperrzeit. */
   pendingCommand: "lock" | "open" | null;
   /** Physisches IST: war die Box beim letzten Sync wirklich zu? Kann seit dem Präsenz-Guard
@@ -166,7 +166,7 @@ export interface BoxStateView {
    *  ANZEIGE-GRENZE: gemessen wird „seit wann hat der TRACKER nichts gehört" — nicht der Zähler in
    *  der Box. Meist warnt das zu früh (Heimdalls Push klemmt); es kann aber auch zu SPÄT sein, wenn
    *  die Anfrage der Box ankam und nur ihre Antwort verlorenging: dann zählt die Box weiter, während
-   *  hier alles frisch aussieht. Begründung in `boxFailsafeWarnings` (src/lib/boxStatus.ts).
+   *  hier alles frisch aussieht. Begründung in `boxFailsafeWarnings` (src/lib/box/boxStatus.ts).
    *
    *  BEKANNTE LÜCKE: `hardwareEnforced`/`keySecured`/`staleLock` verrechnen nur den FUNKSTILLE-
    *  Selbstöffner. Steht hier ein `lowBatteryOpen` auf `due`, kann daneben `hardwareEnforced: true`

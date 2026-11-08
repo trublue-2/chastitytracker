@@ -11,7 +11,7 @@ import { useApiError } from "@/app/hooks/useApiError";
 import {
   lockmeboxBleMode, runLockmeboxAutoSession, runLockmeboxSession, type LockmeboxSessionError,
   type LockmeboxSessionOutcome,
-} from "@/lib/lockmeboxBle";
+} from "@/lib/box/lockmeboxBle";
 
 /** Nach einem gescheiterten Versuch so lange warten, bevor die App wieder sucht — die Box schläft
  *  nach etwa einer Minute ein, ein Dauer-Neuversuch hülfe also nicht, er belastete nur den Akku. */

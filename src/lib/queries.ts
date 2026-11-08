@@ -5,7 +5,7 @@ import { LOCK_ENDED_REASON, boxCouplingEnabled } from "@/lib/constants";
 import { activeCleaningWindowIn, parseCleaningWindows } from "@/lib/cleaningService";
 import { triggeredWhere } from "@/lib/delayedTrigger";
 import { CONFIRMED_LOCK_FILTER, PENDING_LOCK_FILTER, PENDING_OPEN_FILTER, effectiveEntryWhere } from "@/lib/lockPending";
-import { hasLockmebox } from "@/lib/boxStatus";
+import { hasLockmebox } from "@/lib/box/boxStatus";
 import { APP_TZ } from "@/lib/utils";
 import { isHealthHoldActive } from "@/lib/healthHold";
 import { startAfter } from "@/lib/entryStart";

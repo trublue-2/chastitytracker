@@ -5,7 +5,7 @@ import { entryGuardError } from "@/lib/entryErrors";
 import { getEntryNeighbors } from "@/lib/queries";
 import { validOeffnenCodes } from "@/lib/reasonsService";
 import { isPendingEntry, isPendingLock } from "@/lib/lockPending";
-import { clearBoxCommandForUser } from "@/lib/boxCommand";
+import { clearBoxCommandForUser } from "@/lib/box/boxCommand";
 import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
 import { mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { codedError, codeOf } from "@/lib/codedError";

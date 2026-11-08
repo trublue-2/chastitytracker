@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { BoxRow } from "@/lib/boxStatus";
+import type { BoxRow } from "@/lib/box/boxStatus";
 
 /**
  * Pollt `/api/box` im 5s-Takt — reine Status-Anzeige (die Box folgt den Verschluss-/Öffnen-Einträgen,

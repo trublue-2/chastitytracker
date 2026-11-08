@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { heimdallEnabled, BOLT_OPEN_EVENT_TYPES } from "@/lib/constants";
-import type { BoxKind } from "@/lib/boxStatus";
+import type { BoxKind } from "@/lib/box/boxStatus";
 
 /**
  * Schlüssel-Nachweis aus der Box-Telemetrie (Spur 2) statt aus dem Box-Foto (Spur 1).

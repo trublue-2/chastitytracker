@@ -27,7 +27,7 @@ vi.mock("@/lib/emailI18n", async () => (await import("@/test/notifyLeafMocks")).
 vi.mock("next-intl/server", async () => (await import("@/test/notifyLeafMocks")).intlServerLeaf());
 vi.mock("@/lib/serverLog", () => ({ structuredLog: vi.fn() }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn(), touchAppMeta: vi.fn() }));
-vi.mock("@/lib/heimdallNotify", () => ({ notifyHeimdallForUserId: vi.fn(), notifyHeimdall: vi.fn() }));
+vi.mock("@/lib/box/heimdallNotify", () => ({ notifyHeimdallForUserId: vi.fn(), notifyHeimdall: vi.fn() }));
 vi.mock("@/lib/auth/keyholder", () => ({ getControllersOfUser: vi.fn(async () => []) }));
 
 // Die Kanal-ENTSCHEIDUNG ist anderswo geprüft (`deliveryChannels`) — hier kommt sie als Vorgabe.

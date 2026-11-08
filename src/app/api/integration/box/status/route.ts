@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireBoxSync } from "@/lib/boxSync";
+import { requireBoxSync } from "@/lib/box/boxSync";
 import { boxReportedLockedSafe } from "@/lib/lockCommit";
-import { otherBoxExists } from "@/lib/boxPairing";
+import { otherBoxExists } from "@/lib/box/boxPairing";
 import { errorResponse } from "@/lib/serviceResult";
 
 export const runtime = "nodejs";

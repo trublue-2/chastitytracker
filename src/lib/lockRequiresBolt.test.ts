@@ -9,7 +9,7 @@ vi.mock("@/lib/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
-vi.mock("@/lib/boxPhotoDueService", () => ({ markBoxPhotoDue: vi.fn() }));
+vi.mock("@/lib/box/boxPhotoDueService", () => ({ markBoxPhotoDue: vi.fn() }));
 
 import { setLockRequiresBolt } from "./lockCommit";
 import { prisma } from "@/lib/prisma";

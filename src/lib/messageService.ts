@@ -6,7 +6,7 @@ import { getControllableSubsCached } from "@/lib/auth/keyholder";
 import { bodyKeysOfCategory, bodyKeysOutsideSystem, messagePriority, type MessageFilter, type MessageSenderKind } from "@/lib/messageCategories";
 import { dismissalMessageStillApplies, judgmentMessageStillApplies } from "@/lib/strafbuch/offenseTypes";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
-import { codeCheckPath } from "@/lib/lockboxCodeCheck";
+import { codeCheckPath } from "@/lib/box/lockboxCodeCheck";
 import { mapAnforderungStatus } from "@/lib/utils";
 import { AI_AUTHOR, hasAuthor, type NotificationChannels } from "@/lib/constants";
 import { deliveryChannels, deliveryChannelsForUser, type DeliveryRecipient } from "@/lib/deliveryChannels";

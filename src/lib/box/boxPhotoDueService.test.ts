@@ -10,13 +10,13 @@ vi.mock("@/lib/prisma", async () => {
 });
 vi.mock("@/lib/queries", () => ({ getLatestKgEntry: vi.fn() }));
 vi.mock("@/lib/kontrollen/verifyCode", () => ({ detectKeyInBox: vi.fn().mockResolvedValue(null) }));
-vi.mock("@/lib/boxCommandNotify", () => ({ announceBoxPhotoDue: vi.fn() }));
+vi.mock("@/lib/box/boxCommandNotify", () => ({ announceBoxPhotoDue: vi.fn() }));
 
 import { markBoxPhotoDue, markBoxPhotoDueIfBoxLocked, submitBoxPhoto, waiveBoxPhoto } from "./boxPhotoDueService";
 import { prisma } from "@/lib/prisma";
 import { getLatestKgEntry } from "@/lib/queries";
 import { detectKeyInBox } from "@/lib/kontrollen/verifyCode";
-import { announceBoxPhotoDue } from "@/lib/boxCommandNotify";
+import { announceBoxPhotoDue } from "@/lib/box/boxCommandNotify";
 import type { PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;

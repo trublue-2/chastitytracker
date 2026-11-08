@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { boxReportedLockedSafe, commitPendingOpenSafe } from "@/lib/lockCommit";
-import { toPendingCommand, type BoxKind } from "@/lib/boxStatus";
-import { nextLockmeboxCommand, parseLockmeboxStatus, type LockmeboxRelayInput, type LockmeboxRelayResult } from "@/lib/lockmeboxProtocol";
-import { clearBoxCommandForUser } from "@/lib/boxCommand";
-import { otherBoxExists } from "@/lib/boxPairing";
+import { toPendingCommand, type BoxKind } from "@/lib/box/boxStatus";
+import { nextLockmeboxCommand, parseLockmeboxStatus, type LockmeboxRelayInput, type LockmeboxRelayResult } from "@/lib/box/lockmeboxProtocol";
+import { clearBoxCommandForUser } from "@/lib/box/boxCommand";
+import { otherBoxExists } from "@/lib/box/boxPairing";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
-import { encryptLockmeboxCommand, generateLockmeboxPassword, lockmeboxPlaintext } from "@/lib/lockmebox";
+import { encryptLockmeboxCommand, generateLockmeboxPassword, lockmeboxPlaintext } from "@/lib/box/lockmebox";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
 /**

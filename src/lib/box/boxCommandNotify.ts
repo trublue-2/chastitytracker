@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { structuredLog } from "@/lib/serverLog";
 import { lockmeboxEnabled } from "@/lib/constants";
-import { notifyHeimdall } from "@/lib/heimdallNotify";
+import { notifyHeimdall } from "@/lib/box/heimdallNotify";
 import { deliveryChannels } from "@/lib/deliveryChannels";
 import { emailT } from "@/lib/emailI18n";
 import { firePush } from "@/lib/push";
 import { NOTIFY_RECIPIENT_SELECT } from "@/lib/notify";
-import type { BoxKind } from "@/lib/boxStatus";
+import type { BoxKind } from "@/lib/box/boxStatus";
 
 /**
  * Ein Box-Kommando steht an — sag es dem, der es ausführt. Nach dem Commit gerufen, und zwar genau

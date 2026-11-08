@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { createOeffnenEntryTx } from "@/lib/oeffnenService";
 import { getBoxFormContext, getIsLocked, endableLockPeriods } from "@/lib/queries";
-import { setBoxCommandForUser } from "@/lib/boxCommand";
-import { announceBoxCommand } from "@/lib/boxCommandNotify";
+import { setBoxCommandForUser } from "@/lib/box/boxCommand";
+import { announceBoxCommand } from "@/lib/box/boxCommandNotify";
 import { notifyUser } from "@/lib/notify";
 import { notifyControllersAboutEntry } from "@/lib/entryNotify";
-import { boxCommandForEntry } from "@/lib/boxCommand";
+import { boxCommandForEntry } from "@/lib/box/boxCommand";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { LOCK_ENDED_REASON, RELEASE_ORGASM_WINDOW_H } from "@/lib/constants";
 import { serviceErrors, mapServiceError, type ServiceResult } from "@/lib/serviceResult";

@@ -34,7 +34,7 @@ import { strafbuchCached } from "@/lib/dashboardData";
 import { selectSubOffenses, attentionOffensesOf } from "@/lib/strafbuch/subOffenses";
 import { rowHoverCls } from "@/app/components/inputStyles";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
-import { boxBoltOpenDespiteLocked } from "@/lib/boxStatus";
+import { boxBoltOpenDespiteLocked } from "@/lib/box/boxStatus";
 import WarnLine from "@/app/components/WarnLine";
 import { actionIcon } from "@/app/entries/actionSign";
 

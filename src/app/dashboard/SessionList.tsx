@@ -3,7 +3,7 @@ import { toDateLocale, formatDurationBetween, formatDurationMs, formatDate, form
 import { getKombinierterPill } from "@/lib/kontrollen/kontrollePills";
 import type { VerifyFailure } from "@/lib/kontrollen/verifyReason";
 import { effectiveOrgasmusArten, effectiveOeffnenGruende, resolveOrgasmusArtDisplay, resolveReasonLabel } from "@/lib/reasonsService";
-import { keyProofFor, NO_TELEMETRY_KEY_PROOF } from "@/lib/boxKeyProof";
+import { keyProofFor, NO_TELEMETRY_KEY_PROOF } from "@/lib/box/boxKeyProof";
 import { inspectionHref } from "@/lib/entryFormRoute";
 import SessionListClient, { SessionListData } from "./SessionListClient";
 

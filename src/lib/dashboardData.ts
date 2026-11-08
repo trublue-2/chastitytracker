@@ -5,7 +5,7 @@ import { AUTO_KONTROLLE_SETTINGS_SELECT } from "@/lib/kontrollen/autoKontrolleSe
 import { CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/cleaningRules";
 import { deviceCategoriesEnabled } from "@/lib/constants";
-import { loadTelemetryKeyProof } from "@/lib/boxKeyProof";
+import { loadTelemetryKeyProof } from "@/lib/box/boxKeyProof";
 import { latestEffectiveKgEntry, isPendingLock, isPendingOpen } from "@/lib/lockPending";
 import {
   buildKontrolleItems, buildKgWearPairs, buildPairs, wearHoursOfPairs,

@@ -6,7 +6,7 @@ import { telegramLinkAvailable } from "@/lib/telegram";
 import { hasPushTarget } from "@/lib/push";
 import { mailReaches, mailConfigured } from "@/lib/mail";
 import { boxCouplingEnabled, isValidStartPage, lockmeboxEnabled, toNotifyLevel, type NotifyLevel } from "@/lib/constants";
-import { toBoxKind, type BoxKind } from "@/lib/boxStatus";
+import { toBoxKind, type BoxKind } from "@/lib/box/boxStatus";
 import type { WeightSettingsProps } from "./WeightSettings";
 import type { UnitSystem } from "@/lib/weight/weight";
 import { journalSettingsOf } from "@/lib/journal/journalService";

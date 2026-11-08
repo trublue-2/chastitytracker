@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/auth/authGuards";
 import { bildersafeEnabled, isValidImageUrl } from "@/lib/constants";
-import { checkCodeChange } from "@/lib/lockboxCodeCheckService";
+import { checkCodeChange } from "@/lib/box/lockboxCodeCheckService";
 import { checkRateLimit, rateLimitResponse } from "@/lib/auth/rate-limit";
 import { errorResponse } from "@/lib/serviceResult";
 

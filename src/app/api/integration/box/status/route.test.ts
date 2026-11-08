@@ -10,7 +10,7 @@ vi.mock("@/lib/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
 });
-vi.mock("@/lib/boxSync", () => ({ requireBoxSync: vi.fn(() => null) }));
+vi.mock("@/lib/box/boxSync", () => ({ requireBoxSync: vi.fn(() => null) }));
 vi.mock("@/lib/lockCommit", () => ({
   commitPendingLockSafe: vi.fn(),
   findPendingLockTx: vi.fn(),

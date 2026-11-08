@@ -3,7 +3,7 @@ import { LOCK_ENDED_REASON, APP_NAME } from "@/lib/constants";
 import { escHtml, optionalNoticeBoxHtml, dashboardEmailHtml } from "@/lib/mail";
 import { notifyUser, deliverToChannels, NOTIFY_RECIPIENT_SELECT, type NotifyContent, type NotifyInbox, type NotifyRecipient } from "@/lib/notify";
 import { actorColumn, recordInboxDelivery, type MessageActor } from "@/lib/messageService";
-import { notifyHeimdallForUserId } from "@/lib/heimdallNotify";
+import { notifyHeimdallForUserId } from "@/lib/box/heimdallNotify";
 import { markLastAction } from "@/lib/appMeta";
 import { emailT, emailGreeting } from "@/lib/emailI18n";
 import { validateDeviceOwnership, getIsLocked, isScheduledDirective } from "@/lib/queries";

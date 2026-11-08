@@ -12,7 +12,7 @@ import {
   LOCKMEBOX_COMMAND_LETTER, LOCKMEBOX_NAME_PREFIX, LOCKMEBOX_NAME_RE, LOCKMEBOX_RX, LOCKMEBOX_SERVICE,
   LOCKMEBOX_TX, splitLockmeboxFrames, type LockmeboxCommand, type LockmeboxInfo, type LockmeboxProblem,
   type LockmeboxRelayInput, type LockmeboxRelayResult,
-} from "@/lib/lockmeboxProtocol";
+} from "@/lib/box/lockmeboxProtocol";
 
 /** So lange wartet das Handy auf die Antwort der Box auf einen Befehl. Der Motor braucht ein paar
  *  Sekunden, die Box antwortet erst danach — bei schwachem Akku oder schwergängigem Riegel länger,

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getIsLocked, type PrismaTx } from "@/lib/queries";
 import { findPendingLockTx, findPendingOpenTx } from "@/lib/lockCommit";
-import { boxIsPhysicallyLocked } from "@/lib/boxStatus";
+import { boxIsPhysicallyLocked } from "@/lib/box/boxStatus";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
 type Db = PrismaTx | typeof prisma;

@@ -9,13 +9,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const findMany = vi.fn();
 vi.mock("@/lib/prisma", () => ({ prisma: { boxStatus: { findMany: (...a: unknown[]) => findMany(...a) } } }));
 vi.mock("@/lib/queries", () => ({ getIsLocked: vi.fn(), getInterruptedLockPeriod: vi.fn() }));
-vi.mock("@/lib/boxCommand", () => ({ setBoxCommandForUser: vi.fn() }));
-vi.mock("@/lib/boxCommandNotify", () => ({ announceBoxCommand: vi.fn() }));
+vi.mock("@/lib/box/boxCommand", () => ({ setBoxCommandForUser: vi.fn() }));
+vi.mock("@/lib/box/boxCommandNotify", () => ({ announceBoxCommand: vi.fn() }));
 
 import { boxReopenBlockReason, requestBoxReopen } from "./boxReopenService";
 import { getIsLocked, getInterruptedLockPeriod } from "@/lib/queries";
-import { setBoxCommandForUser } from "@/lib/boxCommand";
-import { announceBoxCommand } from "@/lib/boxCommandNotify";
+import { setBoxCommandForUser } from "@/lib/box/boxCommand";
+import { announceBoxCommand } from "@/lib/box/boxCommandNotify";
 
 const fn = <T>(f: T) => f as unknown as ReturnType<typeof vi.fn>;
 const BOX_ZU = { kind: "lockmebox", locked: true, reportedLocked: true, pendingCommand: null };

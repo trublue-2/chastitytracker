@@ -45,7 +45,7 @@ import WithdrawButton from "@/app/admin/WithdrawButton";
 import ExtendInspectionButton from "@/app/admin/ExtendInspectionButton";
 import BoxStatusCard from "@/app/components/BoxStatusCard";
 import BoxPhotoWaive from "@/app/components/BoxPhotoWaive";
-import { boxPhotoDueAtOf } from "@/lib/boxPhotoDue";
+import { boxPhotoDueAtOf } from "@/lib/box/boxPhotoDue";
 import Section from "@/app/components/Section";
 import StatsCard from "@/app/components/StatsCard";
 import { getOffenseRules } from "@/lib/strafbuch/offenseRulesService";

@@ -1,13 +1,13 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { boxCouplingEnabled, lockmeboxEnabled } from "@/lib/constants";
-import { boxIsLive, boxReportsFreshlyLocked, hasLockmebox } from "@/lib/boxStatus";
+import { boxIsLive, boxReportsFreshlyLocked, hasLockmebox } from "@/lib/box/boxStatus";
 import { clampBoltTime, PENDING_LOCK_FILTER, PENDING_OPEN_FILTER } from "@/lib/lockPending";
-import type { BoxKind } from "@/lib/boxStatus";
+import type { BoxKind } from "@/lib/box/boxStatus";
 import { getLatestKgEntry } from "@/lib/queries";
 import { applyEntryFulfilment, applyEntryAftermath } from "@/lib/entryFulfilment";
 import { structuredLog } from "@/lib/serverLog";
-import { markBoxPhotoDue } from "@/lib/boxPhotoDueService";
+import { markBoxPhotoDue } from "@/lib/box/boxPhotoDueService";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 

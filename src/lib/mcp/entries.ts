@@ -1,4 +1,4 @@
-import { isCodeChangeState, type CodeChangeState } from "@/lib/lockboxCodeCheck";
+import { isCodeChangeState, type CodeChangeState } from "@/lib/box/lockboxCodeCheck";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, isTimeCorrected } from "@/lib/utils";
 import { effectiveDeviceCheckStatus } from "@/lib/kontrollen/deviceCheck";

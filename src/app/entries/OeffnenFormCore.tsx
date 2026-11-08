@@ -22,7 +22,7 @@ import EntryFormShell from "@/app/components/EntryFormShell";
 import Card from "@/app/components/Card";
 import RiskConfirmSheet from "@/app/components/RiskConfirmSheet";
 import type { OeffnenPayload, CleaningConfig, LockPeriodState, SubmitResult } from "./types";
-import type { BoxHold } from "@/lib/boxOpenOutlook";
+import type { BoxHold } from "@/lib/box/boxOpenOutlook";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 
 interface Props {

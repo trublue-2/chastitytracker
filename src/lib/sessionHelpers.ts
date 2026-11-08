@@ -1,6 +1,6 @@
 import { formatDurationBetween, buildLockPoints, wornDeviceNameAt } from "@/lib/utils";
 import type { VerifyFailure } from "@/lib/kontrollen/verifyReason";
-import { keyProofFor, NO_TELEMETRY_KEY_PROOF, type KeyProofSource } from "@/lib/boxKeyProof";
+import { keyProofFor, NO_TELEMETRY_KEY_PROOF, type KeyProofSource } from "@/lib/box/boxKeyProof";
 
 export interface SessionEvent {
   type: "verschluss" | "kontrolle" | "orgasmus" | "cleaning";

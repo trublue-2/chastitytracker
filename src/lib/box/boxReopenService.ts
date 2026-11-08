@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getIsLocked, getInterruptedLockPeriod } from "@/lib/queries";
-import { boxIsPhysicallyLocked } from "@/lib/boxStatus";
-import { setBoxCommandForUser } from "@/lib/boxCommand";
-import { announceBoxCommand } from "@/lib/boxCommandNotify";
+import { boxIsPhysicallyLocked } from "@/lib/box/boxStatus";
+import { setBoxCommandForUser } from "@/lib/box/boxCommand";
+import { announceBoxCommand } from "@/lib/box/boxCommandNotify";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 

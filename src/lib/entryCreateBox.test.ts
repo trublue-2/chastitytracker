@@ -28,16 +28,16 @@ vi.mock("@/lib/lockCommit", () => ({
   findPendingOpenTx: vi.fn(async () => null),
   openAwaitsBolt: vi.fn(async () => false),
 }));
-vi.mock("@/lib/boxCommand", async (orig) => ({ ...(await orig<object>()), setBoxCommandForUser: vi.fn(async () => true) }));
-vi.mock("@/lib/boxCommandNotify", () => ({ announceBoxCommand: vi.fn() }));
+vi.mock("@/lib/box/boxCommand", async (orig) => ({ ...(await orig<object>()), setBoxCommandForUser: vi.fn(async () => true) }));
+vi.mock("@/lib/box/boxCommandNotify", () => ({ announceBoxCommand: vi.fn() }));
 vi.mock("@/lib/entryNotify", () => ({ notifyControllersAboutEntry: vi.fn() }));
 
 import { createEntryForUser } from "./entryCreateService";
 import { getKgNeighbors, releaseLockPeriodsOnOpen } from "@/lib/queries";
 import { applyEntryFulfilment } from "@/lib/entryFulfilment";
 import { findPendingOpenTx, openAwaitsBolt } from "@/lib/lockCommit";
-import { setBoxCommandForUser } from "@/lib/boxCommand";
-import { announceBoxCommand } from "@/lib/boxCommandNotify";
+import { setBoxCommandForUser } from "@/lib/box/boxCommand";
+import { announceBoxCommand } from "@/lib/box/boxCommandNotify";
 import { notifyControllersAboutEntry } from "@/lib/entryNotify";
 import type { User } from "@prisma/client";
 

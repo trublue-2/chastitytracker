@@ -15,7 +15,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: { $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(txMock)) },
 }));
 // Heimdall-Push ist fire-and-forget und für die Regel unerheblich.
-vi.mock("@/lib/heimdallNotify", () => ({ notifyHeimdallForUserId: vi.fn(), notifyHeimdall: vi.fn() }));
+vi.mock("@/lib/box/heimdallNotify", () => ({ notifyHeimdallForUserId: vi.fn(), notifyHeimdall: vi.fn() }));
 
 import { carryOverLockPeriodOnAlreadyLocked, lockPeriodFromRequest } from "./verschlussAnforderungService";
 

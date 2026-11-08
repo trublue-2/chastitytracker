@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import InfoDot from "@/app/components/InfoDot";
-import type { BoxRow } from "@/lib/boxStatus";
+import type { BoxRow } from "@/lib/box/boxStatus";
 
 /**
  * Das ⓘ mit den Angaben zum Gerät — Name und Firmware je Box.

@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import {
   codeCheckPath, compareCodeReads, codeChangeNeedsReview,
   type CodeChangeState, type CodeChangeVerdict,
-} from "@/lib/lockboxCodeCheck";
+} from "@/lib/box/lockboxCodeCheck";
 import { getControllerAudience, getKeyholdersOfUser } from "@/lib/auth/keyholder";
 import { notifyControllers } from "@/lib/notify";
 import { isCodePhotoRevealed } from "@/lib/queries";

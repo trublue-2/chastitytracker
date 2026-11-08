@@ -4,9 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { errorResponse } from "@/lib/serviceResult";
 import { boxCouplingEnabled } from "@/lib/constants";
 import { getIsLocked, getCurrentLockKeyInBox } from "@/lib/queries";
-import { setBoxCommandForUser } from "@/lib/boxCommand";
+import { setBoxCommandForUser } from "@/lib/box/boxCommand";
 import { PENDING_LOCK_FILTER } from "@/lib/lockPending";
-import { announceBoxCommand } from "@/lib/boxCommandNotify";
+import { announceBoxCommand } from "@/lib/box/boxCommandNotify";
 
 export const dynamic = "force-dynamic";
 

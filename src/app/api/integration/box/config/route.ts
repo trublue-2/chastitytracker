@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireBoxSync } from "@/lib/boxSync";
+import { requireBoxSync } from "@/lib/box/boxSync";
 import { getActiveLockPeriod } from "@/lib/queries";
 
 export const runtime = "nodejs";
