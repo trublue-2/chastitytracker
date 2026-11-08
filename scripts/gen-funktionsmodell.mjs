@@ -1,6 +1,6 @@
 /**
  * Erzeugt `docs/funktionsmodell/stellschrauben.md` aus `prisma/schema.prisma` +
- * `src/lib/funktionsmodellRegistry.ts`.
+ * `src/lib/funktionsmodell/funktionsmodellRegistry.ts`.
  *
  *   npm run funktionsmodell
  *
@@ -30,7 +30,7 @@ const server = await createServer({
 });
 
 try {
-  const doc = await server.ssrLoadModule("/src/lib/funktionsmodellDoc.ts");
+  const doc = await server.ssrLoadModule("/src/lib/funktionsmodell/funktionsmodellDoc.ts");
   const schema = doc.parsePrismaSchema(await fs.readFile(path.join(root, "prisma/schema.prisma"), "utf8"));
 
   // Erst prüfen, dann schreiben. Ein Register mit Lücken zu generieren wäre schlimmer als keines:
@@ -39,7 +39,7 @@ try {
   const complaints = Object.entries(problems).filter(([, list]) => list.length > 0);
   if (complaints.length > 0) {
     for (const [kind, list] of complaints) console.error(`${kind}: ${list.join(", ")}`);
-    console.error("\nRegistry ergänzen (src/lib/funktionsmodellRegistry.ts), dann erneut ausführen.");
+    console.error("\nRegistry ergänzen (src/lib/funktionsmodell/funktionsmodellRegistry.ts), dann erneut ausführen.");
     process.exitCode = 1;
   } else {
     for (const [rel, render] of outputs) {

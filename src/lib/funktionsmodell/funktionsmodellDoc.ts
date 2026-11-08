@@ -21,10 +21,10 @@ import {
   type FmTarget,
 } from "./funktionsmodellRegistry";
 import { FM_CAPABILITIES, FM_EXCLUDED_ROUTES, type FmCapability, type FmSurface } from "./funktionsmodellCapabilities";
-import type { SchemaField, SchemaFields } from "./prismaSchema";
+import type { SchemaField, SchemaFields } from "../prismaSchema";
 
 // Weitergereicht, weil `scripts/gen-funktionsmodell.mjs` und der Test den Parser über dieses Modul laden.
-export { parsePrismaSchema, type SchemaField, type SchemaFields } from "./prismaSchema";
+export { parsePrismaSchema, type SchemaField, type SchemaFields } from "../prismaSchema";
 
 /** Ein Registry-Eintrag samt der Schema-Form, auf die er sich beruft. */
 export interface ResolvedEntry {
@@ -140,7 +140,7 @@ export function renderStellschrauben(schema: SchemaFields): string {
   lines.push("# Stellschrauben-Register");
   lines.push("");
   lines.push("<!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +");
-  lines.push("     src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->");
+  lines.push("     src/lib/funktionsmodell/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->");
   lines.push("");
   lines.push(`Jedes Feld, das Verhalten steuert: ${settings.length} Stellschrauben über ${FM_SCANNED_MODELS.length} Modelle.`);
   lines.push("Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem");
@@ -305,7 +305,7 @@ export function renderAbhaengigkeiten(): string {
 
   lines.push("# Abhängigkeiten je Funktion");
   lines.push("");
-  lines.push("<!-- GENERIERT — nicht von Hand ändern. Quelle: src/lib/funktionsmodellRegistry.ts");
+  lines.push("<!-- GENERIERT — nicht von Hand ändern. Quelle: src/lib/funktionsmodell/funktionsmodellRegistry.ts");
   lines.push("     (`affects` je Stellschraube + FM_WIRED_EDGES) · neu erzeugen: `npm run funktionsmodell` -->");
   lines.push("");
   lines.push("Für jede Mechanik: **was in sie hineinwirkt** und **worauf sie selbst wirkt**. Die Steckbriefe");
@@ -385,7 +385,7 @@ export function renderFunktionen(): string {
 
   lines.push("# Funktionskatalog");
   lines.push("");
-  lines.push("<!-- GENERIERT — nicht von Hand ändern. Quelle: src/lib/funktionsmodellCapabilities.ts");
+  lines.push("<!-- GENERIERT — nicht von Hand ändern. Quelle: src/lib/funktionsmodell/funktionsmodellCapabilities.ts");
   lines.push("     neu erzeugen: `npm run funktionsmodell` -->");
   lines.push("");
   lines.push("Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für");

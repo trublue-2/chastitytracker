@@ -21,9 +21,9 @@ import {
 import { FM_CAPABILITIES, FM_EXCLUDED_ROUTES, FM_MCP_EXEMPT } from "./funktionsmodellCapabilities";
 import { readApiRoutes, readMcpTools } from "./funktionsmodellSurfaces";
 import { FM_REGISTRY, FM_SCANNED_MODELS } from "./funktionsmodellRegistry";
-import { SELF_EDITABLE_USER_FIELDS } from "./constants";
+import { SELF_EDITABLE_USER_FIELDS } from "../constants";
 
-const root = path.resolve(__dirname, "../..");
+const root = path.resolve(__dirname, "../../..");
 const schema = parsePrismaSchema(fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8"));
 const DOC = path.join(root, "docs/funktionsmodell/stellschrauben.md");
 const DEPS = path.join(root, "docs/funktionsmodell/05-abhaengigkeiten.md");
