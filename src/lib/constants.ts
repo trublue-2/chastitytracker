@@ -30,6 +30,13 @@ export function mcpHelpUrl(locale: string): string {
     : `${MARKETING_URL}/blog/ki-keyholder-mcp`;
 }
 
+/** Download-Seite der Android-App auf der Marketing-Seite. `publicId` (öffentliche Census-Kennung)
+ *  lässt das Portal einen Download der Instanz zuordnen, von der er kam — nie der Hostname. */
+export function androidAppPageUrl(locale: string, publicId: string | null): string {
+  const base = locale === "en" ? `${MARKETING_URL}/en/app` : `${MARKETING_URL}/app`;
+  return publicId ? `${base}?i=${publicId}` : base;
+}
+
 /**
  * Sprungmarke der Aufgaben-Historie auf dem Sub-Dashboard (`TaskList`).
  *

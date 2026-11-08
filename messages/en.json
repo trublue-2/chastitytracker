@@ -915,7 +915,9 @@
     "targetKeyholderApplies": "Your keyholder set {value} — that value applies.",
     "weightReminderLabel": "Weigh-in reminder",
     "weightReminderHint": "When a weighing window opens and nothing has been logged that day.",
-    "targetUnderweightWarning": "This target is in the underweight range (BMI below 18.5). You can still set it."
+    "targetUnderweightWarning": "This target is in the underweight range (BMI below 18.5). You can still set it.",
+    "androidAppTitle": "Android app",
+    "androidAppHint": "Install as an app – with fingerprint lock and notifications"
   },
   "changelog": {
     "title": "Changelog",

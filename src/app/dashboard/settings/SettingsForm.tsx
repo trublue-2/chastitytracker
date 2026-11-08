@@ -29,10 +29,11 @@ import LockmeboxConnect from "@/app/components/LockmeboxConnect";
 import BoxRemoveButton from "./BoxRemoveButton";
 import TelegramSettings from "./TelegramSettings";
 import PushAllowRow from "./PushAllowRow";
+import AndroidAppRow from "./AndroidAppRow";
 import type { SettingsFormProps } from "./getSettingsProps";
 import { formColCls } from "@/app/components/inputStyles";
 
-export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, notifyMail, notifyPush, notifyTelegram, telegramConfigured, telegramLinked, mailReachable, pushReachable, mailConfigured, version, buildDate, feedback, census, weight, journal, box, instanceSections }: SettingsFormProps & {
+export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, notifyMail, notifyPush, notifyTelegram, telegramConfigured, telegramLinked, mailReachable, pushReachable, mailConfigured, version, buildDate, feedback, census, androidAppUrl, weight, journal, box, instanceSections }: SettingsFormProps & {
   /** Abschnitte, die der INSTANZ gehören statt der Person — heute die Foto-Prüfung. Nur die
    *  Admin-Seite reicht sie herein; im Träger-Bereich bleibt die Maske rein persönlich. Innerhalb
    *  des `<main>`, damit sie in derselben Spalte und Landmarke stehen wie der Rest. */
@@ -408,6 +409,8 @@ export default function SettingsForm({ username, email, locale, timezone, startP
               im APP-Abschnitt und hiess „Push-Benachrichtigungen": zwei Bildschirme entfernt von der
               Push-Stufe und von ihr nicht zu unterscheiden. */}
           <PushAllowRow device={pushDevice} />
+
+          {androidAppUrl && <AndroidAppRow url={androidAppUrl} />}
 
           {/* Wie laut jeder Kanal sein darf. Die Meldung selbst wird immer in den Posteingang
               geschrieben — die Stufe bestimmt nur, was zusätzlich zugestellt wird, und eine Frist

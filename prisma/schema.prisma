@@ -225,6 +225,7 @@ model User {
   userRelationships              AdminUserRelationship[]  @relation("UserRelationships")
   pushSubscriptions              PushSubscription[]
   nativePushTokens               NativePushToken[]
+  nativeAppClients               NativeAppClient[]
   passkeys                       Passkey[]
   deviceCategories               DeviceCategory[]
   boxEvents                      BoxEvent[]
@@ -961,6 +962,25 @@ model NativePushToken {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+}
+
+// Eine installierte App (iOS/Android) je Nutzer und Gerät — wer die App nutzt, in welcher Version,
+// wann zuletzt. Die App meldet sich selbst (`/api/native/app-seen`); `installId` ist eine zufällige
+// Kennung, die die App einmal erzeugt und in ihren Preferences behält. Das Portal liest die Tabelle
+// direkt aus der Instanz-DB; der Census zählt nur.
+model NativeAppClient {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  installId   String
+  platform    String // "ios" | "android"
+  appVersion  String
+  appBuild    String
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  @@unique([userId, installId])
+  @@index([lastSeenAt])
 }
 
 // Web Push subscriptions for PWA push notifications.

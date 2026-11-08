@@ -5,7 +5,7 @@ import { getRecipientChannels } from "@/lib/notificationPrefs";
 import { telegramLinkAvailable } from "@/lib/telegram";
 import { hasPushTarget } from "@/lib/push";
 import { mailReaches, mailConfigured } from "@/lib/mail";
-import { boxCouplingEnabled, isValidStartPage, lockmeboxEnabled, toNotifyLevel, type NotifyLevel } from "@/lib/constants";
+import { androidAppPageUrl, boxCouplingEnabled, isValidStartPage, lockmeboxEnabled, toNotifyLevel, type NotifyLevel } from "@/lib/constants";
 import { toBoxKind, type BoxKind } from "@/lib/boxStatus";
 import type { WeightSettingsProps } from "./WeightSettings";
 import type { UnitSystem } from "@/lib/weight";
@@ -15,6 +15,7 @@ import pkg from "@/../package.json";
 import type { FeedbackSetup } from "@/lib/feedback";
 import { feedbackSetup } from "@/lib/feedbackSetup";
 import { publicIdentity } from "@/lib/census";
+import { isPortalInstance } from "@/lib/portalInstance";
 
 export interface SettingsFormProps {
   username: string;
@@ -59,6 +60,8 @@ export interface SettingsFormProps {
   /** Öffentliche Instanz-Kennung und Image-Herkunft (Issue #15) — nur für Admins, zum Abschreiben in
    *  ein GitHub-Issue. */
   census: Awaited<ReturnType<typeof publicIdentity>> | null;
+  /** Download-Seite der Android-App — nur auf Portal-Instanzen: die App nimmt nur deren Domains an. */
+  androidAppUrl: string | null;
   /** Gewichtstracking — `null`, wenn die Keyholderin es für diesen Sub nicht freigeschaltet hat.
    *  Der Abschnitt erscheint dann gar nicht. */
   weight: WeightSettingsProps | null;
@@ -155,6 +158,7 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
   const startPageDisplay =
     isValidStartPage(startPage) || controlledSubs.some((s) => s.id === startPage) ? startPage : "auto";
 
+  const identity = await publicIdentity();
   return {
     username,
     email,
@@ -176,7 +180,8 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
     version: pkg.version,
     buildDate: process.env.BUILD_DATE ?? undefined,
     feedback: await feedbackSetup(),
-    census: isAdmin ? await publicIdentity() : null,
+    census: isAdmin ? identity : null,
+    androidAppUrl: isPortalInstance() ? androidAppPageUrl(locale, identity.publicId) : null,
     weight,
     journal,
     box: boxCouplingEnabled() && userId ? await boxSettings(userId) : null,

@@ -133,6 +133,9 @@ export interface CensusStats {
   wearHours: number;
   /** Konten je Sprache. */
   locales: Record<string, number>;
+  /** Installierte Apps, die sich in den letzten 30 Tagen gemeldet haben: Plattform → Version → Anzahl.
+   *  Ohne Konten — wer die App nutzt, sieht nur das Portal bei seinen eigenen Instanzen. */
+  apps: Record<string, Record<string, number>>;
   features: {
     /** Gekoppelte Boxen je Art (`heimdall`, `lockmebox`). */
     boxes: Record<string, number>;
@@ -150,7 +153,7 @@ const DAY_MS = 86_400_000;
 
 /** Sammelt die Census-Nutzlast. Wirft bei Datenbankfehlern — der Aufrufer schickt dann ohne. */
 export async function collectCensusStats(now = new Date(), env: Record<string, string | undefined> = process.env): Promise<CensusStats> {
-  const [publicId, users, wearerRows, activeRows, keyholderRows, localeRows, boxRows, weight, kgEntries, vision] = await Promise.all([
+  const [publicId, users, wearerRows, activeRows, keyholderRows, localeRows, boxRows, weight, kgEntries, vision, appRows] = await Promise.all([
     censusPublicId(),
     prisma.user.count(),
     prisma.entry.groupBy({ by: ["userId"] }),
@@ -164,7 +167,15 @@ export async function collectCensusStats(now = new Date(), env: Record<string, s
       select: { userId: true, type: true, startTime: true, boltConfirmedAt: true, openAwaitsBolt: true },
     }),
     currentVisionConfig(now),
+    prisma.nativeAppClient.groupBy({
+      by: ["platform", "appVersion"],
+      where: { lastSeenAt: { gte: new Date(now.getTime() - 30 * DAY_MS) } },
+      _count: { _all: true },
+    }),
   ]);
+
+  const apps: Record<string, Record<string, number>> = {};
+  for (const r of appRows) (apps[r.platform] ??= {})[r.appVersion] = r._count._all;
 
   let wearHours = 0;
   let lockedNow = 0;
@@ -188,6 +199,7 @@ export async function collectCensusStats(now = new Date(), env: Record<string, s
     keyholders: keyholderRows.length,
     wearHours: Math.round(wearHours),
     locales: Object.fromEntries(localeRows.map((r) => [r.locale, r._count._all])),
+    apps,
     features: {
       boxes: Object.fromEntries(boxRows.map((r) => [r.kind, r._count._all])),
       vision: vision.provider === "off" ? "off" : visionSpec(vision).external ? "external" : "local",

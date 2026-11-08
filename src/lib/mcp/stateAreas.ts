@@ -123,6 +123,7 @@ export const STATE_IGNORED_TABLES: Readonly<Record<string, string>> = {
   PasswordResetToken: "Konto",
   TelegramLinkToken: "Konto",
   NativePushToken: "Geräte-Registrierung",
+  NativeAppClient: "Geräte-Registrierung",
   PushSubscription: "Geräte-Registrierung",
   NotificationPreference: "Benachrichtigungs-Wege des Menschen",
   OAuthCode: "Konto",

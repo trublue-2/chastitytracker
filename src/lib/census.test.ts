@@ -34,6 +34,7 @@ beforeEach(() => {
   db.adminUserRelationship.groupBy.mockResolvedValue([]);
   db.user.groupBy.mockResolvedValue([]);
   db.boxStatus.groupBy.mockResolvedValue([]);
+  db.nativeAppClient.groupBy.mockResolvedValue([]);
 });
 
 describe("imageOrigin", () => {
@@ -91,6 +92,10 @@ describe("collectCensusStats", () => {
     db.adminUserRelationship.groupBy.mockResolvedValue([{ adminId: "k" }]);
     db.user.groupBy.mockResolvedValue([{ locale: "de", _count: { _all: 2 } }, { locale: "en", _count: { _all: 1 } }]);
     db.boxStatus.groupBy.mockResolvedValue([{ kind: "heimdall", _count: { _all: 1 } }]);
+    db.nativeAppClient.groupBy.mockResolvedValue([
+      { platform: "android", appVersion: "1.0.1", _count: { _all: 2 } },
+      { platform: "ios", appVersion: "1.4", _count: { _all: 1 } },
+    ]);
     db.entry.findMany.mockResolvedValue([
       // a: 10 h abgeschlossen
       kg("a", "VERSCHLUSS", "2026-10-16T00:00:00Z"), kg("a", "OEFFNEN", "2026-10-16T10:00:00Z"),
@@ -104,6 +109,7 @@ describe("collectCensusStats", () => {
       v: 1, publicId: "0123456789abcdef", portal: true, image: { origin: "official" },
       users: 3, wearers: 2, active7d: 1, lockedNow: 1, keyholders: 1, wearHours: 12,
       locales: { de: 2, en: 1 },
+      apps: { android: { "1.0.1": 2 }, ios: { "1.4": 1 } },
       features: { boxes: { heimdall: 1 }, vision: "off", mcp: true, telegram: false, weight: 1 },
     });
     expect(db.entry.groupBy.mock.calls[1][0].where.createdAt.gte).toEqual(new Date("2026-10-10T12:00:00Z"));

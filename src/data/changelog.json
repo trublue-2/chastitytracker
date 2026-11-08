@@ -16,6 +16,13 @@
           "de": "In der App zeigt der Changelog jetzt auch die Version der installierten App.",
           "en": "In the app, the changelog now also shows the version of the installed app."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Im Browser auf Android führt die Zeile „Android-App“ in den Einstellungen zum Download der App.",
+          "en": "In the browser on Android, the “Android app” row in the settings leads to the app download."
+        }
       }
     ]
   },

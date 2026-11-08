@@ -915,7 +915,9 @@
     "targetKeyholderApplies": "Deine Keyholderin hat {value} gesetzt — dieser Wert gilt.",
     "weightReminderLabel": "Erinnerung ans Wiegen",
     "weightReminderHint": "Zum Beginn eines Wiege-Fensters, wenn an dem Tag noch kein Wert steht.",
-    "targetUnderweightWarning": "Dieses Ziel liegt im Untergewicht (BMI unter 18,5). Du kannst es trotzdem setzen."
+    "targetUnderweightWarning": "Dieses Ziel liegt im Untergewicht (BMI unter 18,5). Du kannst es trotzdem setzen.",
+    "androidAppTitle": "Android-App",
+    "androidAppHint": "Als App installieren – mit Sperre per Fingerabdruck und Mitteilungen"
   },
   "changelog": {
     "title": "Changelog",

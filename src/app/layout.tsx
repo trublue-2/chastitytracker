@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import Heartbeat from "@/app/components/Heartbeat";
 import NativePushRouter from "@/app/components/NativePushRouter";
+import NativeAppReporter from "@/app/components/NativeAppReporter";
 import ToastProvider from "@/app/components/ToastProvider";
 import AppLockLoader from "@/app/components/AppLockLoader";
 import LocaleCookieSync from "@/app/components/LocaleCookieSync";
@@ -124,6 +125,7 @@ export default async function RootLayout({
             <AppLockLoader />
             <Heartbeat buildDate={process.env.BUILD_DATE ?? "local"} initialUserId={sessionUserId ?? null} />
             <NativePushRouter />
+            {sessionUserId && <NativeAppReporter userId={sessionUserId} />}
             <Script id="sw-register" strategy="afterInteractive">{`
               if ('serviceWorker' in navigator && window.location.hostname !== 'localhost') {
                 navigator.serviceWorker.register('/sw.js').catch(function(err) {

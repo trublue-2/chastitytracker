@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-121 Funktionen über 19 Mechaniken, davon 14 ohne jede Bedienung — sie laufen von selbst.
+122 Funktionen über 19 Mechaniken, davon 14 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -204,6 +204,7 @@ Steckbrief: [75-benachrichtigungen.md](75-benachrichtigungen.md)
 | **Telegram verbinden** | Verknüpft den eigenen Telegram-Chat als dritten Kanal (Deep-Link + `/start`-Token) und koppelt ihn wieder ab. <br>*Selbstbedienung des Subs, kein Keyholder-Feld — deshalb kein MCP-Weg (die KI verknüpft keinen eigenen Chat). Wie laut der Kanal sein darf, sagt seine Stufe (`notify-prefs-sub`).* | Sub | App (Träger) | `/api/settings/telegram` |
 | **Telegram-Webhook** | Nimmt `/start <token>` des Bots entgegen und schreibt die Chat-ID an den Nutzer. <br>*Telegram ruft an, keine Session; über das `secret_token` im Header gesichert (in der Whitelist von `proxy.ts`).* | System | Gegenstelle | `/api/telegram/webhook` |
 | **Push-Empfang einrichten** | Meldet Browser-Abonnements und Gerätetoken der App an und wieder ab. | Sub, Keyholder (UI) | App (Träger) | `/api/push/subscribe` `/api/push/native-subscribe` `/api/push/vapid-public-key` |
+| **App-Nutzung melden** | Die iOS- und Android-App meldet beim Start Plattform, Version und Build; das Portal sieht, wer welche App nutzt, der Census zählt nur. | Sub, Keyholder (UI) | App (Träger) | `/api/native/app-seen` |
 | **Terminierte Direktiven zustellen** | Der Minuten-Takt stellt Kontrollen, Sperrzeiten, Orgasmus-Fenster und Aufgaben zu, sobald sie wirksam werden. <br>*Bis dahin existiert die Direktive für den Träger nicht — keine Anzeige, keine laufende Frist.* | System | läuft von selbst | — |
 
 ## MCP

@@ -126,11 +126,29 @@ aber keinen Web-Versions-Bump.
 
 ## Verteilen
 
-- **APK zum Herunterladen**, z.B. als GitHub-Release. Auf dem Gerät einmal „Installation aus
-  unbekannten Quellen" für Browser oder Dateimanager erlauben.
-- **Obtainium** (freie App) beobachtet die GitHub-Releases und installiert Updates selbst. Das kommt
-  TestFlight am nächsten, ohne eigenen Update-Dienst.
-- **Firebase App Distribution**: Tester-Einladung per Mail, im selben Firebase-Projekt wie der Push.
+Die APK liegt zum Download auf der Marketing-Website (`/app`, EN `/en/app`). Die Datei selbst
+liefert das Portal aus: Traefik leitet `/download/` der Marketing-Domain aufs Portal
+(`/download/android`, Angaben unter `/download/android/meta`). Das Portal zählt jeden Download
+(Datum, Version, Gerätetyp; keine IP, kein Cookie) und zeigt ihn unter `/admin/apps`.
+
+Veröffentlichen, nach dem Hochzählen von `versionCode`:
+
+```bash
+ANDROID_PUBLISH_TARGET=<user>@<host>:<portal>/data/android scripts/publish-android.sh
+```
+
+In den Tracker-Einstellungen erscheint im Android-Browser die Zeile „Android-App" (nur auf
+Portal-Instanzen, `AndroidAppRow`). Ihr Link trägt die öffentliche Census-Kennung der Instanz
+(`?i=`); das Portal ordnet den Download damit der Instanz zu.
+
+**Wer die App nutzt:** Die App meldet sich bei ihrer Instanz (`NativeAppReporter` →
+`/api/native/app-seen`, höchstens stündlich) mit Plattform, Version, Build und einer zufälligen
+Installations-ID (`ct_install_id` in den Preferences). Daraus wird je Nutzer und Gerät eine Zeile
+`NativeAppClient`. Das Portal liest sie beim Aktivitäts-Sync aus den Instanz-DBs; der Census
+meldet nur Anzahlen je Plattform und Version.
+
+Self-Hoster bekommen keine native App: die Hülle nimmt nur die drei Basis-Domains an, und Push
+braucht die privaten Schlüssel des Projekts. Für sie bleibt die PWA mit Web-Push.
 
 ---
 

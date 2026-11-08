@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ExternalLink } from "lucide-react";
 
 interface ExpandRowProps {
   /** Bewusst ReactNode statt string: eine Zeile darf ihren Titel auszeichnen (fett bei ungelesen,
@@ -19,6 +19,8 @@ interface ExpandRowProps {
   actions?: React.ReactNode;
   /** Nur relevant, wenn `onToggle` gesetzt ist. */
   children?: React.ReactNode;
+  /** Statt aufzuklappen führt die Zeile nach aussen (neuer Tab) — dieselbe Zeile, nur als Link. */
+  href?: string;
 }
 
 /** Geometrie der Zeile — geteilt von der aufklappbaren und der statischen Fassung. */
@@ -35,7 +37,7 @@ function RowText({ label, subtitle }: { label: React.ReactNode; subtitle?: React
   );
 }
 
-export default function ExpandRow({ label, subtitle, open, onToggle, actions, children }: ExpandRowProps) {
+export default function ExpandRow({ label, subtitle, open, onToggle, actions, children, href }: ExpandRowProps) {
   // `aria-controls` zeigt nur, solange das Panel wirklich im DOM steht — ein IDREF ins Leere ist
   // schlechter als keiner. Den Zustand trägt in beiden Fällen `aria-expanded`.
   const panelId = useId();
@@ -52,7 +54,12 @@ export default function ExpandRow({ label, subtitle, open, onToggle, actions, ch
         {/* Ein `button` nur, wenn es etwas zu tun gibt. Ohne `onToggle` dasselbe Element als `div`:
             gleiche Klassen, gleicher Platz — nur ohne Rolle, ohne `aria-expanded` und ohne Chevron,
             das ein Aufklappen verspräche, das nicht kommt. */}
-        {onToggle ? (
+        {href ? (
+          <a href={href} target="_blank" rel="noopener noreferrer" className={ROW_CLS}>
+            <RowText label={label} subtitle={subtitle} />
+            <ExternalLink size={16} className="shrink-0 text-foreground-faint" aria-hidden />
+          </a>
+        ) : onToggle ? (
           <button
             type="button"
             aria-expanded={open}

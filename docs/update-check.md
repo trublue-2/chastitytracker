@@ -38,6 +38,7 @@ Inhalt von `X-Instance-Stats` (`src/lib/census.ts`, Feld `v` = Schema-Version):
 | `users`, `wearers`, `active7d`, `lockedNow`, `keyholders` | Anzahl Konten; davon mit mindestens einem Eintrag; mit neuem Eintrag in den letzten 7 Tagen; gerade verschlossen; als Keyholder zugeordnet |
 | `wearHours` | gesammelte KG-Tragestunden aller Konten (gerundet) |
 | `locales` | Konten je Sprache |
+| `apps` | installierte iOS-/Android-Apps, die sich in den letzten 30 Tagen gemeldet haben, je Plattform und App-Version (nur Anzahlen) |
 | `features` | gekoppelte Boxen je Art, Foto-Prüfung (`off` / `local` / `external`), MCP, Bildersafe, Telegram (je an/aus), Konten mit Gewichtstracking |
 
 Die Client-IP sieht der Collector wie bei jeder HTTP-Anfrage; er speichert sie **nicht im Klartext**,

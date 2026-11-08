@@ -629,6 +629,11 @@ export const FM_CAPABILITIES: FmCapability[] = [
     routes: ["/api/push/subscribe", "/api/push/native-subscribe", "/api/push/vapid-public-key"],
   }),
   c({
+    id: "app-usage", mechanic: "Benachrichtigungen", title: "App-Nutzung melden",
+    what: "Die iOS- und Android-App meldet beim Start Plattform, Version und Build; das Portal sieht, wer welche App nutzt, der Census zählt nur.",
+    actors: ["sub", "admin"], surfaces: ["sub-ui"], routes: ["/api/native/app-seen"],
+  }),
+  c({
     id: "directive-dispatch", mechanic: "Benachrichtigungen", title: "Terminierte Direktiven zustellen",
     what: "Der Minuten-Takt stellt Kontrollen, Sperrzeiten, Orgasmus-Fenster und Aufgaben zu, sobald sie wirksam werden.",
     actors: ["system"], surfaces: ["automatik"],
