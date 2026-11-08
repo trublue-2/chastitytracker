@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { dueWeighingReminder, reminderMark } from "./weightReminder";
-import { ALL_WEEKDAYS, weekdayMaskOf } from "./weekdays";
+import { ALL_WEEKDAYS, weekdayMaskOf } from "../weekdays";
 
 const w = (start: string, durationMin: number, over: Partial<{ days: number; remind: boolean }> = {}) =>
   ({ start, durationMin, days: ALL_WEEKDAYS, remind: true, ...over });

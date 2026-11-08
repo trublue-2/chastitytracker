@@ -8,7 +8,7 @@ import { mailReaches, mailConfigured } from "@/lib/mail";
 import { boxCouplingEnabled, isValidStartPage, lockmeboxEnabled, toNotifyLevel, type NotifyLevel } from "@/lib/constants";
 import { toBoxKind, type BoxKind } from "@/lib/boxStatus";
 import type { WeightSettingsProps } from "./WeightSettings";
-import type { UnitSystem } from "@/lib/weight";
+import type { UnitSystem } from "@/lib/weight/weight";
 import { journalSettingsOf } from "@/lib/journal/journalService";
 import type { JournalSettingsProps } from "./JournalSettings";
 import pkg from "@/../package.json";

@@ -3,7 +3,7 @@ import {
   activeWeighingWindow, inWeighingWindow, nextWeighingWindow, parseWeighingWindows,
   weighingWindowEnd, weighingWindowsProblem,
 } from "./weightWindows";
-import { ALL_WEEKDAYS, weekdayMaskOf } from "./weekdays";
+import { ALL_WEEKDAYS, weekdayMaskOf } from "../weekdays";
 
 /** Ein Fenster in der Form, die in der Spalte steht. `days` weglassen heisst „täglich". */
 const w = (start: string, durationMin: number, over: Partial<{ days: number; remind: boolean }> = {}) =>

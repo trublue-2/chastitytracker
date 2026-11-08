@@ -10,7 +10,7 @@ import FormError from "@/app/components/FormError";
 import Button from "@/app/components/Button";
 import Input from "@/app/components/Input";
 import Textarea from "@/app/components/Textarea";
-import { parseDecimalInput, weightInputToKg, weightText, type UnitSystem } from "@/lib/weight";
+import { parseDecimalInput, weightInputToKg, weightText, type UnitSystem } from "@/lib/weight/weight";
 
 /**
  * Das Drei-Punkte-Menü einer Wiege-Zeile: korrigieren und löschen.

@@ -1,4 +1,4 @@
-import { dayNumber } from "@/lib/weight";
+import { dayNumber } from "@/lib/weight/weight";
 
 /**
  * Die Meldepflicht: **mehr als drei Tage ohne Angabe sind ein Versäumnis.**

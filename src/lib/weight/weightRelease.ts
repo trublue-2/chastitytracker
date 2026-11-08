@@ -1,6 +1,6 @@
 import { round1 } from "@/lib/utils";
-import { dayNumber, weightDayKey } from "@/lib/weight";
-import { movingAverage, type WeightPoint } from "@/lib/weightSeries";
+import { dayNumber, weightDayKey } from "@/lib/weight/weight";
+import { movingAverage, type WeightPoint } from "@/lib/weight/weightSeries";
 
 /**
  * Die Freigabe-Vorgabe: wann das Gewicht das nächste Orgasmus-Fenster öffnet

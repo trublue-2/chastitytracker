@@ -4,7 +4,7 @@ import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { collectDetectedOffenses, cleaningNotRelockedRef, STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafurteilService";
 import { offenseState, offenseNeedsAttention, type OffenseState } from "@/lib/offenseTypes";
 import { taskFailureKind, type TaskFailureKind } from "@/lib/tasks";
-import { missedWeightRef } from "@/lib/weightObligation";
+import { missedWeightRef } from "@/lib/weight/weightObligation";
 import { loadStatements } from "@/lib/offenseStatementService";
 
 // ── Strafbuch-Snapshot ────────────────────────────────────────────────────────

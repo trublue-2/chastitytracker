@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { withDeltas } from "@/lib/weightRows";
+import { withDeltas } from "@/lib/weight/weightRows";
 
 /** Eine Zeile, wie die Abfrage sie liefert — nur die Felder, die `withDeltas` anfasst. */
 function row(dayKey: string, weightKg: number) {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
-import { deleteWeightEntry, updateWeightEntry } from "@/lib/weightService";
+import { deleteWeightEntry, updateWeightEntry } from "@/lib/weight/weightService";
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
 
 /**

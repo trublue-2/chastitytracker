@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { mapServiceError, serviceErrors, serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { NO_FIELDS_TO_UPDATE } from "@/lib/constants";
-import { weighingWindowsProblem, parseWeighingWindows } from "@/lib/weightWindows";
-import { WEIGHT_USER_SELECT } from "@/lib/weightService";
+import { weighingWindowsProblem, parseWeighingWindows } from "@/lib/weight/weightWindows";
+import { WEIGHT_USER_SELECT } from "@/lib/weight/weightService";
 import { OFFENSE_RULE_CHANGE_SELECT } from "@/lib/offenseRulesService";
 import { offenseRuleResolver } from "@/lib/offenseRules";
-import { heightProblem, isUnitSystem, weightProblem, HEIGHT_EPOCH, type UnitSystem } from "@/lib/weight";
+import { heightProblem, isUnitSystem, weightProblem, HEIGHT_EPOCH, type UnitSystem } from "@/lib/weight/weight";
 
 /**
  * Schreibpfad der Gewichts-Einstellungen. Zwei Türen, weil zwei Rollen verschiedene Felder setzen:

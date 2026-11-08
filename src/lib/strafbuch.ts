@@ -9,9 +9,9 @@ import { evaluateTasks, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskInterv
 import { isTaskOffense, type TaskOffenseState } from "@/lib/tasks";
 import { triggeredWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { CONFIRMED_LOCK_FILTER } from "@/lib/lockPending";
-import { missedWeightBlocks, missedWeightRef } from "@/lib/weightObligation";
+import { missedWeightBlocks, missedWeightRef } from "@/lib/weight/weightObligation";
 import { isPausedAt, toHealthHoldSpans, type HealthHoldSpan } from "@/lib/healthHold";
-import { addWeightDays, endOfWeightDay, weightDayKey } from "@/lib/weight";
+import { addWeightDays, endOfWeightDay, weightDayKey } from "@/lib/weight/weight";
 import { isSwitchableOffenseType, offenseRuleResolver, validOffenseRuleChanges, type OffenseRuleResolver } from "@/lib/offenseRules";
 import {
   CLEANING_RULE_CHANGE_SELECT, cleaningPermissionUserAt, cleaningRulesFrom, cleaningRulesAt,

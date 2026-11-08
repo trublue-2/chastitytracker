@@ -6,7 +6,7 @@ import { actionSign } from "@/app/entries/actionSign";
 import { useLocale, useTranslations } from "next-intl";
 import { fromDatetimeLocal, round1 } from "@/lib/utils";
 import { RELEASE_AVERAGE_DAYS_RANGE, RELEASE_WINDOW_HOURS_RANGE } from "@/lib/constants";
-import { parseDecimalInput, weightForDisplay, weightInputToKg, weightText, type UnitSystem } from "@/lib/weight";
+import { parseDecimalInput, weightForDisplay, weightInputToKg, weightText, type UnitSystem } from "@/lib/weight/weight";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import FieldTabs from "@/app/components/FieldTabs";

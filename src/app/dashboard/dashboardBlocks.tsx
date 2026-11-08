@@ -4,8 +4,8 @@ import { isBoxPhotoDue } from "@/lib/boxPhotoDue";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { block, type StackBlock } from "@/lib/blockStack";
-import { weightReleaseStatus } from "@/lib/weightReleaseService";
-import type { UnitSystem } from "@/lib/weight";
+import { weightReleaseStatus } from "@/lib/weight/weightReleaseService";
+import type { UnitSystem } from "@/lib/weight/weight";
 import type { SubDashboardBlockId } from "@/lib/dashboardBlockRegistry";
 import type { ResolvedLayout } from "@/lib/dashboardLayout";
 import {

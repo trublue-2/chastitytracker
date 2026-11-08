@@ -63,8 +63,8 @@ vi.mock("@/lib/orgasmusAnforderungService", async (importOriginal) => {
   return { ...actual, createOrgasmusAnforderung: vi.fn(), withdrawOrgasmusAnforderung: vi.fn() };
 });
 // `checkWeightRelease` bleibt ECHT — die Vorschau ruft genau sie auf; nur die Bestandsleser stehen daneben.
-vi.mock("@/lib/weightReleaseService", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/weightReleaseService")>();
+vi.mock("@/lib/weight/weightReleaseService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/weight/weightReleaseService")>();
   return { ...actual, openWeightRelease: vi.fn(async () => null), weightReleaseStatus: vi.fn(async () => null), setWeightRelease: vi.fn(), withdrawWeightRelease: vi.fn() };
 });
 vi.mock("@/lib/releaseNowService", async (importOriginal) => {
@@ -97,7 +97,7 @@ import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, requireDetectedOffense } from "@/lib/strafurteilService";
 import { releaseNow } from "@/lib/releaseNowService";
-import { setWeightRelease } from "@/lib/weightReleaseService";
+import { setWeightRelease } from "@/lib/weight/weightReleaseService";
 import { CLEANING_WINDOWS_MAX } from "@/lib/constants";
 import { ALL_WEEKDAYS, weekdayMaskOf } from "@/lib/weekdays";
 import { taskRow } from "@/test/taskRow";

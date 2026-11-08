@@ -20,8 +20,8 @@ import {
   OFFENSE_MODE_I18N_KEYS, OFFENSE_TYPE_I18N_KEYS, switchableOffenseTypesFor,
 } from "@/lib/offenseLabels";
 import { getOffenseRules } from "@/lib/offenseRulesService";
-import { weightReleaseStatus } from "@/lib/weightReleaseService";
-import { weightText, type UnitSystem } from "@/lib/weight";
+import { weightReleaseStatus } from "@/lib/weight/weightReleaseService";
+import { weightText, type UnitSystem } from "@/lib/weight/weight";
 import { APP_TZ, formatDateTime, toDateLocale } from "@/lib/utils";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { ALL_WEEKDAYS, weekdayMaskLabel } from "@/lib/weekdays";

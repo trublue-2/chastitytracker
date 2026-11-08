@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
-import { setWeightRelease, withdrawWeightRelease } from "@/lib/weightReleaseService";
+import { setWeightRelease, withdrawWeightRelease } from "@/lib/weight/weightReleaseService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 /** Freigabe-Vorgabe stellen (docs/gewicht-freigabe-konzept.md). Der Dienst prüft Gate, Richtung,

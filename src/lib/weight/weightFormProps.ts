@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { APP_TZ, nowDatetimeLocal } from "@/lib/utils";
 import { getMobileDesktopMode } from "@/lib/queries";
-import { activeWeighingWindow, nextWeighingWindow, weighingWindowEnd } from "@/lib/weightWindows";
-import { lastWeightBefore } from "@/lib/weightService";
-import type { UnitSystem } from "@/lib/weight";
+import { activeWeighingWindow, nextWeighingWindow, weighingWindowEnd } from "@/lib/weight/weightWindows";
+import { lastWeightBefore } from "@/lib/weight/weightService";
+import type { UnitSystem } from "@/lib/weight/weight";
 
 /**
  * Was das Erfassungs-Formular an Server-Wissen braucht — für den Träger und für die Keyholderin

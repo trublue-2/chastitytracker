@@ -43,7 +43,7 @@ import JournalMoodCard, { type MoodChartPoint } from "./JournalMoodCard";
 import { auth } from "@/lib/auth";
 import { canReadJournal } from "@/lib/keyholder";
 import { journalMoodSeries } from "@/lib/journal/journalService";
-import { getWeightStatsProps } from "@/lib/weightStatsProps";
+import { getWeightStatsProps } from "@/lib/weight/weightStatsProps";
 import { ShieldAlert } from "lucide-react";
 
 /**

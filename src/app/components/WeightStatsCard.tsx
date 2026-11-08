@@ -10,9 +10,9 @@ import FieldTabs from "@/app/components/FieldTabs";
 import MeasurementChart from "@/app/components/MeasurementChart";
 import WeightRowList from "@/app/components/WeightRowList";
 import { round1 } from "@/lib/utils";
-import { bmi, dayNumber, targetProgress, weightForDisplay, weightText, type UnitSystem, type WeightTarget } from "@/lib/weight";
-import { buildWeightSeries, withinRange } from "@/lib/weightSeries";
-import type { WeightRowData } from "@/lib/weightRows";
+import { bmi, dayNumber, targetProgress, weightForDisplay, weightText, type UnitSystem, type WeightTarget } from "@/lib/weight/weight";
+import { buildWeightSeries, withinRange } from "@/lib/weight/weightSeries";
+import type { WeightRowData } from "@/lib/weight/weightRows";
 
 /**
  * Die Gewichts-Karte der Statistik: Kennzahlen, Verlauf, Ziel und Fortschritt.

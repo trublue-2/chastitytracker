@@ -4,8 +4,8 @@ import ListPager from "@/app/components/ListPager";
 import WeightRow from "@/app/components/WeightRow";
 import usePagedList from "@/app/hooks/usePagedList";
 import { LIST_PAGE_SIZE } from "@/lib/constants";
-import type { UnitSystem } from "@/lib/weight";
-import type { WeightRowData } from "@/lib/weightRows";
+import type { UnitSystem } from "@/lib/weight/weight";
+import type { WeightRowData } from "@/lib/weight/weightRows";
 
 /**
  * Die Wiegungen als geblätterte Liste — jüngste zuerst, im Blätter-Muster der übrigen Listen.

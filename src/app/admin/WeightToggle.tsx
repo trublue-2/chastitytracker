@@ -16,8 +16,8 @@ import InlineSettingRow from "@/app/components/InlineSettingRow";
 import { editRowCardCls, inlineLabelCls as faintCls } from "@/app/components/inputStyles";
 import { WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE } from "@/lib/constants";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
-import { parseDecimalInput, weightFieldValue, weightText, weightInputToKg, type UnitSystem } from "@/lib/weight";
-import { weighingWindowEnd, type WeighingWindow } from "@/lib/weightWindows";
+import { parseDecimalInput, weightFieldValue, weightText, weightInputToKg, type UnitSystem } from "@/lib/weight/weight";
+import { weighingWindowEnd, type WeighingWindow } from "@/lib/weight/weightWindows";
 import { ALL_WEEKDAYS } from "@/lib/weekdays";
 
 /**

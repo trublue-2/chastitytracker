@@ -1,13 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { APP_TZ, round1 } from "@/lib/utils";
-import { weightReleaseStatus } from "@/lib/weightReleaseService";
+import { weightReleaseStatus } from "@/lib/weight/weightReleaseService";
 import {
   bmi, dayNumber, effectiveTarget, startWeightIn, subTargetOf, targetProgress, weightDayKey,
   weightProblem,
-} from "@/lib/weight";
-import { inWeighingWindow, parseWeighingWindows } from "@/lib/weightWindows";
-import { buildWeightSeries } from "@/lib/weightSeries";
-import { recordWeight, targetStartWeight, WEIGHT_USER_SELECT } from "@/lib/weightService";
+} from "@/lib/weight/weight";
+import { inWeighingWindow, parseWeighingWindows } from "@/lib/weight/weightWindows";
+import { buildWeightSeries } from "@/lib/weight/weightSeries";
+import { recordWeight, targetStartWeight, WEIGHT_USER_SELECT } from "@/lib/weight/weightService";
 import { type WriteDef, type WriteResult, diffFields } from "@/lib/mcp/writeFramework";
 
 /**

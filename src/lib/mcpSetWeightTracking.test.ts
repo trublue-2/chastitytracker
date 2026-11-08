@@ -12,14 +12,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   prisma: { user: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn() } },
 }));
-vi.mock("@/lib/weightSettingsService", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/weightSettingsService")>();
+vi.mock("@/lib/weight/weightSettingsService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/weight/weightSettingsService")>();
   return { ...actual, setWeightSettingsKeyholder: vi.fn().mockResolvedValue({ ok: true, data: null }) };
 });
 
 import { mcpSetWeightTracking } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
-import { setWeightSettingsKeyholder } from "@/lib/weightSettingsService";
+import { setWeightSettingsKeyholder } from "@/lib/weight/weightSettingsService";
 import { ALL_WEEKDAYS, weekdayMaskOf } from "./weekdays";
 
 const findUniqueOrThrowMock = prisma.user.findUniqueOrThrow as unknown as ReturnType<typeof vi.fn>;

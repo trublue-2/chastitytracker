@@ -3,14 +3,14 @@ import { mapServiceError, serviceErrors, serviceFail, type ServiceResult } from 
 import { CLIENT_CLOCK_SKEW_MS, isValidImageUrl } from "@/lib/constants";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
 import { APP_TZ } from "@/lib/utils";
-import { inWeighingWindow } from "@/lib/weightWindows";
+import { inWeighingWindow } from "@/lib/weight/weightWindows";
 import {
   effectiveTarget, targetEventToAnnounce, weightDayKey, weightForDisplay, weightProblem,
   type UnitSystem, type WeightTarget,
-} from "@/lib/weight";
+} from "@/lib/weight/weight";
 import { notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
-import { applyWeightRelease } from "@/lib/weightReleaseService";
+import { applyWeightRelease } from "@/lib/weight/weightReleaseService";
 
 /**
  * Das Erfassen einer Messung — der eine Schreibweg, den Formular, Keyholder-Aktion und (später) der

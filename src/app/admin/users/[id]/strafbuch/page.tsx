@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { toDateLocale, formatDateTimeDual, formatDate, APP_TZ } from "@/lib/utils";
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { cleaningNotRelockedRef } from "@/lib/strafurteilService";
-import { missedWeightRef } from "@/lib/weightObligation";
+import { missedWeightRef } from "@/lib/weight/weightObligation";
 import { loadStatementsOfUser } from "@/lib/offenseStatementService";
 import { passwordChangeViaLabel } from "@/lib/constants";
 import { getLocale, getTranslations } from "next-intl/server";

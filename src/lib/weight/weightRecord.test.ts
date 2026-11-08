@@ -14,10 +14,10 @@ vi.mock("@/lib/prisma", () => {
   };
 });
 
-vi.mock("@/lib/weightReleaseService", () => ({ applyWeightRelease: vi.fn().mockResolvedValue(null) }));
+vi.mock("@/lib/weight/weightReleaseService", () => ({ applyWeightRelease: vi.fn().mockResolvedValue(null) }));
 
 import { recordWeight, updateWeightEntry } from "./weightService";
-import { applyWeightRelease } from "@/lib/weightReleaseService";
+import { applyWeightRelease } from "@/lib/weight/weightReleaseService";
 import { prisma } from "@/lib/prisma";
 
 const tx = (prisma as unknown as { __tx: {

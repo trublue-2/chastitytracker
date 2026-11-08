@@ -8,7 +8,7 @@ import WeightFormCore, { type WeightPayload } from "@/app/entries/WeightFormCore
 import type { SubmitResult } from "@/app/entries/types";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import type { UnitSystem } from "@/lib/weight";
+import type { UnitSystem } from "@/lib/weight/weight";
 
 interface Props {
   tz: string;

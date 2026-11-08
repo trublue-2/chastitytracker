@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { pruneExpiredMessages } from "@/lib/messageService";
-import { pruneWeightPhotos } from "@/lib/weightService";
-import { sendDueWeighingReminders } from "@/lib/weightReminder";
+import { pruneWeightPhotos } from "@/lib/weight/weightService";
+import { sendDueWeighingReminders } from "@/lib/weight/weightReminder";
 import { LOCK_ENDED_REASON } from "@/lib/constants";
 import { NOTIFY_RECIPIENT_SELECT } from "@/lib/notify";
 import { sendKontrolleNotification, deriveSealCode, hasActiveKontrolle, inspectionCodeRequired } from "@/lib/kontrolleService";

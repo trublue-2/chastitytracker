@@ -11,12 +11,12 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 vi.mock("@/lib/authGuards", () => ({ requireKeyholderOrAdminApi: vi.fn() }));
-vi.mock("@/lib/weightService", () => ({ deleteWeightEntry: vi.fn(), updateWeightEntry: vi.fn() }));
+vi.mock("@/lib/weight/weightService", () => ({ deleteWeightEntry: vi.fn(), updateWeightEntry: vi.fn() }));
 
 import { DELETE, PATCH } from "./route";
 import { prisma } from "@/lib/prisma";
 import { requireKeyholderOrAdminApi } from "@/lib/authGuards";
-import { deleteWeightEntry, updateWeightEntry } from "@/lib/weightService";
+import { deleteWeightEntry, updateWeightEntry } from "@/lib/weight/weightService";
 import type { PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;

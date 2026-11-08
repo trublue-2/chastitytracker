@@ -2,10 +2,10 @@ import { getLocale } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { APP_TZ, formatDate, toDateLocale } from "@/lib/utils";
-import { effectiveTarget, startWeightIn, weightDayKey, type UnitSystem } from "@/lib/weight";
-import { WEIGHT_USER_SELECT } from "@/lib/weightService";
-import { loadWeightRows } from "@/lib/weightRows";
-import { openWeightRelease } from "@/lib/weightReleaseService";
+import { effectiveTarget, startWeightIn, weightDayKey, type UnitSystem } from "@/lib/weight/weight";
+import { WEIGHT_USER_SELECT } from "@/lib/weight/weightService";
+import { loadWeightRows } from "@/lib/weight/weightRows";
+import { openWeightRelease } from "@/lib/weight/weightReleaseService";
 import type { WeightStatsCardProps } from "@/app/components/WeightStatsCard";
 
 /**

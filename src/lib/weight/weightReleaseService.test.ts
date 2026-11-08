@@ -26,7 +26,7 @@ vi.mock("@/lib/orgasmusAnforderungService", () => ({ createOrgasmusAnforderung: 
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 vi.mock("@/lib/keyholder", () => ({ getControllersOfUser: vi.fn().mockResolvedValue([]) }));
 
-import { applyWeightRelease, setWeightRelease } from "@/lib/weightReleaseService";
+import { applyWeightRelease, setWeightRelease } from "@/lib/weight/weightReleaseService";
 import { prisma } from "@/lib/prisma";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import type { PrismaMock } from "@/test/prismaMock";
@@ -149,7 +149,7 @@ describe("was aus dem rohen Request-Body kommt", () => {
 describe("weightReleaseStatus — nextThresholdKg am 25-Stunden-Tag", () => {
   it("Herbst-Wende 25.10.2026, 00:30 Ortszeit: 'morgen' ist der 26.10., nicht noch der 25.", async () => {
     // Früher: now + 86_400_000 ms = 25.10. 23:30 Ortszeit — wieder HEUTE, die Schwelle rückte nicht vor.
-    const { weightReleaseStatus } = await import("@/lib/weightReleaseService");
+    const { weightReleaseStatus } = await import("@/lib/weight/weightReleaseService");
     db.weightRelease.findFirst.mockResolvedValue({
       ...RELEASE, stepKg: 0.5, armedAt: new Date("2026-10-19T22:00:00Z"), notBeforeAt: new Date("2026-10-19T22:00:00Z"),
     });

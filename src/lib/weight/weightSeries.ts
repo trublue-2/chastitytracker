@@ -1,5 +1,5 @@
 import { round1 } from "@/lib/utils";
-import { dayNumber, type WeightTarget } from "@/lib/weight";
+import { dayNumber, type WeightTarget } from "@/lib/weight/weight";
 
 /**
  * Aus den erfassten Messungen die Reihe machen, die das Diagramm zeichnet: Punkte, Trendlinie,

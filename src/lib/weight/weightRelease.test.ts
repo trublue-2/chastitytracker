@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { evaluateRelease, thresholdOn, type ReleaseRule } from "@/lib/weightRelease";
-import type { WeightPoint } from "@/lib/weightSeries";
+import { evaluateRelease, thresholdOn, type ReleaseRule } from "@/lib/weight/weightRelease";
+import type { WeightPoint } from "@/lib/weight/weightSeries";
 
 const TZ = "Europe/Zurich";
 const at = (day: string, hour = 7) => new Date(`${day}T0${hour}:00:00+02:00`);

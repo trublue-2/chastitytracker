@@ -8,7 +8,7 @@ import { strafbuchCached } from "@/lib/dashboardData";
 import { openOffensesOf, selectSubOffenses } from "@/lib/subOffenses";
 import { STORED_TYPE } from "@/lib/offenseTypes";
 import { offenseNameKey } from "@/lib/offenseLabels";
-import { weightDayKey } from "@/lib/weight";
+import { weightDayKey } from "@/lib/weight/weight";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
 import { getLocale, getTranslations } from "next-intl/server";

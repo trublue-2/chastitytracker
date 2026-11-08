@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { midnightOfLocalDate, APP_TZ } from "@/lib/utils";
-import { weightDayKey } from "@/lib/weight";
+import { weightDayKey } from "@/lib/weight/weight";
 import { getUserTimezone } from "@/lib/queries";
 import { reorderVorgabenDates } from "@/lib/vorgaben";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";

@@ -7,7 +7,7 @@ import { hasLockmebox } from "@/lib/boxStatus";
 import { iso, makeIso, buildEnvelope, tzOf, APP_TZ, parseIsoDate, parseStringArray, type Envelope, type Iso } from "@/lib/mcp/common";
 import { assertVersionRequiresId, diffFields, occEdit, type WriteDef } from "@/lib/mcp/writeFramework";
 import { autoKontrolleSettingsFromUser, autoInspectionsView, AUTO_KONTROLLE_SETTINGS_SELECT, type AutoInspectionsView } from "@/lib/autoKontrolleService";
-import { weightReleaseStatus } from "@/lib/weightReleaseService";
+import { weightReleaseStatus } from "@/lib/weight/weightReleaseService";
 import { cleaningUsedToday, buildCleaningView, type CleaningView, CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import { getActiveLockPeriod, cleaningWindowBindingStatus, pendingLockCallAt, type WindowsBindingReason } from "@/lib/queries";
 import { type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";

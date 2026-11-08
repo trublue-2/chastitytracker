@@ -13,7 +13,7 @@ import { setCleaningSettings } from "@/lib/cleaningService";
 import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
 import { setReasonConfig } from "@/lib/reasonsService";
-import { setWeightSettingsKeyholder } from "@/lib/weightSettingsService";
+import { setWeightSettingsKeyholder } from "@/lib/weight/weightSettingsService";
 import { boxCouplingEnabled } from "@/lib/constants";
 import { setLockRequiresBolt } from "@/lib/lockCommit";
 import { setOffenseStatementsAllowed } from "@/lib/offenseStatementService";

@@ -3,9 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { getUserTimezone } from "@/lib/queries";
 import { nowDatetimeLocal } from "@/lib/utils";
-import { currentWeightAverage, openWeightRelease } from "@/lib/weightReleaseService";
+import { currentWeightAverage, openWeightRelease } from "@/lib/weight/weightReleaseService";
 import { RELEASE_AVERAGE_DAYS_RANGE } from "@/lib/constants";
-import type { UnitSystem } from "@/lib/weight";
+import type { UnitSystem } from "@/lib/weight/weight";
 import WeightReleaseForm from "./WeightReleaseForm";
 
 /**

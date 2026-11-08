@@ -3,8 +3,8 @@ import { getTranslations } from "next-intl/server";
 import { actionSign } from "@/app/entries/actionSign";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
-import { getWeightFormProps } from "@/lib/weightFormProps";
-import { weighingWindowHint } from "@/lib/weightWindows";
+import { getWeightFormProps } from "@/lib/weight/weightFormProps";
+import { weighingWindowHint } from "@/lib/weight/weightWindows";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import WeightForm from "@/app/dashboard/WeightForm";
 

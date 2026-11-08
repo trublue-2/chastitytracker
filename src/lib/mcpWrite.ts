@@ -7,13 +7,13 @@ import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, extendInspe
 import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, validateGoalTargets, findActiveVorgabe } from "@/lib/vorgabeService";
 import { setCleaningSettings, maxPausesPerDaySentinel, parseCleaningWindows, cleaningWindowListProblem, formatCleaningWindows, type CleaningWindows, CLEANING_USER_SELECT } from "@/lib/cleaningService";
-import { checkWeightRelease, openWeightRelease, setWeightRelease, weightReleaseStatus, withdrawWeightRelease } from "@/lib/weightReleaseService";
-import { setWeightSettingsKeyholder } from "@/lib/weightSettingsService";
+import { checkWeightRelease, openWeightRelease, setWeightRelease, weightReleaseStatus, withdrawWeightRelease } from "@/lib/weight/weightReleaseService";
+import { setWeightSettingsKeyholder } from "@/lib/weight/weightSettingsService";
 import { setOffenseRule, getOffenseRules } from "@/lib/offenseRulesService";
 import { isSwitchableOffenseType, isValidOffenseMode, OFFENSE_RULE_MODES, type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
 import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
-import { parseWeighingWindows, weighingWindowEnd, weighingWindowsProblem, type WeighingWindow } from "@/lib/weightWindows";
-import { effectiveTarget, isUnderweightTarget, keyholderTargetOf, subTargetOf, weightProblem } from "@/lib/weight";
+import { parseWeighingWindows, weighingWindowEnd, weighingWindowsProblem, type WeighingWindow } from "@/lib/weight/weightWindows";
+import { effectiveTarget, isUnderweightTarget, keyholderTargetOf, subTargetOf, weightProblem } from "@/lib/weight/weight";
 import { ALL_WEEKDAYS, isoDaysOfMask, weekdayMaskKeys, weekdayMaskOf, weekdayMaskValid } from "@/lib/weekdays";
 import { parseWeekdayGoalRules, type WeekdayGoalRule } from "@/lib/weekdayGoal";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
