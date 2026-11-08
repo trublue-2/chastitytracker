@@ -3,8 +3,8 @@ import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
-import { JOURNAL_HREF, asVisibility } from "@/lib/journal";
-import { ownJournalEntry } from "@/lib/journalService";
+import { JOURNAL_HREF, asVisibility } from "@/lib/journal/journal";
+import { ownJournalEntry } from "@/lib/journal/journalService";
 import { APP_TZ, nowDatetimeLocal, toDatetimeLocal } from "@/lib/utils";
 import JournalForm from "../../../JournalForm";
 

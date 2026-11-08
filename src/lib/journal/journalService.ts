@@ -18,7 +18,7 @@ import {
   type JournalRange,
   type JournalRow,
   type KeyholderJournalRow,
-} from "@/lib/journal";
+} from "@/lib/journal/journal";
 import { serviceFail, type ServiceFailure, type ServiceResult } from "@/lib/serviceResult";
 import { buildSessions } from "@/lib/sessionModel";
 import { orgasmTimes, tzDateParts } from "@/lib/utils";

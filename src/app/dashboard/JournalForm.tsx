@@ -17,7 +17,7 @@ import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import type { SubmitResult } from "@/app/entries/types";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { JOURNAL_MOOD_MAX, JOURNAL_MOOD_MIN, JOURNAL_TEXT_MAX, type JournalVisibility } from "@/lib/constants";
-import { JOURNAL_HREF } from "@/lib/journal";
+import { JOURNAL_HREF } from "@/lib/journal/journal";
 import { fromDatetimeLocal } from "@/lib/utils";
 
 /** „Keine" und die Stufen 1–5 — die Auswahl, in der Reihenfolge der Knöpfe. */

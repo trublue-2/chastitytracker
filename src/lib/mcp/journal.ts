@@ -1,6 +1,6 @@
 import { canReadJournal } from "@/lib/keyholder";
-import { journalMonthOf, journalPageQuery, monthParam } from "@/lib/journal";
-import { listKeyholderJournal } from "@/lib/journalService";
+import { journalMonthOf, journalPageQuery, monthParam } from "@/lib/journal/journal";
+import { listKeyholderJournal } from "@/lib/journal/journalService";
 import { msToHours } from "@/lib/utils";
 import { buildEnvelope, makeIso, resolveUserContext, type Envelope } from "./common";
 

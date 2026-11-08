@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
-import { journalPageQuery } from "@/lib/journal";
-import { createJournalEntry, listOwnJournal } from "@/lib/journalService";
+import { journalPageQuery } from "@/lib/journal/journal";
+import { createJournalEntry, listOwnJournal } from "@/lib/journal/journalService";
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
 import { APP_TZ } from "@/lib/utils";
 

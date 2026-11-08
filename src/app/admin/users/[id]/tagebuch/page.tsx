@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserTimezone } from "@/lib/queries";
 import JournalBrowser from "@/app/components/JournalBrowser";
 import { titleCls } from "@/app/components/inputStyles";
-import { loadJournalView } from "@/lib/journalService";
+import { loadJournalView } from "@/lib/journal/journalService";
 
 export const dynamic = "force-dynamic";
 

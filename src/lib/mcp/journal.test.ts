@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Keyholderin, und nur über den einen Lesepfad, der Privates gar nicht lädt.
  */
 vi.mock("@/lib/keyholder", () => ({ canReadJournal: vi.fn() }));
-vi.mock("@/lib/journalService", () => ({ listKeyholderJournal: vi.fn() }));
+vi.mock("@/lib/journal/journalService", () => ({ listKeyholderJournal: vi.fn() }));
 vi.mock("./common", async (orig) => ({
   ...(await orig<typeof import("./common")>()),
   resolveUserContext: vi.fn(async () => ({ id: "sub1", timezone: "UTC" })),
@@ -13,7 +13,7 @@ vi.mock("./common", async (orig) => ({
 
 import { sharedJournal, SharedJournalDenied } from "./journal";
 import { canReadJournal } from "@/lib/keyholder";
-import { listKeyholderJournal } from "@/lib/journalService";
+import { listKeyholderJournal } from "@/lib/journal/journalService";
 
 beforeEach(() => {
   vi.clearAllMocks();

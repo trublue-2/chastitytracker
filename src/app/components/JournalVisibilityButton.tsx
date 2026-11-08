@@ -10,7 +10,7 @@ import { useApiError } from "@/app/hooks/useApiError";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import type { JournalVisibility } from "@/lib/constants";
 import JournalVisibilityOptions from "./JournalVisibilityOptions";
-import { asVisibility } from "@/lib/journal";
+import { asVisibility } from "@/lib/journal/journal";
 
 /**
  * Das Sichtbarkeits-Etikett eines eigenen Tagebuch-Eintrags — und zugleich der Weg, es zu ändern.

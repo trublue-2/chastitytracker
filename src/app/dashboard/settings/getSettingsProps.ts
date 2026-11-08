@@ -9,7 +9,7 @@ import { boxCouplingEnabled, isValidStartPage, lockmeboxEnabled, toNotifyLevel, 
 import { toBoxKind, type BoxKind } from "@/lib/boxStatus";
 import type { WeightSettingsProps } from "./WeightSettings";
 import type { UnitSystem } from "@/lib/weight";
-import { journalSettingsOf } from "@/lib/journalService";
+import { journalSettingsOf } from "@/lib/journal/journalService";
 import type { JournalSettingsProps } from "./JournalSettings";
 import pkg from "@/../package.json";
 import type { FeedbackSetup } from "@/lib/feedback";

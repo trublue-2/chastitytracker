@@ -8,7 +8,7 @@ import {
   toKeyholderView,
   type JournalRow,
 } from "./journal";
-import type { Session } from "./sessionModel";
+import type { Session } from "@/lib/sessionModel";
 
 const NOW = new Date("2026-10-16T20:00:00Z");
 const H = 3_600_000;

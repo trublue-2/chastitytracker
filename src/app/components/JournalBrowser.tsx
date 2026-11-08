@@ -8,8 +8,8 @@ import Input from "./Input";
 import JournalEntryCard from "./JournalEntryCard";
 import Select from "./Select";
 import { iconActionCls, quietLinkCls } from "./inputStyles";
-import { monthParam, toCardEntry, type JournalMonth } from "@/lib/journal";
-import type { JournalView } from "@/lib/journalService";
+import { monthParam, toCardEntry, type JournalMonth } from "@/lib/journal/journal";
+import type { JournalView } from "@/lib/journal/journalService";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { formatMonthYear, mondayIndexOfLocalDate, toDateLocale } from "@/lib/utils";
 

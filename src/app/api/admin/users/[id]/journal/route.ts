@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireJournalReaderApi } from "@/lib/authGuards";
-import { journalPageQuery } from "@/lib/journal";
-import { listKeyholderJournal } from "@/lib/journalService";
+import { journalPageQuery } from "@/lib/journal/journal";
+import { listKeyholderJournal } from "@/lib/journal/journalService";
 import { getUserTimezone } from "@/lib/queries";
 
 /**

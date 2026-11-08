@@ -9,13 +9,13 @@ import { NextRequest } from "next/server";
  */
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/keyholder", () => ({ canReadJournal: vi.fn(), isKeyholderOf: vi.fn(), getControllableSubsCached: vi.fn() }));
-vi.mock("@/lib/journalService", () => ({ listKeyholderJournal: vi.fn(async () => ({ entries: [], hasMore: false })) }));
+vi.mock("@/lib/journal/journalService", () => ({ listKeyholderJournal: vi.fn(async () => ({ entries: [], hasMore: false })) }));
 vi.mock("@/lib/queries", () => ({ getUserTimezone: vi.fn(async () => "Europe/Zurich") }));
 
 import { GET } from "./route";
 import { auth } from "@/lib/auth";
 import { canReadJournal } from "@/lib/keyholder";
-import { listKeyholderJournal } from "@/lib/journalService";
+import { listKeyholderJournal } from "@/lib/journal/journalService";
 
 const SUB = "sub00000000000000000001";
 const call = (query = "") =>
