@@ -1,4 +1,5 @@
-import { formatDate, formatDurationBetween, formatTime } from "@/lib/shared/utils";
+import { formatDate, formatTime } from "@/lib/shared/time";
+import { formatDurationBetween } from "@/lib/shared/duration";
 import { type Session } from "@/lib/entries/sessionModel";
 
 /** Die Darstellungs-Schicht über `buildWearSessions` (Session-Modell): fertige Zeilen für die

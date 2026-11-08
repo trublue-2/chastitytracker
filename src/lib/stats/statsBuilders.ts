@@ -1,7 +1,6 @@
-import {
-  dayKeyOfLocalDate, formatMonthYear, formatTime, formatTotalHours, midnightAfterDays, midnightOfLocalDate,
-  mondayIndexOfLocalDate, tzDateParts, tzDayKey, wearingHoursFromPairs, type WearPair,
-} from "@/lib/shared/utils";
+import { dayKeyOfLocalDate, formatMonthYear, formatTime, midnightAfterDays, midnightOfLocalDate, mondayIndexOfLocalDate, tzDateParts, tzDayKey } from "@/lib/shared/time";
+import { formatTotalHours } from "@/lib/shared/duration";
+import { wearingHoursFromPairs, type WearPair } from "@/lib/shared/utils";
 import { periodTarget } from "@/lib/stats/goalFulfillment";
 import { segmentedGoalWindows, NO_SEGMENTED_GOAL, type SegmentedGoalProgress } from "@/lib/stats/goalSegments";
 import { parseWeekdayGoalRules, resolveDayTarget } from "@/lib/stats/weekdayGoal";

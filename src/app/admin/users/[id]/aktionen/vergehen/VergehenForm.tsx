@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Gavel } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { fromDatetimeLocal } from "@/lib/shared/utils";
+import { fromDatetimeLocal } from "@/lib/shared/time";
 import { MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH } from "@/lib/shared/constants";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import DateTimePicker from "@/app/components/DateTimePicker";

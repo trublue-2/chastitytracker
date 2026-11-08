@@ -1,4 +1,4 @@
-import { tzDateParts, midnightOfLocalDate, midnightAfterDays, getWeekStart, getMidnightToday, formatDayMonth, formatMonthYear } from "@/lib/shared/utils";
+import { tzDateParts, midnightOfLocalDate, midnightAfterDays, getWeekStart, getMidnightToday, formatDayMonth, formatMonthYear } from "@/lib/shared/time";
 import type { SessionEventData } from "@/app/dashboard/SessionEventRow";
 
 export interface TimelineBucket {

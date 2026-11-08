@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/shared/prisma";
 import { SESSION_ENTRY_SELECT, CATEGORY_LIST_ORDER, CATEGORY_LIST_SELECT, getUserTimezone, getNonKgTrackingCategories, getActiveWearSessions } from "@/lib/entries/queries";
-import { buildKgWearPairs, wearingHoursFromPairs, getWeekStart } from "@/lib/shared/utils";
+import { buildKgWearPairs, wearingHoursFromPairs } from "@/lib/shared/utils";
+import { getWeekStart } from "@/lib/shared/time";
 import { buildWearSessions, isLiveOpenSession, wearHourPairsByCategory } from "@/lib/entries/sessionModel";
 import { deviceCategoriesEnabled } from "@/lib/shared/constants";
 import { categoryNeedsDevice } from "@/lib/devices/categoryConstants";

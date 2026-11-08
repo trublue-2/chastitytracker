@@ -11,7 +11,7 @@ import { iconActionCls, quietLinkCls } from "./inputStyles";
 import { monthParam, toCardEntry, type JournalMonth } from "@/lib/journal/journal";
 import type { JournalView } from "@/lib/journal/journalService";
 import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
-import { formatMonthYear, mondayIndexOfLocalDate, toDateLocale } from "@/lib/shared/utils";
+import { formatMonthYear, mondayIndexOfLocalDate, toDateLocale } from "@/lib/shared/time";
 
 /**
  * Lesen und Wiederfinden im Tagebuch — für den Sub (`own`) und für die Keyholderin (`keyholder`)

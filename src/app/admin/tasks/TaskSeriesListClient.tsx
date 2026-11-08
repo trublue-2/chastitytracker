@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Repeat } from "lucide-react";
 import { useTranslations, useLocale } from "next-intl";
-import { toDateLocale } from "@/lib/shared/utils";
+import { toDateLocale } from "@/lib/shared/time";
 import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
 import { isoDaysOfMask } from "@/lib/stats/weekdays";
 import { parseApiErrorCode } from "@/lib/client/apiClient";

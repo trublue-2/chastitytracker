@@ -20,10 +20,8 @@ import { deviceCategoriesEnabled } from "@/lib/shared/constants";
 import { predictAutoMarkAt } from "@/lib/kontrollen/inspectionEscalationService";
 import { cleaningPermissionUserAt } from "@/lib/entries/cleaningRules";
 import { cleaningRelockObligation, cleaningWindowEnforcedFrom } from "@/lib/strafbuch/strafbuch";
-import {
-  formatDateTime, formatTime, interruptionPauseMs, runningCleaningPauseUntil,
-  getMidnightToday, getWeekStart, getMonthStart, wearingHoursFromPairs, joinParts,
-} from "@/lib/shared/utils";
+import { formatDateTime, formatTime, getMidnightToday, getWeekStart, getMonthStart } from "@/lib/shared/time";
+import { interruptionPauseMs, runningCleaningPauseUntil, wearingHoursFromPairs, joinParts } from "@/lib/shared/utils";
 import { wearHourPairsByCategory } from "@/lib/entries/sessionModel";
 import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/stats/goalSegments";
 import type { Translate } from "@/lib/box/boxStatus";

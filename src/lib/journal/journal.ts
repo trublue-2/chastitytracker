@@ -9,7 +9,7 @@ import {
 } from "@/lib/shared/constants";
 import type { ServiceErrorCode } from "@/lib/shared/serviceErrorCodes";
 import type { Session } from "@/lib/entries/sessionModel";
-import { midnightOfLocalDate } from "@/lib/shared/utils";
+import { midnightOfLocalDate } from "@/lib/shared/time";
 
 /**
  * Das Tagebuch des Subs (Issue #114) — der REINE Teil: Prüfung der Eingaben, die Sicht der

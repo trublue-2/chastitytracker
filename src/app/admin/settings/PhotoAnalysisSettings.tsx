@@ -12,7 +12,7 @@ import FormSuccess from "@/app/components/FormSuccess";
 import { useSettingsSave } from "@/app/hooks/useUserSettingsSave";
 import { useApiError } from "@/app/hooks/useApiError";
 import { fetchWithTimeout, parseApiErrorCode } from "@/lib/client/apiClient";
-import { formatDateTime, toDateLocale } from "@/lib/shared/utils";
+import { formatDateTime, toDateLocale } from "@/lib/shared/time";
 import { VISION_PROVIDERS, VISION_PROVIDER_IDS, adminSetsBaseUrl, type VisionProviderId } from "@/lib/vision/providers";
 import type { PhotoAnalysisView } from "@/lib/vision/config";
 import type { SelfTestResult } from "@/lib/vision/selfTest";

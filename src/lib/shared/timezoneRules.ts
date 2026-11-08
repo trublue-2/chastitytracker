@@ -18,7 +18,8 @@
  * verloren.
  */
 import { prisma } from "@/lib/shared/prisma";
-import { APP_TZ, effectiveAt } from "@/lib/shared/utils";
+import { APP_TZ } from "@/lib/shared/time";
+import { effectiveAt } from "@/lib/shared/utils";
 import { isValidTimezone } from "@/lib/shared/timezones";
 
 /** Eine Zeile aus `TimezoneChange` — genau die Felder, die der Resolver liest. */

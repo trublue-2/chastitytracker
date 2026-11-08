@@ -3,7 +3,7 @@ import { prisma } from "@/lib/shared/prisma";
 import { getTranslations } from "next-intl/server";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { getIsLocked, getUserTimezone } from "@/lib/entries/queries";
-import { nowDatetimeLocal } from "@/lib/shared/utils";
+import { nowDatetimeLocal } from "@/lib/shared/time";
 import { effectiveOeffnenGruende, resolveReasonList } from "@/lib/entries/reasonsService";
 import OeffnenForm from "./OeffnenForm";
 

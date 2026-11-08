@@ -10,11 +10,9 @@ import {
   vorgabenCached, wearCountsCached, wearPairsByCategoryCached, wearSessionsCached,
 } from "@/lib/stats/dashboardData";
 import { goalPct, sharePct } from "@/lib/stats/percent";
-import {
-  formatDate, formatDateTime, formatDurationMs, formatTotalHours, formatTotalMs,
-  buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday,
-  longestOrgasmFreeGap, summarizeSessions, tzDayKey, wearingHoursFromPairs, WEAR_PAIR,
-} from "@/lib/shared/utils";
+import { formatDate, formatDateTime, getMidnightToday, tzDayKey } from "@/lib/shared/time";
+import { formatDurationMs, formatTotalHours, formatTotalMs } from "@/lib/shared/duration";
+import { buildKontrolleItems, isSubVisibleKontrolle, longestOrgasmFreeGap, summarizeSessions, wearingHoursFromPairs, WEAR_PAIR } from "@/lib/shared/utils";
 import {
   buildCalendarMonths, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
 } from "@/lib/stats/statsBuilders";

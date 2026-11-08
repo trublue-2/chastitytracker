@@ -21,7 +21,8 @@ import {
 } from "@/lib/journal/journal";
 import { serviceFail, type ServiceFailure, type ServiceResult } from "@/lib/shared/serviceResult";
 import { buildSessions } from "@/lib/entries/sessionModel";
-import { orgasmTimes, tzDateParts } from "@/lib/shared/utils";
+import { orgasmTimes } from "@/lib/shared/utils";
+import { tzDateParts } from "@/lib/shared/time";
 
 /**
  * Das Tagebuch des Subs (Issue #114) — Laden und Schreiben. Die Regeln selbst stehen datenbankfrei in

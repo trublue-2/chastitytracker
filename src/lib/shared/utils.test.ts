@@ -1,41 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import {
-  generateKontrollCode,
-  buildPairs,
-  buildKgWearPairs,
-  wearingHoursFromPairs,
-  mergeWearPairs,
-  mapAnforderungStatus,
-  isSubVisibleKontrolle,
-  wornDeviceNameAt,
-  interruptionPauseMs,
-  pairDurationMs,
-  completedPairsFrom,
-  runningCleaningPauseUntil,
-  clampInputValue,
-  WEAR_PAIR,
-  formatDateTime,
-  toDatetimeLocal,
-  fromDatetimeLocal,
-  midnightInTZ,
-  getWeekStart,
-  getMonthStart,
-  getMonthEnd,
-  getYearStart,
-  getYearEnd,
-  formatDateTimeDual,
-  formatDayTimeDual,
-  tzDayKey,
-  dayKeyOfLocalDate,
-  mondayIndex,
-  mondayIndexOfLocalDate,
-  midnightOfLocalDate,
-  calculateWearingHoursByRange,
-  longestOrgasmFreeGap,
-  moveToEdge,
-  swapAt,
-  type CleaningPauseAllowance,
-} from "./utils";
+import { generateKontrollCode, buildPairs, buildKgWearPairs, wearingHoursFromPairs, mergeWearPairs, mapAnforderungStatus, isSubVisibleKontrolle, wornDeviceNameAt, interruptionPauseMs, pairDurationMs, completedPairsFrom, runningCleaningPauseUntil, clampInputValue, WEAR_PAIR, calculateWearingHoursByRange, longestOrgasmFreeGap, moveToEdge, swapAt, type CleaningPauseAllowance } from "./utils";
+import { formatDateTime, toDatetimeLocal, fromDatetimeLocal, midnightInTZ, getWeekStart, getMonthStart, getMonthEnd, getYearStart, getYearEnd, formatDateTimeDual, formatDayTimeDual, tzDayKey, dayKeyOfLocalDate, mondayIndex, mondayIndexOfLocalDate, midnightOfLocalDate } from "./time";
 
 // ─── Test fixtures ─────────────────────────────────────────────────────────
 

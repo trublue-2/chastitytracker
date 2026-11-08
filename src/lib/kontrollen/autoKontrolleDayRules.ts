@@ -1,5 +1,5 @@
 import { HHMM, INVALID_TIME, TIME_RANGE_INVALID } from "@/lib/shared/constants";
-import { hhmmToMinutes } from "@/lib/shared/utils";
+import { hhmmToMinutes } from "@/lib/shared/time";
 import type { ServiceErrorCode } from "@/lib/shared/serviceErrorCodes";
 import { firstWeekdayRule, parseWeekdayMask, weekdayMaskKeys, weekdayMaskValid } from "@/lib/stats/weekdays";
 import { listProblem, parseJsonList, type ListProblem } from "@/lib/shared/jsonList";

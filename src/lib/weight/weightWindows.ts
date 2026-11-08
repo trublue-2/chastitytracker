@@ -1,4 +1,4 @@
-import { APP_TZ, hhmmFromMinutes, hhmmInTZ, hhmmToMinutes } from "@/lib/shared/utils";
+import { APP_TZ, hhmmFromMinutes, hhmmInTZ, hhmmToMinutes } from "@/lib/shared/time";
 import { HHMM, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE } from "@/lib/shared/constants";
 import { isoDayPlus, isoWeekdayInTZ, parseWeekdayMask, weekdayMaskHas, weekdayMaskValid } from "@/lib/stats/weekdays";
 import type { ServiceErrorCode } from "@/lib/shared/serviceErrorCodes";

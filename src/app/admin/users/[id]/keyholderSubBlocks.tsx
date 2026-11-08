@@ -24,10 +24,9 @@ import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/stats/goalSe
 import { resolveOrgasmusArtDisplay } from "@/lib/entries/reasonsService";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollen/kontrollePills";
 import { inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
-import {
-  formatDate, formatTime, formatDurationMs, formatTotalHours, formatTotalMs,
-  interruptionPauseMs, isTimeCorrected, nowDatetimeLocal,
-} from "@/lib/shared/utils";
+import { formatDate, formatTime, nowDatetimeLocal } from "@/lib/shared/time";
+import { formatDurationMs, formatTotalHours, formatTotalMs } from "@/lib/shared/duration";
+import { interruptionPauseMs, isTimeCorrected } from "@/lib/shared/utils";
 import LaufendeSessionCard from "@/app/dashboard/LaufendeSessionCard";
 import StatusBanner from "@/app/dashboard/StatusBanner";
 import ActiveWearSessions from "@/app/dashboard/ActiveWearSessions";

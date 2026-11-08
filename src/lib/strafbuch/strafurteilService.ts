@@ -5,7 +5,7 @@ import { notifyUser, type NotifyContent } from "@/lib/messages/notify";
 import { recordSystemMessage, DISMISSAL_BODY_KEY, OFFENSE_REF_TYPE, type MessageActor } from "@/lib/messages/messageService";
 import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/shared/serviceResult";
 import { checkTask, writeTask, taskAssignmentNotice, type CreateTaskParams } from "@/lib/tasks/taskService";
-import { formatDateTime } from "@/lib/shared/utils";
+import { formatDateTime } from "@/lib/shared/time";
 import { markLastAction } from "@/lib/upstream/appMeta";
 import { offenseWasAnnounced } from "@/lib/strafbuch/offenseAnnounce";
 import { STORED_TYPE, type OffenseCanonicalType, type StoredOffenseType } from "@/lib/strafbuch/offenseTypes";

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
 import { auth } from "@/lib/auth/auth";
-import { APP_TZ, toDateLocale } from "@/lib/shared/utils";
+import { APP_TZ, toDateLocale } from "@/lib/shared/time";
 import { viewerLayout } from "@/lib/ui/viewerLayout";
 import { requestNowMs } from "@/lib/stats/dashboardData";
 import { renderStack } from "@/lib/ui/blockStack";

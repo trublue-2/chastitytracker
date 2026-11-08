@@ -2,7 +2,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import { auth } from "@/lib/auth/auth";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { logAccess } from "@/lib/shared/serverLog";
-import { APP_TZ, formatDateTimeDual, toDateLocale } from "@/lib/shared/utils";
+import { APP_TZ, formatDateTimeDual, toDateLocale } from "@/lib/shared/time";
 import { userRowCached } from "@/lib/stats/dashboardData";
 import { renderStack } from "@/lib/ui/blockStack";
 import { viewerLayout } from "@/lib/ui/viewerLayout";

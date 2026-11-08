@@ -2,7 +2,8 @@ import { prisma } from "@/lib/shared/prisma";
 import { toolSurfaceFingerprint } from "@/lib/mcp/toolSurface";
 // CleaningPauseAllowance wird NUR lokal gebraucht — der Typ gehört utils.ts (wo buildPairs ihn
 // definiert); MCP-Konsumenten importieren ihn von dort direkt, nicht über dieses Modul.
-import { APP_TZ, type CleaningPauseRules } from "@/lib/shared/utils";
+import { APP_TZ } from "@/lib/shared/time";
+import { type CleaningPauseRules } from "@/lib/shared/utils";
 import { CLEANING_USER_SELECT } from "@/lib/entries/cleaningService";
 import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/entries/cleaningRules";
 import type { DeviceCheckStatus } from "@/lib/kontrollen/deviceCheck";

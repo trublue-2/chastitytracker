@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDurationMs, formatTotalHours } from "@/lib/shared/utils";
+import { formatDurationMs, formatTotalHours } from "@/lib/shared/duration";
 import { useTranslations, useLocale } from "next-intl";
 import BlockHeading from "@/app/components/BlockHeading";
 import Section from "@/app/components/Section";

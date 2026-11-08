@@ -1,4 +1,4 @@
-import { mondayIndex, mondayIndexOfLocalDate } from "@/lib/shared/utils";
+import { mondayIndex, mondayIndexOfLocalDate } from "@/lib/shared/time";
 
 /**
  * Wochentage als Bitmaske — der geteilte Baustein für „gilt an diesen Tagen".

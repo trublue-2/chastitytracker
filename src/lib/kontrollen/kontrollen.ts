@@ -1,4 +1,5 @@
-import { mapAnforderungStatus, mapVerifikationStatus, isTimeCorrected, formatDateTimeDual, APP_TZ } from "@/lib/shared/utils";
+import { mapAnforderungStatus, mapVerifikationStatus, isTimeCorrected } from "@/lib/shared/utils";
+import { formatDateTimeDual, APP_TZ } from "@/lib/shared/time";
 import type { AnforderungStatus, VerifikationStatus } from "@/lib/shared/utils";
 import { effectiveDeviceCheckStatus } from "@/lib/kontrollen/deviceCheck";
 import { ANFORDERUNG_PILLS, getKombinierterPill } from "@/lib/kontrollen/kontrollePills";

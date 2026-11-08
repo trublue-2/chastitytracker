@@ -1,4 +1,5 @@
-import { formatDurationBetween, buildLockPoints, wornDeviceNameAt } from "@/lib/shared/utils";
+import { formatDurationBetween } from "@/lib/shared/duration";
+import { buildLockPoints, wornDeviceNameAt } from "@/lib/shared/utils";
 import type { VerifyFailure } from "@/lib/kontrollen/verifyReason";
 import { keyProofFor, NO_TELEMETRY_KEY_PROOF, type KeyProofSource } from "@/lib/box/boxKeyProof";
 

@@ -3,7 +3,7 @@ import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { prisma } from "@/lib/shared/prisma";
 import { deviceCategoriesEnabled } from "@/lib/shared/constants";
 import { getActiveWearSessionForCategory, getUserTimezone, getMobileDesktopMode } from "@/lib/entries/queries";
-import { nowDatetimeLocal } from "@/lib/shared/utils";
+import { nowDatetimeLocal } from "@/lib/shared/time";
 import WearForm from "@/app/dashboard/WearForm";
 import AdminActionFormShell from "@/app/components/AdminActionFormShell";
 import { Circle } from "lucide-react";

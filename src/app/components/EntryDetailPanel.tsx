@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDateTime, APP_TZ } from "@/lib/shared/utils";
+import { formatDateTime, APP_TZ } from "@/lib/shared/time";
 import { GRUND_I18N_KEYS } from "@/lib/shared/constants";
 import { useTranslations } from "next-intl";
 import DetailField from "@/app/components/DetailField";

@@ -37,9 +37,8 @@
  * alten Fehler neu.
  */
 
-import {
-  calendarDaysBetween, wearingHoursFromPairs, type WearHours, type WearPair,
-} from "@/lib/shared/utils";
+import { calendarDaysBetween } from "@/lib/shared/time";
+import { wearingHoursFromPairs, type WearHours, type WearPair } from "@/lib/shared/utils";
 import {
   periodBounds, goalEffectiveEndMs, resolveDayGoalTarget, hasVisibleGoalRow,
   type GoalWindow, type GoalPeriod, type VorgabePeriodTargets, type VorgabeTargets,

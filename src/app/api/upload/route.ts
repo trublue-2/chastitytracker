@@ -6,7 +6,7 @@ import exifr from "exifr";
 import sharp from "sharp";
 import { markLastAction } from "@/lib/upstream/appMeta";
 import { uploadsDirPath, generateUploadFilename } from "@/lib/client/imageUtils";
-import { fromDatetimeLocal, APP_TZ } from "@/lib/shared/utils";
+import { fromDatetimeLocal, APP_TZ } from "@/lib/shared/time";
 
 function isAllowedImageBuffer(buf: Buffer): boolean {
   // JPEG: FF D8 FF

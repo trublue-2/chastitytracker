@@ -4,7 +4,7 @@ import { resendOwnInspectionCode } from "@/lib/kontrollen/kontrolleService";
 import { serviceResponse, errorResponse } from "@/lib/shared/serviceResult";
 import { checkRateLimit, rateLimitResponse } from "@/lib/auth/rate-limit";
 import { INSPECTION_CODE_PUSH_COOLDOWN_MS, inspectionCodePushLimitKey, isValidInspectionCode } from "@/lib/shared/constants";
-import { APP_TZ } from "@/lib/shared/utils";
+import { APP_TZ } from "@/lib/shared/time";
 
 /**
  * Der Sub schickt sich den Code seiner SELBSTKONTROLLE als Push — dieselbe Absicht wie unter

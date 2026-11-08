@@ -5,7 +5,7 @@ import { prisma } from "@/lib/shared/prisma";
 import TaskProofFormCore from "@/app/entries/TaskProofFormCore";
 import { ownProofWhere, proofSubmitContext } from "@/lib/tasks/taskProofService";
 import { proofDue, proofDueOffsetPending } from "@/lib/tasks/tasks";
-import { APP_TZ } from "@/lib/shared/utils";
+import { APP_TZ } from "@/lib/shared/time";
 import { EntryActionFormShell } from "@/app/components/AdminActionFormShell";
 import { actionSign } from "@/app/entries/actionSign";
 import { getTranslations } from "next-intl/server";

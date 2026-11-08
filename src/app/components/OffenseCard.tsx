@@ -8,7 +8,7 @@ import { warnEdgeCls } from "@/app/components/inputStyles";
 import DetailField from "@/app/components/DetailField";
 import OffenseStatementField from "@/app/components/OffenseStatementField";
 import type { StatementView } from "@/lib/strafbuch/offenseStatementService";
-import { formatDateTime, toDateLocale } from "@/lib/shared/utils";
+import { formatDateTime, toDateLocale } from "@/lib/shared/time";
 import { TASK_LIST_ANCHOR } from "@/lib/shared/constants";
 import { offenseNameKey } from "@/lib/strafbuch/offenseLabels";
 import { PenaltyDoneButton, PenaltyReportButton } from "@/app/components/PenaltyActions";

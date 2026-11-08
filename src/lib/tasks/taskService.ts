@@ -17,7 +17,8 @@ import {
   TASK_REQUIREMENT_TYPES, TASK_PROOF_MAX,
   TASK_PROOF_DESCRIPTION_MAX_LENGTH, type TaskRequirementType,
 } from "@/lib/shared/constants";
-import { formatDateTime, generateKontrollCode, groupByUser, midnightInTZ, APP_TZ } from "@/lib/shared/utils";
+import { formatDateTime, midnightInTZ, APP_TZ } from "@/lib/shared/time";
+import { generateKontrollCode, groupByUser } from "@/lib/shared/utils";
 import {
   recurrenceProblem, occurrencesBetween, upcomingOccurrences,
   type RecurrenceRule, type RecurrenceFreq,

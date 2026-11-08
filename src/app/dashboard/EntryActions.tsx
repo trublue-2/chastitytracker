@@ -9,7 +9,7 @@ import RowActionsMenu from "@/app/components/RowActionsMenu";
 import FormError from "@/app/components/FormError";
 import Button from "@/app/components/Button";
 import { TYPE_STATS_KEYS } from "@/lib/shared/constants";
-import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/shared/utils";
+import { formatDateTime, toDateLocale, APP_TZ } from "@/lib/shared/time";
 
 interface Props {
   id: string;

@@ -10,7 +10,7 @@ import FieldTabs from "@/app/components/FieldTabs";
 import Toggle from "@/app/components/Toggle";
 import DurationInput from "@/app/components/DurationInput";
 import Input from "@/app/components/Input";
-import { formatElapsedMs } from "@/lib/shared/utils";
+import { formatElapsedMs } from "@/lib/shared/duration";
 import RemoveRowButton from "@/app/components/RemoveRowButton";
 import ReorderButtons from "@/app/components/ReorderButtons";
 import TimePreview from "@/app/components/TimePreview";

@@ -2,7 +2,7 @@ import { ArrowLeft, Zap, Bug, Wrench, Sparkles, Palette } from "lucide-react";
 import Link from "next/link";
 import pkg from "../../../../package.json";
 import { getTranslations, getLocale } from "next-intl/server";
-import { toDateLocale } from "@/lib/shared/utils";
+import { toDateLocale } from "@/lib/shared/time";
 import releasesData from "@/data/changelog.json";
 import UpstreamSection from "./UpstreamSection";
 import Section from "@/app/components/Section";

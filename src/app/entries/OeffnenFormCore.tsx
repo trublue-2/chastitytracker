@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
-import { fromDatetimeLocal, toDateLocale } from "@/lib/shared/utils";
+import { fromDatetimeLocal, toDateLocale } from "@/lib/shared/time";
 import { useEntryStartTime } from "@/app/hooks/useEntryStartTime";
 import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
 import { datedWindowLabel } from "@/lib/stats/weekdays";

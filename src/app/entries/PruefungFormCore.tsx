@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ClipboardCheck } from "lucide-react";
-import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/shared/utils";
+import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/shared/time";
 import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import PhotoCapture from "@/app/components/PhotoCapture";

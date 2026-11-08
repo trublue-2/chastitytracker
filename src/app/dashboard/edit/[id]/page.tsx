@@ -9,7 +9,7 @@ import PruefungForm from "../../PruefungForm";
 import OrgasmusForm from "../../OrgasmusForm";
 import WearForm from "../../WearForm";
 import { getTranslations } from "next-intl/server";
-import { toDatetimeLocal, nowDatetimeLocal } from "@/lib/shared/utils";
+import { toDatetimeLocal, nowDatetimeLocal } from "@/lib/shared/time";
 import { getUserDeviceOptions, getUserTimezone, getLatestKgEntry, getMobileDesktopMode } from "@/lib/entries/queries";
 import { entryManageAccess } from "@/lib/auth/keyholder";
 import { sealRequiredForCode, inspectionCodeRequired } from "@/lib/kontrollen/kontrolleService";

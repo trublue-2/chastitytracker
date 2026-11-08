@@ -3,7 +3,8 @@ import { evaluateTasks, TASK_INCLUDE, SUB_VISIBLE_WHERE } from "@/lib/tasks/task
 import { NOT_PAUSED_WHERE } from "@/lib/entries/healthHold";
 import { earliestTaskEnd, isTaskOpen, proofDue, taskAnchor, type TaskEvaluation, type TaskLike, type ProofDeadlineWindow,} from "@/lib/tasks/tasks";
 import { notifyUser } from "@/lib/messages/notify";
-import { formatDateTime, groupByUser } from "@/lib/shared/utils";
+import { formatDateTime } from "@/lib/shared/time";
+import { groupByUser } from "@/lib/shared/utils";
 import { TASK_PROOF_REMINDER_LEAD_MIN } from "@/lib/shared/constants";
 
 /** Was die Erinnerung an einem Nachweis liest — die Felder, die `TASK_INCLUDE` ohnehin lädt. */

@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 
 import { useLocale, useTranslations } from "next-intl";
-import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/shared/utils";
+import { toDatetimeLocal, fromDatetimeLocal, formatDateTime, toDateLocale } from "@/lib/shared/time";
 import DateTimePicker from "@/app/components/DateTimePicker";
 import FormError from "@/app/components/FormError";
 import FormSuccess from "@/app/components/FormSuccess";

@@ -18,7 +18,7 @@ import type { SubmitResult } from "@/app/entries/types";
 import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { JOURNAL_MOOD_MAX, JOURNAL_MOOD_MIN, JOURNAL_TEXT_MAX, type JournalVisibility } from "@/lib/shared/constants";
 import { JOURNAL_HREF } from "@/lib/journal/journal";
-import { fromDatetimeLocal } from "@/lib/shared/utils";
+import { fromDatetimeLocal } from "@/lib/shared/time";
 
 /** „Keine" und die Stufen 1–5 — die Auswahl, in der Reihenfolge der Knöpfe. */
 const MOOD_CHOICES: (number | null)[] = [

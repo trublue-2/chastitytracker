@@ -115,7 +115,7 @@ export function buildWeightSeries(
     // beim ersten Aufrufer, der weniger sorgfältig prüft, zu NaN-Koordinaten.
     minKg: spanValues.length ? Math.min(...spanValues) : 0,
     maxKg: spanValues.length ? Math.max(...spanValues) : 0,
-    latest: points.length ? points[points.length - 1] : null,
+    latest: points.at(-1) ?? null,
     changeKg: points.length >= 2 ? round1(points[points.length - 1].weightKg - points[0].weightKg) : null,
   };
 }
