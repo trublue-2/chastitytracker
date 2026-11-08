@@ -226,6 +226,18 @@ describe("Dev-Variante", () => {
     expect(APP_GRADLE).toMatch(/preReleaseBuild[^\n]*dependsOn 'checkReleaseReady'/);
   });
 
+  it("Android gibt den Instanz-Seiten die Capacitor-Brücke (sonst kein Push, keine Plugins)", () => {
+    // Capacitor spritzt sie auf Android nur in https://localhost ein; iOS braucht nichts dafür.
+    const main = read("android/app/src/main/java/ch/chastitytracker/app/MainActivity.java");
+    expect(main).toMatch(/injectBridgeIntoInstances\(webView\);/);
+    expect(main).toMatch(/addDocumentStartJavaScript\(webView, script, origins\)/);
+    // Die Brücke kommt per Reflection aus Capacitor — ein Upgrade, das die Methoden umbenennt,
+    // soll hier auffallen und nicht erst als fehlender Push in der App.
+    const cap = "node_modules/@capacitor/android/capacitor/src/main/java/com/getcapacitor";
+    expect(read(`${cap}/Bridge.java`)).toMatch(/JSInjector getJSInjector\(\)/);
+    expect(read(`${cap}/JSInjector.java`)).toMatch(/String getScriptString\(\)/);
+  });
+
   it("Android wendet das Firebase-Plugin an, sobald google-services.json da ist (sonst kein Push)", () => {
     expect(APP_GRADLE).toMatch(/def hasGoogleServices = file\('google-services\.json'\)\.exists\(\)[\s\S]*if \(hasGoogleServices\) \{\s*apply plugin: 'com\.google\.gms\.google-services'/);
     expect(read("android/build.gradle")).toMatch(/classpath 'com\.google\.gms:google-services:/);

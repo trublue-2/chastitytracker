@@ -18,13 +18,20 @@ import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
 import androidx.core.content.ContextCompat;
 import androidx.webkit.WebSettingsCompat;
+import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
 
+import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.Logger;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.lang.reflect.Method;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Die Android-Hülle — Gegenstück zum `SceneDelegate` in `ios/App/App/AppDelegate.swift`.
@@ -113,6 +120,37 @@ public class MainActivity extends BridgeActivity {
         if (webView != null && WebViewFeature.isFeatureSupported(WebViewFeature.WEB_AUTHENTICATION)) {
             WebSettingsCompat.setWebAuthenticationSupport(webView.getSettings(),
                     WebSettingsCompat.WEB_AUTHENTICATION_SUPPORT_FOR_APP);
+        }
+        injectBridgeIntoInstances(webView);
+    }
+
+    /**
+     * Gibt den Instanz-Seiten `window.Capacitor` — ohne halten sie die App für einen Browser (kein
+     * Push, keine App-Version, keine Plugins). Capacitor spritzt seine Brücke auf Android nur in den
+     * App-Ursprung `https://localhost` ein, nimmt ihre Nachrichten aber auch von den
+     * `allowNavigation`-Ursprüngen an; dort fehlt nur das Skript. Dasselbe Skript holen wir über das
+     * private `Bridge.getJSInjector` (Reflection). Ohne DOCUMENT_START_SCRIPT spritzt Capacitor
+     * selbst über seinen lokalen Server ein.
+     */
+    private void injectBridgeIntoInstances(@Nullable WebView webView) {
+        if (webView == null || bridge == null
+                || !WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) return;
+        // Auf Ursprünge kürzen: eine Dev-URL mit Pfad wäre als Regel ungültig und kippte die ganze Menge.
+        Set<String> origins = new HashSet<>();
+        for (String rule : bridge.getAllowedOriginRules()) origins.add(originOf(rule));
+        origins.remove(originOf(bridge.getAppUrl())); // hat das Skript schon
+        if (origins.isEmpty()) return;
+        try {
+            Method getInjector = Bridge.class.getDeclaredMethod("getJSInjector");
+            getInjector.setAccessible(true);
+            Object injector = getInjector.invoke(bridge);
+            Method getScript = injector.getClass().getDeclaredMethod("getScriptString");
+            getScript.setAccessible(true);
+            String script = (String) getScript.invoke(injector);
+            WebViewCompat.addDocumentStartJavaScript(webView, script, origins);
+        } catch (Exception e) {
+            // Laut statt still: ohne Brücke fehlen Push und Plugins auf der Instanz.
+            Logger.error("Capacitor-Brücke für die Instanz nicht eingerichtet", e);
         }
     }
 
@@ -244,6 +282,12 @@ public class MainActivity extends BridgeActivity {
             }
         }
         return names;
+    }
+
+    /** `scheme://authority` — auch für Capacitors Platzhalter-Regeln wie `https://*.trublue.ch`. */
+    private static String originOf(String url) {
+        Uri u = Uri.parse(url);
+        return u.getScheme() + "://" + u.getAuthority();
     }
 
     @Nullable
