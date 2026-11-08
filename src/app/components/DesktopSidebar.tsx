@@ -12,7 +12,7 @@ import NewEntrySheet, { type NewEntryCategoryRow } from "./NewEntrySheet";
 import ViewTransitionLink from "@/app/components/ViewTransitionLink";
 import useViewTransition from "@/app/hooks/useViewTransition";
 import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator";
-import { adminNavEntry } from "@/lib/adminNavEntry";
+import { adminNavEntry } from "@/lib/ui/adminNavEntry";
 import type { BildersafeMenuAction } from "@/lib/queries";
 
 interface Props {

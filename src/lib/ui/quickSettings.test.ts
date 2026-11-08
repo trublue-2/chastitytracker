@@ -60,7 +60,7 @@ describe("Registratur", () => {
   it("zieht keinen Server-Code nach sich", () => {
     // Client-Komponente UND Server-Seiten teilen sich das Modul: ein `prisma`- oder
     // `next/server`-Import landete ohne Typfehler im Browser-Bundle.
-    const source = readFileSync("src/lib/quickSettings.ts", "utf8");
+    const source = readFileSync("src/lib/ui/quickSettings.ts", "utf8");
     expect(source).not.toMatch(/from "@\/lib\/prisma"|from "next\/server"|@prisma\/client/);
   });
 });

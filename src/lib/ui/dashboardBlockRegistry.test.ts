@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import de from "../../messages/de.json";
-import en from "../../messages/en.json";
+import de from "../../../messages/de.json";
+import en from "../../../messages/en.json";
 import { BLOCK_SURFACES, DASHBOARD_BLOCKS, blocksOf } from "./dashboardBlockRegistry";
 
 /**

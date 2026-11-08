@@ -5,10 +5,10 @@ import {
   DURATION_FORMATS, PERCENT_FORMATS,
   DURATION_ASSEMBLY_EXCEPTIONS, PERCENT_MATH_EXCEPTIONS,
   type DisplayFormatException,
-} from "@/lib/displayFormatRegistry";
-import { readDurationAssemblies, readPercentMath, type SourceHit } from "@/lib/displayFormatSurfaces";
+} from "@/lib/ui/displayFormatRegistry";
+import { readDurationAssemblies, readPercentMath, type SourceHit } from "@/lib/ui/displayFormatSurfaces";
 
-const ROOT = path.resolve(__dirname, "../..");
+const ROOT = path.resolve(__dirname, "../../..");
 
 const covered = (hit: SourceHit, exceptions: readonly DisplayFormatException[]) =>
   exceptions.some((e) => e.file === hit.file && hit.text.includes(e.contains));

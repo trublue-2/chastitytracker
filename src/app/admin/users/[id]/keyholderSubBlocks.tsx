@@ -1,8 +1,8 @@
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { ClipboardList, Droplets, ChevronRight, Gavel } from "lucide-react";
-import { block, type StackBlock } from "@/lib/blockStack";
-import type { KeyholderSubBlockId } from "@/lib/dashboardBlockRegistry";
+import { block, type StackBlock } from "@/lib/ui/blockStack";
+import type { KeyholderSubBlockId } from "@/lib/ui/dashboardBlockRegistry";
 import {
   activeVorgabeCached, activeWearSessionsCached, deviceCountCached, kgVorgabenCached, kgWearPairsCached,
   keyholderInspectionsCached, keyholderOrgasmRequestCached, keyholderPairsCached,

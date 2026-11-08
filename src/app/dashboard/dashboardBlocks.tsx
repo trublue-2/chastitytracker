@@ -3,11 +3,11 @@ import { getIsLocked, userHasBox } from "@/lib/queries";
 import { isBoxPhotoDue } from "@/lib/box/boxPhotoDue";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { block, type StackBlock } from "@/lib/blockStack";
+import { block, type StackBlock } from "@/lib/ui/blockStack";
 import { weightReleaseStatus } from "@/lib/weight/weightReleaseService";
 import type { UnitSystem } from "@/lib/weight/weight";
-import type { SubDashboardBlockId } from "@/lib/dashboardBlockRegistry";
-import type { ResolvedLayout } from "@/lib/dashboardLayout";
+import type { SubDashboardBlockId } from "@/lib/ui/dashboardBlockRegistry";
+import type { ResolvedLayout } from "@/lib/ui/dashboardLayout";
 import {
   activeVorgabeCached, activeWearCategoryIdsCached, activeWearSessionsCached, cleaningRulesCached,
   deviceCountCached, entriesCached, evaluatedTasksCached, kgVorgabenCached, kgWearPairsCached,

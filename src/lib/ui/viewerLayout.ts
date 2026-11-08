@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth/auth";
 import { userRowCached } from "@/lib/dashboardData";
-import { parseDashboardLayout, resolveLayout, type ResolvedLayout } from "@/lib/dashboardLayout";
-import type { BlockSurface } from "@/lib/dashboardBlockRegistry";
+import { parseDashboardLayout, resolveLayout, type ResolvedLayout } from "@/lib/ui/dashboardLayout";
+import type { BlockSurface } from "@/lib/ui/dashboardBlockRegistry";
 
 /**
  * Die Dashboard-Konfiguration des **Betrachters** — nicht die des angezeigten Trägers.

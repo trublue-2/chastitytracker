@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { adminNavItems, ADMIN_HOME_HREF, type AdminNavItem } from "@/lib/adminNavItems";
+import { adminNavItems, ADMIN_HOME_HREF, type AdminNavItem } from "@/lib/ui/adminNavItems";
 import AdminFAB from "./AdminFAB";
 import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator";
 

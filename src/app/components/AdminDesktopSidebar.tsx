@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Plus, ChevronRight } from "lucide-react";
 import { useSignOut } from "@/app/hooks/useSignOut";
 import { useTranslations } from "next-intl";
-import { adminNavItems } from "@/lib/adminNavItems";
+import { adminNavItems } from "@/lib/ui/adminNavItems";
 import Sheet from "./Sheet";
 import Spinner from "./Spinner";
 import UpdateAvailableIndicator from "./UpdateAvailableIndicator";

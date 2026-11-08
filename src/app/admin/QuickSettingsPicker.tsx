@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Checkbox from "@/app/components/Checkbox";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
-import { MAX_QUICK_SETTINGS, type QuickSetting } from "@/lib/quickSettings";
+import { MAX_QUICK_SETTINGS, type QuickSetting } from "@/lib/ui/quickSettings";
 
 /**
  * Womit die Karte dieses Trägers in der Übersicht bestückt wird.

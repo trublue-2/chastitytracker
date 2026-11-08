@@ -1,4 +1,4 @@
-import { blocksOf, type BlockIdOf, type BlockSurface, type DashboardBlockDef } from "@/lib/dashboardBlockRegistry";
+import { blocksOf, type BlockIdOf, type BlockSurface, type DashboardBlockDef } from "@/lib/ui/dashboardBlockRegistry";
 
 /**
  * Die gespeicherte Dashboard-Konfiguration: **was ein Nutzer vom Standard ABWEICHEND will.**

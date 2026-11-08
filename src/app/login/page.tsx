@@ -55,7 +55,7 @@ export default function LoginPage() {
       // Sprache dieses Accounts übernehmen — sonst bliebe das Cookie eines vorher an DIESEM Browser
       // angemeldeten Users stehen (falsche UI-Sprache trotz korrekter Einstellung).
       syncLocaleCookieFromLogin((session?.user as { locale?: string })?.locale);
-      // Ziel entscheidet der serverseitige Resolver (src/lib/landing.ts) anhand der startPage-Präferenz.
+      // Ziel entscheidet der serverseitige Resolver (src/lib/ui/landing.ts) anhand der startPage-Präferenz.
       router.push("/");
       router.refresh();
     } catch {

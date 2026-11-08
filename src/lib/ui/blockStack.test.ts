@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { block, renderStack, type StackBlock } from "@/lib/blockStack";
-import { resolveLayout } from "@/lib/dashboardLayout";
-import { SUB_DASHBOARD_BLOCKS, type SubDashboardBlockId } from "@/lib/dashboardBlockRegistry";
+import { block, renderStack, type StackBlock } from "@/lib/ui/blockStack";
+import { resolveLayout } from "@/lib/ui/dashboardLayout";
+import { SUB_DASHBOARD_BLOCKS, type SubDashboardBlockId } from "@/lib/ui/dashboardBlockRegistry";
 
 /**
  * Die Zusage von Etappe B lautet: **ein ausgeblendeter Block kostet keine Abfrage.** Der Compiler

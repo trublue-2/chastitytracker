@@ -13,7 +13,7 @@ import DashboardBlock from "@/app/components/DashboardBlock";
 import LiveStatus from "@/app/components/LiveStatus";
 import { parseApiErrorCode } from "@/lib/client/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
-import { isKeyholderSurface, type BlockSurface } from "@/lib/dashboardBlockRegistry";
+import { isKeyholderSurface, type BlockSurface } from "@/lib/ui/dashboardBlockRegistry";
 
 /** Ein Block, wie ihn der Bearbeiten-Modus kennt — Beschriftung und Zustand, KEIN Inhalt. */
 export interface StackBlockMeta {

@@ -1,8 +1,8 @@
 import { cache } from "react";
 import { getTranslations } from "next-intl/server";
-import { block, type StackBlock } from "@/lib/blockStack";
+import { block, type StackBlock } from "@/lib/ui/blockStack";
 import BackLink from "@/app/components/BackLink";
-import type { StatsBlockId } from "@/lib/dashboardBlockRegistry";
+import type { StatsBlockId } from "@/lib/ui/dashboardBlockRegistry";
 import {
   cleaningRulesCached, completedPairsCached, devicesCached, entriesAscCached, entriesCached,
   kgDailyDataCached, kgPairsCached, kgVorgabenCached, kgWearPairsCached, orgasmDaysCached,

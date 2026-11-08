@@ -27,7 +27,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale, formatDurationBetween, formatDateTimeDual, groupByUser, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { getKeyholderLockPeriods, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveLockPeriods, isScheduledDirective, LOCK_REQUEST_ORDER, openLockRequestWhere } from "@/lib/queries";
 import { orgasmusAnforderungArtLabel, boxCouplingEnabled } from "@/lib/constants";
-import { QUICK_SETTING_SELECT, quickSettingOnCard, parseQuickSettings, quickSettingValue } from "@/lib/quickSettings";
+import { QUICK_SETTING_SELECT, quickSettingOnCard, parseQuickSettings, quickSettingValue } from "@/lib/ui/quickSettings";
 import Section from "@/app/components/Section";
 import Badge from "@/app/components/Badge";
 import { strafbuchCached } from "@/lib/dashboardData";

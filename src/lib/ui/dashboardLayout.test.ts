@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { SUB_DASHBOARD_BLOCKS } from "@/lib/dashboardBlockRegistry";
-import { checkLayoutPatch, mergeLayout, mergeOrder, parseDashboardLayout, resolveLayout } from "@/lib/dashboardLayout";
+import { SUB_DASHBOARD_BLOCKS } from "@/lib/ui/dashboardBlockRegistry";
+import { checkLayoutPatch, mergeLayout, mergeOrder, parseDashboardLayout, resolveLayout } from "@/lib/ui/dashboardLayout";
 
 const DEFAULT_IDS = SUB_DASHBOARD_BLOCKS.map((b) => b.id) as string[];
 

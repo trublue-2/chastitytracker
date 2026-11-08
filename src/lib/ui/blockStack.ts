@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import type { BlockIdOf, BlockSurface } from "@/lib/dashboardBlockRegistry";
-import type { ResolvedLayout } from "@/lib/dashboardLayout";
+import type { BlockIdOf, BlockSurface } from "@/lib/ui/dashboardBlockRegistry";
+import type { ResolvedLayout } from "@/lib/ui/dashboardLayout";
 
 /**
  * **Ein Block, der seine Daten selbst beschafft** — und die Maschinerie, die daraus einen Stapel

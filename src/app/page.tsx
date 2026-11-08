@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/auth";
-import { resolveLandingPath } from "@/lib/landing";
+import { resolveLandingPath } from "@/lib/ui/landing";
 
 export default async function Home() {
   const session = await auth();

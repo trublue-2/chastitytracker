@@ -31,7 +31,7 @@ import { aiKeyholderActiveFor } from "@/lib/mcp/common";
 import DeleteUserButton from "@/app/admin/DeleteUserButton";
 import SettingsSection from "@/app/components/SettingsSection";
 import QuickSettingsPicker from "@/app/admin/QuickSettingsPicker";
-import { QUICK_SETTINGS, quickSettingAvailable, parseQuickSettings } from "@/lib/quickSettings";
+import { QUICK_SETTINGS, quickSettingAvailable, parseQuickSettings } from "@/lib/ui/quickSettings";
 import VorgabeForm from "../VorgabeForm";
 import VorgabeRow from "../VorgabeRow";
 import { goalDateToInput } from "@/lib/vorgabeService";

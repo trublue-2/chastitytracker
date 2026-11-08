@@ -20,7 +20,7 @@ import { setOffenseStatementsAllowed } from "@/lib/strafbuch/offenseStatementSer
 import { deleteUploadedFiles, entryImageUrls } from "@/lib/client/imageUtils";
 import { errorResponse, serviceResponse } from "@/lib/serviceResult";
 import { boxPasswordAtRisk } from "@/lib/box/boxPairing";
-import { normalizeQuickSettings } from "@/lib/quickSettings";
+import { normalizeQuickSettings } from "@/lib/ui/quickSettings";
 
 export async function GET(
   _req: NextRequest,
