@@ -13,8 +13,8 @@ import {
 } from "@/lib/utils";
 import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
 import { buildDailyData } from "@/lib/statsBuilders";
-import { buildStrafbuch } from "@/lib/strafbuch";
-import { selectSubOffenses } from "@/lib/subOffenses";
+import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
+import { selectSubOffenses } from "@/lib/strafbuch/subOffenses";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { effectiveOrgasmusArten, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { belongsOnDashboard, getEvaluatedTaskHistory, loadTaskProofViews } from "@/lib/tasks/taskIntervals";

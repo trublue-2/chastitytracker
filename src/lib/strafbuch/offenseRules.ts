@@ -1,4 +1,4 @@
-import { type AssertCoversAllOffenses, type OffenseCanonicalType } from "@/lib/offenseTypes";
+import { type AssertCoversAllOffenses, type OffenseCanonicalType } from "@/lib/strafbuch/offenseTypes";
 import { effectiveAt } from "@/lib/utils";
 
 /**

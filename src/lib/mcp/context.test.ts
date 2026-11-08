@@ -9,7 +9,7 @@ import { getContext, setHealthHoldDef, upsertAppointmentDef, upsertRecurringCont
 import { executeWrite } from "./writeFramework";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER, type PrismaMock } from "@/test/prismaMock";
-import { OFFENSE_RULE_DEFAULT } from "@/lib/offenseRules";
+import { OFFENSE_RULE_DEFAULT } from "@/lib/strafbuch/offenseRules";
 
 const db = prisma as unknown as PrismaMock;
 

@@ -11,14 +11,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   prisma: { user: { findUnique: vi.fn() }, offenseRuleChange: { findMany: vi.fn() } },
 }));
-vi.mock("@/lib/offenseRulesService", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/offenseRulesService")>();
+vi.mock("@/lib/strafbuch/offenseRulesService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/strafbuch/offenseRulesService")>();
   return { ...actual, setOffenseRule: vi.fn().mockResolvedValue({ ok: true, data: null }) };
 });
 
 import { mcpSetOffenseRules } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
-import { setOffenseRule } from "@/lib/offenseRulesService";
+import { setOffenseRule } from "@/lib/strafbuch/offenseRulesService";
 
 const setRuleMock = setOffenseRule as unknown as ReturnType<typeof vi.fn>;
 

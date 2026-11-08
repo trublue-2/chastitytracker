@@ -21,11 +21,11 @@ vi.mock("@/lib/prisma", async () => {
 });
 // Nur `buildStrafbuch` festnageln, der Rest bleibt ECHT: `collectDetectedOffenses` und die
 // Kategorien-Tabelle sind genau das, was hier mitgeprüft werden soll.
-vi.mock("@/lib/strafbuch", async (orig) => ({ ...(await orig<object>()), buildStrafbuch: vi.fn() }));
+vi.mock("@/lib/strafbuch/strafbuch", async (orig) => ({ ...(await orig<object>()), buildStrafbuch: vi.fn() }));
 
 import { buildOffenseRows, filterOffenses, getOffenses, OFFENSE_TYPES, type OffenseRow } from "./ledger";
-import { collectDetectedOffenses, STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafurteilService";
-import { buildStrafbuch } from "@/lib/strafbuch";
+import { collectDetectedOffenses, STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafbuch/strafurteilService";
+import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
 import { prisma } from "@/lib/prisma";
 import { emptyOffenseLists } from "@/test/strafbuchFixture";
 import { TEST_USER, type PrismaMock } from "@/test/prismaMock";

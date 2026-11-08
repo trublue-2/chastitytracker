@@ -5,8 +5,8 @@ import type { InspectionVerification } from "@/lib/kontrolleService";
 type PrismaKontrollWhere = Prisma.KontrollAnforderungWhereInput;
 import { prisma } from "@/lib/prisma";
 import { recordSystemMessage } from "@/lib/messageService";
-import { getOffenseRules } from "@/lib/offenseRulesService";
-import { offenseNameKey } from "@/lib/offenseLabels";
+import { getOffenseRules } from "@/lib/strafbuch/offenseRulesService";
+import { offenseNameKey } from "@/lib/strafbuch/offenseLabels";
 import {
   aktiveKontrolleWhere,
   openLockRequestWhere,

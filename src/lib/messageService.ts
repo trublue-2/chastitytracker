@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { structuredLog } from "@/lib/serverLog";
 import { getControllableSubsCached } from "@/lib/keyholder";
 import { bodyKeysOfCategory, bodyKeysOutsideSystem, messagePriority, type MessageFilter, type MessageSenderKind } from "@/lib/messageCategories";
-import { dismissalMessageStillApplies, judgmentMessageStillApplies } from "@/lib/offenseTypes";
+import { dismissalMessageStillApplies, judgmentMessageStillApplies } from "@/lib/strafbuch/offenseTypes";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import { codeCheckPath } from "@/lib/lockboxCodeCheck";
 import { mapAnforderungStatus } from "@/lib/utils";

@@ -9,16 +9,16 @@ import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, validateGoal
 import { setCleaningSettings, maxPausesPerDaySentinel, parseCleaningWindows, cleaningWindowListProblem, formatCleaningWindows, type CleaningWindows, CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import { checkWeightRelease, openWeightRelease, setWeightRelease, weightReleaseStatus, withdrawWeightRelease } from "@/lib/weight/weightReleaseService";
 import { setWeightSettingsKeyholder } from "@/lib/weight/weightSettingsService";
-import { setOffenseRule, getOffenseRules } from "@/lib/offenseRulesService";
-import { isSwitchableOffenseType, isValidOffenseMode, OFFENSE_RULE_MODES, type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
+import { setOffenseRule, getOffenseRules } from "@/lib/strafbuch/offenseRulesService";
+import { isSwitchableOffenseType, isValidOffenseMode, OFFENSE_RULE_MODES, type OffenseMode, type SwitchableOffenseType } from "@/lib/strafbuch/offenseRules";
 import { setInspectionEscalationSettings } from "@/lib/inspectionEscalationService";
 import { parseWeighingWindows, weighingWindowEnd, weighingWindowsProblem, type WeighingWindow } from "@/lib/weight/weightWindows";
 import { effectiveTarget, isUnderweightTarget, keyholderTargetOf, subTargetOf, weightProblem } from "@/lib/weight/weight";
 import { ALL_WEEKDAYS, isoDaysOfMask, weekdayMaskKeys, weekdayMaskOf, weekdayMaskValid } from "@/lib/weekdays";
 import { parseWeekdayGoalRules, type WeekdayGoalRule } from "@/lib/weekdayGoal";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
-import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses, requireDetectedOffense, punishWithTask } from "@/lib/strafurteilService";
-import { buildStrafbuch } from "@/lib/strafbuch";
+import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses, requireDetectedOffense, punishWithTask } from "@/lib/strafbuch/strafurteilService";
+import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
 import { matchByNameCI, parseIsoDate, tzOf, makeIso, isoForUser, buildEnvelope, type Envelope, type Iso } from "@/lib/mcp/common";
 import { resolveTaskProof } from "@/lib/mcp/taskProofRef";
 import { diffFields } from "@/lib/mcp/writeFramework";
@@ -45,7 +45,7 @@ import {
 import { clamp, randomInt, midnightAfterDays } from "@/lib/utils";
 import { goalCategoryKey } from "@/lib/vorgaben";
 import { goalDateFromInput } from "@/lib/vorgabeService";
-import { createManualOffense, validateManualOffenseInput, withdrawManualOffense } from "@/lib/manualOffenseService";
+import { createManualOffense, validateManualOffenseInput, withdrawManualOffense } from "@/lib/strafbuch/manualOffenseService";
 import type { ServiceResult } from "@/lib/serviceResult";
 import { KEYHOLDER_LOCK_STATE_WORDING } from "@/lib/serviceErrorCodes";
 import en from "../../messages/en.json";
@@ -64,7 +64,7 @@ import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks/ta
 import { releaseNow, previewReleaseNow } from "@/lib/releaseNowService";
 import { RELEASE_ORGASM_WINDOW_H } from "@/lib/constants";
 import { setLockRequiresBolt } from "@/lib/lockCommit";
-import { setOffenseStatementsAllowed } from "@/lib/offenseStatementService";
+import { setOffenseStatementsAllowed } from "@/lib/strafbuch/offenseStatementService";
 import { loadBoxSettings } from "@/lib/mcp/context";
 
 /**

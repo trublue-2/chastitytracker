@@ -12,7 +12,7 @@ import { buildPairs } from "@/lib/utils";
 import { buildSessions, isLiveOpenSession, type Session, type DeviceConfidence } from "@/lib/sessionModel";
 import { records, periodSummary, type PeriodSummaryResult } from "@/lib/mcp/stats";
 import { getOffenses, offenseRowState, type OffenseRow } from "@/lib/mcp/ledger";
-import { offenseNeedsAttention } from "@/lib/offenseTypes";
+import { offenseNeedsAttention } from "@/lib/strafbuch/offenseTypes";
 import { queryNotes } from "@/lib/mcp/notes";
 import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
 import { toBoxKind, toPendingCommand, boxFailsafeWarnings, boxIsPhysicallyLocked, boxBoltOpenDespiteLocked, type BoxFailsafeWarning, type BoxKind } from "@/lib/boxStatus";

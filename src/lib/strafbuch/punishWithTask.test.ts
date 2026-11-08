@@ -35,8 +35,8 @@ vi.mock("@/lib/keyholder", () => ({
 // `collectDetectedOffenses` leitet die refs aus OFFENSE_LISTS ab — der Mock muss die Tabelle
 // mitliefern, sonst prüft der Test eine Auflösung, die es so nicht gibt. Die echte Tabelle ist
 // reine Daten (keine DB), also wird sie durchgereicht statt nachgebaut.
-vi.mock("@/lib/strafbuch", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/strafbuch")>()),
+vi.mock("@/lib/strafbuch/strafbuch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/strafbuch/strafbuch")>()),
   buildStrafbuch: vi.fn(),
 }));
 // Nur die beiden DB-Wege ersetzt; `taskNoticeDeadline` bleibt echt, damit die Strafaufgabe ihre
@@ -52,7 +52,7 @@ vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
 import { punishWithTask, judgeOffense } from "./strafurteilService";
 import { POST as postTask } from "@/app/api/admin/tasks/route";
 import type { NextRequest } from "next/server";
-import { buildStrafbuch } from "@/lib/strafbuch";
+import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
 import { checkTask, writeTask } from "@/lib/tasks/taskService";
 import { notifyUser } from "@/lib/notify";
 import { emptyOffenseLists } from "@/test/strafbuchFixture";

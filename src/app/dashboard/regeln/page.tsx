@@ -18,8 +18,8 @@ import {
   parseCleaningWindows, CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import {
   OFFENSE_MODE_I18N_KEYS, OFFENSE_TYPE_I18N_KEYS, switchableOffenseTypesFor,
-} from "@/lib/offenseLabels";
-import { getOffenseRules } from "@/lib/offenseRulesService";
+} from "@/lib/strafbuch/offenseLabels";
+import { getOffenseRules } from "@/lib/strafbuch/offenseRulesService";
 import { weightReleaseStatus } from "@/lib/weight/weightReleaseService";
 import { weightText, type UnitSystem } from "@/lib/weight/weight";
 import { APP_TZ, formatDateTime, toDateLocale } from "@/lib/utils";

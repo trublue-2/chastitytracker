@@ -17,8 +17,8 @@ import { datedWindowLabel } from "@/lib/weekdays";
 import { parseWeekdayGoalRules } from "@/lib/weekdayGoal";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { userRowCached, strafbuchCached } from "@/lib/dashboardData";
-import { selectSubOffenses, attentionOffensesOf } from "@/lib/subOffenses";
-import { loadStatementViews } from "@/lib/offenseStatementService";
+import { selectSubOffenses, attentionOffensesOf } from "@/lib/strafbuch/subOffenses";
+import { loadStatementViews } from "@/lib/strafbuch/offenseStatementService";
 import OffenseList from "@/app/components/OffenseList";
 import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/goalSegments";
 import { resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
@@ -48,7 +48,7 @@ import BoxPhotoWaive from "@/app/components/BoxPhotoWaive";
 import { boxPhotoDueAtOf } from "@/lib/boxPhotoDue";
 import Section from "@/app/components/Section";
 import StatsCard from "@/app/components/StatsCard";
-import { getOffenseRules } from "@/lib/offenseRulesService";
+import { getOffenseRules } from "@/lib/strafbuch/offenseRulesService";
 
 /**
  * **Die Blöcke der Keyholder-Detailseite — je mit eigener Datenbeschaffung.**

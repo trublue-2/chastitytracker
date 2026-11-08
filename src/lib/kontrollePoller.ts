@@ -13,7 +13,7 @@ import { ensureDailyAutoKontrollen, deleteWithdrawnAutoKontrollen, isSleepingAt,
 import { APP_TZ } from "@/lib/utils";
 import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAutoMarked, predictAutoMarkAt, INSPECTION_ESCALATION_USER_SELECT } from "@/lib/inspectionEscalationService";
 import { maybeRunHealthChecks } from "@/lib/healthCheck";
-import { maybeAnnounceOffenses } from "@/lib/offenseAnnounce";
+import { maybeAnnounceOffenses } from "@/lib/strafbuch/offenseAnnounce";
 import { deadlineFromDispatch, dueForDispatchWhere } from "@/lib/delayedTrigger";
 import { dispatchDueTasks, processDueTasks, materializeDueSeries } from "@/lib/tasks/taskService";
 import { remindDueProofs } from "@/lib/tasks/taskProofReminder";

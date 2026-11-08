@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { MCP_MODEL_DOC } from "./mcpModelDoc";
-import { STORED_TYPE } from "./offenseTypes";
+import { STORED_TYPE } from "./strafbuch/offenseTypes";
 
 /** Der menschenlesbare Spiegel — laut Header beider Dateien manuell synchron zu halten.
  *  Dieser Test macht aus der Header-Bitte eine Zusicherung: driftet ein Abschnitt, schlägt er fehl.

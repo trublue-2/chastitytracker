@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { deployCutoff } from "@/lib/appMeta";
-import { loadSubOffenses, type SubOffense } from "@/lib/subOffenses";
+import { loadSubOffenses, type SubOffense } from "@/lib/strafbuch/subOffenses";
 import { recordSystemMessage, OFFENSE_REF_TYPE, parseParams } from "@/lib/messageService";
-import { offenseCanonicalFromNameKey, offenseNameKey } from "@/lib/offenseLabels";
-import type { OffenseCanonicalType } from "@/lib/offenseTypes";
+import { offenseCanonicalFromNameKey, offenseNameKey } from "@/lib/strafbuch/offenseLabels";
+import type { OffenseCanonicalType } from "@/lib/strafbuch/offenseTypes";
 
 /**
  * Die Brücke von der LIVE-Ableitung in den Posteingang: aus „diese Vergehen bestehen gerade" wird

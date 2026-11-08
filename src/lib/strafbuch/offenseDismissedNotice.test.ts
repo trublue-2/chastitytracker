@@ -55,8 +55,8 @@ vi.mock("@/lib/push", async () => (await import("@/test/notifyLeafMocks")).pushL
 vi.mock("@/lib/emailI18n", async () => (await import("@/test/notifyLeafMocks")).emailI18nLeaf());
 vi.mock("next-intl/server", async () => (await import("@/test/notifyLeafMocks")).intlServerLeaf());
 
-vi.mock("@/lib/strafbuch", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/strafbuch")>()),
+vi.mock("@/lib/strafbuch/strafbuch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/strafbuch/strafbuch")>()),
   buildStrafbuch: vi.fn(),
 }));
 
@@ -64,7 +64,7 @@ import { POST, DELETE } from "@/app/api/admin/strafe/route";
 import { judgeOffense } from "./strafurteilService";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { buildStrafbuch } from "@/lib/strafbuch";
+import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
 import { AI_AUTHOR } from "@/lib/constants";
 import { emptyOffenseLists } from "@/test/strafbuchFixture";
 import { offenseAnnouncement } from "@/test/messageTableMock";

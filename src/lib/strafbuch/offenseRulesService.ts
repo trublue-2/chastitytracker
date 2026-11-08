@@ -6,7 +6,7 @@ import {
   offenseRuleResolver,
   type OffenseMode,
   type SwitchableOffenseType,
-} from "@/lib/offenseRules";
+} from "@/lib/strafbuch/offenseRules";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 
 /** Genau die Felder, die `OffenseRuleChangeRow` (offenseRules.ts) verlangt — einmal, damit die

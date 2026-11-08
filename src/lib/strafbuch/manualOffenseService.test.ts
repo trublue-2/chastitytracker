@@ -12,7 +12,7 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
 
 import { validateManualOffenseInput, createManualOffense, withdrawManualOffense } from "./manualOffenseService";
-import { MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH } from "./constants";
+import { MANUAL_OFFENSE_TITLE_MAX_LENGTH, MANUAL_OFFENSE_DESCRIPTION_MAX_LENGTH } from "../constants";
 import { prisma } from "@/lib/prisma";
 
 const createMock = prisma.manualOffense.create as unknown as ReturnType<typeof vi.fn>;

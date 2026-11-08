@@ -2,9 +2,9 @@ import { localeT } from "@/lib/emailI18n";
 import type { InboxMessage, MessageSenderKind } from "@/lib/messageService";
 import { messageCategory, type MessageCategory } from "@/lib/messageCategories";
 import { inspectionHref } from "@/lib/entryFormRoute";
-import { offenseCanonicalFromNameKey, withOffenseName } from "@/lib/offenseLabels";
+import { offenseCanonicalFromNameKey, withOffenseName } from "@/lib/strafbuch/offenseLabels";
 import { withMessageDefaults } from "@/lib/messageDefaults";
-import { loadStatementViews, type StatementView } from "@/lib/offenseStatementService";
+import { loadStatementViews, type StatementView } from "@/lib/strafbuch/offenseStatementService";
 
 /** Eine anzeigefertige Nachricht: alle Texte aufgelöst, keine i18n-Schlüssel mehr. */
 export interface PresentedMessage {

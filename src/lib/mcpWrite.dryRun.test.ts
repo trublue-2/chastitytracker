@@ -72,15 +72,15 @@ vi.mock("@/lib/releaseNowService", async (importOriginal) => {
   // `previewReleaseNow` bleibt ECHT — sie ist genau das, was hier geprüft wird.
   return { ...actual, releaseNow: vi.fn() };
 });
-vi.mock("@/lib/strafurteilService", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/strafurteilService")>();
+vi.mock("@/lib/strafbuch/strafurteilService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/strafbuch/strafurteilService")>();
   return { ...actual, judgeOffense: vi.fn(), requireDetectedOffense: vi.fn() };
 });
 // buildStrafbuch aggregiert quer über viele Prisma-Tabellen (Entry, VerschlussAnforderung, AppMeta,
 // ...) — für den judge_offense-dryRun (B-05: "ist der ref noch ein live erkanntes Vergehen?") reicht
 // ein Mock, dessen konkreter Rückgabewert egal ist, weil requireDetectedOffense direkt daneben
 // ebenfalls gemockt ist und ihn nicht interpretiert.
-vi.mock("@/lib/strafbuch", () => ({ buildStrafbuch: vi.fn().mockResolvedValue({}) }));
+vi.mock("@/lib/strafbuch/strafbuch", () => ({ buildStrafbuch: vi.fn().mockResolvedValue({}) }));
 
 import {
   mcpRequestLock, mcpSetLockPeriod, mcpRequestInspection, mcpRequestOrgasm, mcpSetTrainingGoal,
@@ -95,7 +95,7 @@ import { createVorgabe, updateVorgabe, deleteVorgabe } from "@/lib/vorgabeServic
 import { setCleaningSettings } from "@/lib/cleaningService";
 import { setAutoKontrolleSettings } from "@/lib/autoKontrolleService";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
-import { judgeOffense, requireDetectedOffense } from "@/lib/strafurteilService";
+import { judgeOffense, requireDetectedOffense } from "@/lib/strafbuch/strafurteilService";
 import { releaseNow } from "@/lib/releaseNowService";
 import { setWeightRelease } from "@/lib/weight/weightReleaseService";
 import { CLEANING_WINDOWS_MAX } from "@/lib/constants";

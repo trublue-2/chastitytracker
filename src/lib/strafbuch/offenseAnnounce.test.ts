@@ -53,7 +53,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 const offenses = vi.fn();
-vi.mock("@/lib/subOffenses", () => ({ loadSubOffenses: async () => offenses() }));
+vi.mock("@/lib/strafbuch/subOffenses", () => ({ loadSubOffenses: async () => offenses() }));
 
 import { announceNewOffenses, announceableOffenses } from "./offenseAnnounce";
 import { OFFENSE_REF_TYPE } from "@/lib/messageService";

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { withOffenseName } from "@/lib/offenseLabels";
+import { withOffenseName } from "@/lib/strafbuch/offenseLabels";
 import { withMessageDefaults } from "@/lib/messageDefaults";
 import { sendMailSafe, escHtml, dashboardEmailHtml } from "@/lib/mail";
 import { emailT, emailGreeting, localeT } from "@/lib/emailI18n";

@@ -9,7 +9,7 @@ import Textarea from "@/app/components/Textarea";
 import { fetchWithTimeout, parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import { OFFENSE_STATEMENT_MAX_LENGTH } from "@/lib/constants";
-import type { StatementView } from "@/lib/offenseStatementService";
+import type { StatementView } from "@/lib/strafbuch/offenseStatementService";
 
 /**
  * Was der Träger zu einem festgestellten Vergehen zu sagen hat — an zwei Orten: an der Meldung im

@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { dropJudgments } from "@/lib/offenseJudgmentCleanup";
+import { dropJudgments } from "@/lib/strafbuch/offenseJudgmentCleanup";
 import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serviceResult";
 import { notifyUser, notifyControllers, type NotifyContent, type NotifyRecipient } from "@/lib/notify";
 import { actorColumn, type MessageActor } from "@/lib/messageService";

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
-import { writeOffenseStatement } from "@/lib/offenseStatementService";
+import { writeOffenseStatement } from "@/lib/strafbuch/offenseStatementService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 import { notifyControllers } from "@/lib/notify";
 import { getControllersOfUser } from "@/lib/keyholder";
-import { offenseNameKey } from "@/lib/offenseLabels";
+import { offenseNameKey } from "@/lib/strafbuch/offenseLabels";
 import { markLastAction } from "@/lib/appMeta";
 
 /**

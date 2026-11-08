@@ -618,7 +618,7 @@ export type VerifikationStatus = "unverified" | "not_required" | "pending" | "ai
 
 /** True if a deadline passed without a timely completion — completed after the deadline, or not
  *  yet completed and the deadline is already past. Shared primitive behind the Kontrolle "late"
- *  status and the Strafbuch late-lock / cleaning-relock detectors (src/lib/strafbuch.ts). */
+ *  status and the Strafbuch late-lock / cleaning-relock detectors (src/lib/strafbuch/strafbuch.ts). */
 export function isPastDeadlineUnfulfilled(deadline: Date, completedAt: Date | null, now: Date): boolean {
   return completedAt ? completedAt > deadline : deadline < now;
 }
@@ -800,7 +800,7 @@ export function filterAndSortPairEntries<E extends { type: string; startTime: Da
 /** Frist, bis zu der ein Wiederverschluss eine Reinigungsöffnung als blosse UNTERBRECHUNG der
  *  laufenden Session fortführt — danach zerfällt sie in zwei Sessions. Öffnung + `maxMinutes`.
  *
- *  Bewusst NICHT dieselbe Frist wie {@link import("./strafbuch").cleaningRelockObligation}: die
+ *  Bewusst NICHT dieselbe Frist wie {@link import("./strafbuch/strafbuch").cleaningRelockObligation}: die
  *  beantwortet die Strafbuch-Frage („gibt es dafür ein Vergehen?"), hängt an einer aktiven
  *  Sperrzeit und reicht bei konfigurierten Fenstern bis ans Fensterende — bei einem 20–22-Uhr-
  *  Fenster also Stunden über diese Frist hinaus. Wer die beiden vertauscht, zeigt dem Sub einen

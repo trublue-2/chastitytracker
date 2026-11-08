@@ -6,8 +6,8 @@ import Toggle from "@/app/components/Toggle";
 import Select from "@/app/components/Select";
 import SettingLabel from "@/app/components/SettingLabel";
 import { useSettingsSave, useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
-import { OFFENSE_MODE_I18N_KEYS, OFFENSE_TYPE_I18N_KEYS } from "@/lib/offenseLabels";
-import { OFFENSE_RULE_MODES, type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
+import { OFFENSE_MODE_I18N_KEYS, OFFENSE_TYPE_I18N_KEYS } from "@/lib/strafbuch/offenseLabels";
+import { OFFENSE_RULE_MODES, type OffenseMode, type SwitchableOffenseType } from "@/lib/strafbuch/offenseRules";
 
 /**
  * Der Abschnitt, in dem die PARAMETER dieser Art stehen (Grenze, Frist, Fenster). Die Zeile hier

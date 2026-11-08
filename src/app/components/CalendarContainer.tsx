@@ -7,8 +7,8 @@ import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { iconButtonCls } from "@/app/components/inputStyles";
 import { useDialogBehaviour } from "@/app/hooks/useDialogBehaviour";
 import { useLocale, useTranslations } from "next-intl";
-import { offenseNameKey } from "@/lib/offenseLabels";
-import type { OffenseCanonicalType } from "@/lib/offenseTypes";
+import { offenseNameKey } from "@/lib/strafbuch/offenseLabels";
+import type { OffenseCanonicalType } from "@/lib/strafbuch/offenseTypes";
 
 import type { DayEntry, DayVorgabe, CalendarDayData, CalendarMonthData } from "@/lib/statsTypes";
 

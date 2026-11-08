@@ -31,7 +31,7 @@ import { QUICK_SETTING_SELECT, quickSettingOnCard, parseQuickSettings, quickSett
 import Section from "@/app/components/Section";
 import Badge from "@/app/components/Badge";
 import { strafbuchCached } from "@/lib/dashboardData";
-import { selectSubOffenses, attentionOffensesOf } from "@/lib/subOffenses";
+import { selectSubOffenses, attentionOffensesOf } from "@/lib/strafbuch/subOffenses";
 import { rowHoverCls } from "@/app/components/inputStyles";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";
 import { boxBoltOpenDespiteLocked } from "@/lib/boxStatus";

@@ -7,12 +7,12 @@ import IconTile from "@/app/components/IconTile";
 import { warnEdgeCls } from "@/app/components/inputStyles";
 import DetailField from "@/app/components/DetailField";
 import OffenseStatementField from "@/app/components/OffenseStatementField";
-import type { StatementView } from "@/lib/offenseStatementService";
+import type { StatementView } from "@/lib/strafbuch/offenseStatementService";
 import { formatDateTime, toDateLocale } from "@/lib/utils";
 import { TASK_LIST_ANCHOR } from "@/lib/constants";
-import { offenseNameKey } from "@/lib/offenseLabels";
+import { offenseNameKey } from "@/lib/strafbuch/offenseLabels";
 import { PenaltyDoneButton, PenaltyReportButton } from "@/app/components/PenaltyActions";
-import type { SubOffense, SubOffenseState } from "@/lib/subOffenses";
+import type { SubOffense, SubOffenseState } from "@/lib/strafbuch/subOffenses";
 
 /** Zustand → Badge. Vier Zustände, vier Beschriftungen — der Träger muss keinen Lebenszyklus
  *  lernen, die Karte sagt in einem Wort, woran er ist. */

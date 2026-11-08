@@ -1,6 +1,6 @@
 import OffenseCard from "@/app/components/OffenseCard";
-import type { SubOffense } from "@/lib/subOffenses";
-import type { StatementView } from "@/lib/offenseStatementService";
+import type { SubOffense } from "@/lib/strafbuch/subOffenses";
+import type { StatementView } from "@/lib/strafbuch/offenseStatementService";
 
 /** Eine Liste von Vergehens-Karten — geteilt vom Strafen-Block des Sub-Dashboards und vom Block
  *  „Offene Vergehen und Strafen" der Keyholder-Sub-Übersicht (`keyholderOf`). */

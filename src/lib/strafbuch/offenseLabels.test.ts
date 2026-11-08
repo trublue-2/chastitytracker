@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { STORED_TYPE } from "@/lib/offenseTypes";
+import { STORED_TYPE } from "@/lib/strafbuch/offenseTypes";
 import {
   OFFENSE_TYPE_I18N_KEYS, OFFENSE_TYPE_ORDER, SWITCHABLE_OFFENSE_TYPES_IN_ORDER,
   offenseNameKey, switchableOffenseTypesFor,
-} from "@/lib/offenseLabels";
-import { OFFENSE_MODE_I18N_KEYS } from "@/lib/offenseLabels";
+} from "@/lib/strafbuch/offenseLabels";
+import { OFFENSE_MODE_I18N_KEYS } from "@/lib/strafbuch/offenseLabels";
 
 /**
  * Die Zusage von `OFFENSE_TYPE_I18N_KEYS` endet an der TypeScript-Grenze: der Compiler erzwingt,

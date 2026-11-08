@@ -12,13 +12,13 @@ import { CONFIRMED_LOCK_FILTER } from "@/lib/lockPending";
 import { missedWeightBlocks, missedWeightRef } from "@/lib/weight/weightObligation";
 import { isPausedAt, toHealthHoldSpans, type HealthHoldSpan } from "@/lib/healthHold";
 import { addWeightDays, endOfWeightDay, weightDayKey } from "@/lib/weight/weight";
-import { isSwitchableOffenseType, offenseRuleResolver, validOffenseRuleChanges, type OffenseRuleResolver } from "@/lib/offenseRules";
+import { isSwitchableOffenseType, offenseRuleResolver, validOffenseRuleChanges, type OffenseRuleResolver } from "@/lib/strafbuch/offenseRules";
 import {
   CLEANING_RULE_CHANGE_SELECT, cleaningPermissionUserAt, cleaningRulesFrom, cleaningRulesAt,
   type CleaningSettingsResolver,
 } from "@/lib/cleaningRules";
 import { TIMEZONE_CHANGE_SELECT, timezoneRulesFrom, type TimezoneResolver } from "@/lib/timezoneRules";
-import type { OffenseCanonicalType } from "@/lib/offenseTypes";
+import type { OffenseCanonicalType } from "@/lib/strafbuch/offenseTypes";
 
 /** A Kontroll-based offense (late or rejected) — raw data, formatting left to consumers. */
 export interface StrafbuchControlOffense {
@@ -618,7 +618,7 @@ function isAllowedCleaningOpening(
  * Sperrzeit-Kontext, Reinigung nicht erlaubt, ausserhalb der Fenster, oder die Sperrzeit endet vor
  * der Frist (dann bleibt nichts mehr zu verletzen).
  *
- * NICHT zu verwechseln mit {@link import("./utils").cleaningInterruptionDeadline} — der Frist, bis
+ * NICHT zu verwechseln mit {@link import("../utils").cleaningInterruptionDeadline} — der Frist, bis
  * zu der ein Wiederverschluss die Session fortführt. Die hier ist strenger im Zugang (nur unter
  * Sperrzeit) und zugleich grosszügiger in der Dauer (bei konfigurierten Fenstern bis ans
  * Fensterende, also möglicherweise Stunden). Als Countdown im Dashboard gezeigt, verspräche sie

@@ -6,7 +6,7 @@ import {
   isValidOffenseMode,
   offenseRuleResolver,
   type OffenseRuleChangeRow,
-} from "@/lib/offenseRules";
+} from "@/lib/strafbuch/offenseRules";
 
 const at = (iso: string) => new Date(iso);
 const change = (offenseType: string, mode: string, iso: string): OffenseRuleChangeRow =>

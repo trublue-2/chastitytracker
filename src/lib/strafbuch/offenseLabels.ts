@@ -1,5 +1,5 @@
-import type { AssertCoversAllOffenses, OffenseCanonicalType } from "@/lib/offenseTypes";
-import { isSwitchableOffenseType, type OffenseMode, type SwitchableOffenseType } from "@/lib/offenseRules";
+import type { AssertCoversAllOffenses, OffenseCanonicalType } from "@/lib/strafbuch/offenseTypes";
+import { isSwitchableOffenseType, type OffenseMode, type SwitchableOffenseType } from "@/lib/strafbuch/offenseRules";
 
 /**
  * Der i18n-Schlüssel je Vergehensart im Namensraum `offenses` — `<key>.name` benennt die Art,

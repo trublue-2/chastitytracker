@@ -3,8 +3,8 @@ import { mapServiceError, serviceErrors, serviceFail, type ServiceResult } from 
 import { NO_FIELDS_TO_UPDATE } from "@/lib/constants";
 import { weighingWindowsProblem, parseWeighingWindows } from "@/lib/weight/weightWindows";
 import { WEIGHT_USER_SELECT } from "@/lib/weight/weightService";
-import { OFFENSE_RULE_CHANGE_SELECT } from "@/lib/offenseRulesService";
-import { offenseRuleResolver } from "@/lib/offenseRules";
+import { OFFENSE_RULE_CHANGE_SELECT } from "@/lib/strafbuch/offenseRulesService";
+import { offenseRuleResolver } from "@/lib/strafbuch/offenseRules";
 import { heightProblem, isUnitSystem, weightProblem, HEIGHT_EPOCH, type UnitSystem } from "@/lib/weight/weight";
 
 /**

@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { announcedOffenseType } from "@/lib/offenseAnnounce";
+import { announcedOffenseType } from "@/lib/strafbuch/offenseAnnounce";
 import { OFFENSE_STATEMENT_MAX_LENGTH } from "@/lib/constants";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
-import type { OffenseCanonicalType } from "@/lib/offenseTypes";
+import type { OffenseCanonicalType } from "@/lib/strafbuch/offenseTypes";
 
 /**
  * Die Stellungnahme des Trägers zu einem festgestellten Vergehen.

@@ -10,7 +10,7 @@ import { STORED_TYPE } from "./offenseTypes";
  */
 describe("offenseTypes.ts bleibt importfrei", () => {
   it("enthält keine import-/require-Anweisung", () => {
-    expectImportFree("src/lib/offenseTypes.ts");
+    expectImportFree("src/lib/strafbuch/offenseTypes.ts");
   });
 });
 

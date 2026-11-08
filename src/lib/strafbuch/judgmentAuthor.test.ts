@@ -14,7 +14,7 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 
 import { judgmentAuthorColumns } from "./strafurteilService";
-import { AI_AUTHOR } from "./constants";
+import { AI_AUTHOR } from "../constants";
 
 describe("Urteils-Autor", () => {
   it("hält den Namen fest, wenn ein Mensch entscheidet", () => {

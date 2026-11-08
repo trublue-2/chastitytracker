@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
-import { judgeOffense, type StoredOffenseType } from "@/lib/strafurteilService";
+import { judgeOffense, type StoredOffenseType } from "@/lib/strafbuch/strafurteilService";
 
 /**
  * Der Browser-Rand des Urteils — dieselbe Geschäftslogik wie der MCP (`judge_offense`), weil beide

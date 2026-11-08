@@ -64,14 +64,14 @@ vi.mock("@/lib/inspectionTarget", () => ({
   inspectionPreconditionProblem: vi.fn(() => undefined),
   inspectionTargetLabel: vi.fn(() => null),
 }));
-vi.mock("@/lib/strafbuch", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/strafbuch")>()),
+vi.mock("@/lib/strafbuch/strafbuch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/strafbuch/strafbuch")>()),
   buildStrafbuch: vi.fn(),
 }));
 // Partiell: ersetzt ist nur die SCHRANKE („wurde die Feststellung je gemeldet?"), nicht der
 // Referenz-Typ daneben — den teilen Schreiben und Löschen der Verwerfungs-Meldung.
-vi.mock("@/lib/offenseAnnounce", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./offenseAnnounce")>()),
+vi.mock("@/lib/strafbuch/offenseAnnounce", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./strafbuch/offenseAnnounce")>()),
   offenseWasAnnounced: vi.fn(async () => true),
 }));
 
@@ -93,12 +93,12 @@ vi.mock("@/lib/messageService", async (importOriginal) => {
 
 import { AI_AUTHOR } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
-import { buildStrafbuch } from "@/lib/strafbuch";
+import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
 import { requestKontrolle, resolveKontrolle, sendKontrolleNotification } from "./kontrolleService";
 import { sendVerschlussAnforderungNotifications, withdrawVerschlussAnforderungById } from "./verschlussAnforderungService";
 import { withdrawOrgasmusAnforderungById } from "./orgasmusAnforderungService";
 import { withdrawTask, settleTaskResult } from "./tasks/taskService";
-import { judgeOffense } from "./strafurteilService";
+import { judgeOffense } from "./strafbuch/strafurteilService";
 import { emptyOffenseLists } from "@/test/strafbuchFixture";
 
 const mock = (fn: unknown) => fn as unknown as ReturnType<typeof vi.fn>;

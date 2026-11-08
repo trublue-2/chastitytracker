@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
-import { setOffenseRule } from "@/lib/offenseRulesService";
+import { setOffenseRule } from "@/lib/strafbuch/offenseRulesService";
 import { errorResponse, serviceResponse } from "@/lib/serviceResult";
 
 /**

@@ -19,7 +19,7 @@ import {
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { predictAutoMarkAt } from "@/lib/inspectionEscalationService";
 import { cleaningPermissionUserAt } from "@/lib/cleaningRules";
-import { cleaningRelockObligation, cleaningWindowEnforcedFrom } from "@/lib/strafbuch";
+import { cleaningRelockObligation, cleaningWindowEnforcedFrom } from "@/lib/strafbuch/strafbuch";
 import {
   formatDateTime, formatTime, interruptionPauseMs, runningCleaningPauseUntil,
   getMidnightToday, getWeekStart, getMonthStart, wearingHoursFromPairs, joinParts,
@@ -53,7 +53,7 @@ import BoxStatusCard from "@/app/components/BoxStatusCard";
 import WeightReleaseCard from "./WeightReleaseCard";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import OrgasmFreeSection from "@/app/components/OrgasmFreeSection";
-import { getOffenseRules } from "@/lib/offenseRulesService";
+import { getOffenseRules } from "@/lib/strafbuch/offenseRulesService";
 
 /**
  * **Die Blöcke des Träger-Dashboards — jeder mit seiner eigenen Datenbeschaffung.**

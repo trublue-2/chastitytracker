@@ -1,16 +1,16 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { buildStrafbuch, offenseListViews, type StrafbuchData } from "@/lib/strafbuch";
+import { buildStrafbuch, offenseListViews, type StrafbuchData } from "@/lib/strafbuch/strafbuch";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { recordSystemMessage, DISMISSAL_BODY_KEY, OFFENSE_REF_TYPE, type MessageActor } from "@/lib/messageService";
 import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serviceResult";
 import { checkTask, writeTask, taskAssignmentNotice, type CreateTaskParams } from "@/lib/tasks/taskService";
 import { formatDateTime } from "@/lib/utils";
 import { markLastAction } from "@/lib/appMeta";
-import { offenseWasAnnounced } from "@/lib/offenseAnnounce";
-import { STORED_TYPE, type OffenseCanonicalType, type StoredOffenseType } from "@/lib/offenseTypes";
+import { offenseWasAnnounced } from "@/lib/strafbuch/offenseAnnounce";
+import { STORED_TYPE, type OffenseCanonicalType, type StoredOffenseType } from "@/lib/strafbuch/offenseTypes";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
-import { dropJudgments, withdrawLinkedTask } from "@/lib/offenseJudgmentCleanup";
+import { dropJudgments, withdrawLinkedTask } from "@/lib/strafbuch/offenseJudgmentCleanup";
 import { AI_AUTHOR } from "@/lib/constants";
 
 /**
@@ -25,7 +25,7 @@ import { AI_AUTHOR } from "@/lib/constants";
 /** Vergehens-Taxonomie: liegt in `offenseTypes.ts`, weil dieses Modul Prisma zieht und die Tabelle
  *  auch aus Client-Komponenten (Strafbuch-Seite) erreichbar sein muss. Hier re-exportiert, damit die
  *  bestehenden Importeure unverändert bleiben. */
-export { STORED_TYPE, type OffenseCanonicalType, type StoredOffenseType } from "@/lib/offenseTypes";
+export { STORED_TYPE, type OffenseCanonicalType, type StoredOffenseType } from "@/lib/strafbuch/offenseTypes";
 
 export interface DetectedOffense {
   canonicalType: OffenseCanonicalType;
@@ -38,7 +38,7 @@ export interface DetectedOffense {
  *  OFFENSE_LISTS-Tabelle, und dieses Modul importiert jenes (andersherum gäbe es einen Zyklus).
  *  Hier re-exportiert: der Ledger baut damit exakt dieselbe ref für seinen `judge()`-Aufruf, und die
  *  Admin-Route dreht sie für ihren IDOR-Check wieder um. */
-export { cleaningNotRelockedRef, entryIdFromCleaningNotRelockedRef } from "@/lib/strafbuch";
+export { cleaningNotRelockedRef, entryIdFromCleaningNotRelockedRef } from "@/lib/strafbuch/strafbuch";
 
 /** Flacht die buildStrafbuch-Listen zu einer einheitlichen Liste erkannter Vergehen mit stabiler ref.
  *  Dient der ref-Auflösung (judge_offense) und dem Zählen — keine Strafwertung.

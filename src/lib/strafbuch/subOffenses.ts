@@ -1,6 +1,6 @@
-import { buildStrafbuch, offenseListViews, type OffenseDetail, type StrafbuchData } from "@/lib/strafbuch";
-import { collectDetectedOffenses } from "@/lib/strafurteilService";
-import { offenseNeedsAttention, offenseState, type OffenseCanonicalType, type OffenseState } from "@/lib/offenseTypes";
+import { buildStrafbuch, offenseListViews, type OffenseDetail, type StrafbuchData } from "@/lib/strafbuch/strafbuch";
+import { collectDetectedOffenses } from "@/lib/strafbuch/strafurteilService";
+import { offenseNeedsAttention, offenseState, type OffenseCanonicalType, type OffenseState } from "@/lib/strafbuch/offenseTypes";
 
 /**
  * Das Strafbuch aus der Sicht des KG-TRÄGERS — die eine Stelle, an der es entsteht (Issue #36).

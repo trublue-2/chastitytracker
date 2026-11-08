@@ -5,9 +5,9 @@ import DashboardBlock from "@/app/components/DashboardBlock";
 import OffenseList from "@/app/components/OffenseList";
 import { prisma } from "@/lib/prisma";
 import { messageFilterToParams } from "@/lib/messageCategories";
-import { loadSubOffenses, subAttentionOffensesOf } from "@/lib/subOffenses";
-import { announcedOpenRefs } from "@/lib/offenseAnnounce";
-import { loadStatementViews } from "@/lib/offenseStatementService";
+import { loadSubOffenses, subAttentionOffensesOf } from "@/lib/strafbuch/subOffenses";
+import { announcedOpenRefs } from "@/lib/strafbuch/offenseAnnounce";
+import { loadStatementViews } from "@/lib/strafbuch/offenseStatementService";
 import { SUB_VISIBLE_WHERE } from "@/lib/tasks/taskIntervals";
 
 /** Wie viele Karten JE ART (unbeurteilt / offene Strafe) im Dashboard ausliegen, bevor auf den
