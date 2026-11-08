@@ -27,7 +27,7 @@ gehören dazu auch Zählwerte zur Nutzung — exakt, aber ohne Namen, Adressen o
 | `X-Instance-Id` | die **ersten 16 Zeichen eines SHA-256 des eigenen `NEXTAUTH_SECRET`** — stabil pro Instanz, nicht direkt umkehrbar (dient nur zum Entdoppeln verschiedener Instanzen). Sie geht ausschliesslich an den Collector und das Feedback-Postfach, **nie** in eine öffentliche URL: bei einem schwachen Secret liesse sie sich offline durchprobieren |
 | `X-Instance-Stats` | kompaktes JSON, siehe unten (seit 6.4.4) |
 
-Inhalt von `X-Instance-Stats` (`src/lib/census.ts`, Feld `v` = Schema-Version):
+Inhalt von `X-Instance-Stats` (`src/lib/upstream/census.ts`, Feld `v` = Schema-Version):
 
 | Feld | Inhalt |
 |------|--------|

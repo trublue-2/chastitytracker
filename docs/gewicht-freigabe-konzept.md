@@ -103,7 +103,7 @@ nächste Ziel — und die gehört der Keyholderin, nicht dem Rechenkern.
 
 ## 5. Die Rechnung
 
-Rein und ohne Datenbank in `src/lib/weightRelease.ts` — testbar, und die MCP-Dry-Run-Vorschau ruft
+Rein und ohne Datenbank in `src/lib/weight/weightRelease.ts` — testbar, und die MCP-Dry-Run-Vorschau ruft
 dieselbe Funktion auf, statt die Kette abzuschreiben (Muster: `checkTask()`).
 
 **Das Mittel** kommt aus `movingAverage()` in `weightSeries.ts` — schon gebaut, getestet und über
@@ -248,7 +248,7 @@ bereits eine, und beide sind Vorgaben, keine Messungen.
 
 | # | Inhalt | Kern |
 |---|---|---|
-| 1 ✅ | Schema + Migration + `src/lib/weightRelease.ts` (Schwelle, Mittel-Prüfung, Auswertung) samt Tests | rein und testbar, kein UI |
+| 1 ✅ | Schema + Migration + `src/lib/weight/weightRelease.ts` (Schwelle, Mittel-Prüfung, Auswertung) samt Tests | rein und testbar, kein UI |
 | 2 ✅ | Vorgabe stellen: Aktions-Formular unter `/admin/users/[id]/aktionen`, Service, API-Route, Untergewichts-Schranke | Muster `OrgasmusAnforderungForm` |
 | 3 ✅ | Auswertung in `recordWeight()` → `createOrgasmusAnforderung()`, Meldungen an beide Seiten | **die heikelste Etappe**: hier entsteht eine Direktive automatisch |
 | 4 ✅ | Sichtbarkeit für den Träger: Dashboard-Block, „Meine Regeln", zweite Linie im Diagramm | die Etappe, ohne die das Feature seinen Zweck verfehlt |
@@ -344,8 +344,8 @@ erscheinen, das es vorher nicht gab.
 
 | Baustein | Wo |
 |---|---|
-| Rechnung (Schwelle des Tages, Mittel-Prüfung) | `src/lib/weightRelease.ts` — rein, ohne Datenbank |
-| Vorgang (stellen, zurückziehen, Stand, auslösen) | `src/lib/weightReleaseService.ts` |
+| Rechnung (Schwelle des Tages, Mittel-Prüfung) | `src/lib/weight/weightRelease.ts` — rein, ohne Datenbank |
+| Vorgang (stellen, zurückziehen, Stand, auslösen) | `src/lib/weight/weightReleaseService.ts` |
 | Auslösung | `recordWeight()` ruft `applyWeightRelease()`, **nur** bei `replaced === false` |
 | Keyholderin | `/admin/users/[id]/aktionen/gewichts-freigabe`, Route `POST/DELETE /api/admin/weight-release` |
 | Träger | Dashboard-Block `weightRelease`, Abschnitt in „Meine Regeln", zweite Linie im Verlaufs-Diagramm |
