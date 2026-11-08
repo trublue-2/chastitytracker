@@ -110,7 +110,7 @@ export async function weightHistory(username: string, opts: { days: number | nul
   // Gegen die JÜNGSTE Messung, nicht gegen die letzte des Zeitraums: „wie weit ist er" fragt nach
   // heute, nicht nach dem Ausschnitt, den die Abfrage gerade zeigt. Der Startwert kommt aus der
   // bereits geladenen Reihe (`startWeightIn`) — die Abfrage hat sie vollständig geholt.
-  const newest = rows.length ? rows[rows.length - 1] : null;
+  const newest = rows.at(-1) ?? null;
   const progress = target && newest
     ? targetProgress({ targetKg: target.kg, startKg: startWeightIn(rows, target.setAt), currentKg: newest.weightKg })
     : null;
@@ -126,9 +126,9 @@ export async function weightHistory(username: string, opts: { days: number | nul
       : null,
     // Aus dem GANZEN Bestand, nicht aus dem Zeitraum: „seit wann keine Meldung" darf nicht davon
     // abhängen, wie weit die Abfrage zurückblickt.
-    daysSinceLastReport: rows.length ? dayNumber(todayKey) - dayNumber(rows[rows.length - 1].dayKey) : null,
+    daysSinceLastReport: newest ? dayNumber(todayKey) - dayNumber(newest.dayKey) : null,
     changeKg: series.changeKg,
-    trendKg: series.trend.length ? series.trend[series.trend.length - 1].weightKg : null,
+    trendKg: series.trend.at(-1)?.weightKg ?? null,
     points: series.points.map((p) => {
       const row = rows.find((r) => r.dayKey === p.dayKey);
       return {
@@ -219,7 +219,7 @@ export async function weightSummary(userId: string): Promise<WeightSummary | nul
     latestKg: last.weightKg,
     day: last.dayKey,
     bmi: bmiRounded(last.weightKg, user.heightCm),
-    trendKg: series.trend.length ? series.trend[series.trend.length - 1].weightKg : null,
+    trendKg: series.trend.at(-1)?.weightKg ?? null,
     target: target && { kg: target.kg, source: target.source },
     remainingKg: progress?.remainingKg ?? null,
     reached: progress?.reached ?? false,

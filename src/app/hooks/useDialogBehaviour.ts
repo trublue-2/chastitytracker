@@ -116,7 +116,7 @@ function restoreFocus(opener: Element | null): void {
     opener.focus();
     return;
   }
-  const below = openDialogs[openDialogs.length - 1];
+  const below = openDialogs.at(-1);
   if (below?.isConnected) {
     below.focus();
     return;
@@ -181,7 +181,7 @@ export function useDialogBehaviour(
     const onKeyDown = (e: KeyboardEvent) => {
       // Nur der OBERSTE Dialog hört zu. Der Hänger sitzt an `document`, also bekommt ihn jeder
       // offene Dialog — ohne diese Zeile schlösse ein Escape alle gleichzeitig.
-      if (openDialogs[openDialogs.length - 1] !== dialog) return;
+      if (openDialogs.at(-1) !== dialog) return;
       if (e.key === "Escape") {
         // Eine laufende Anfrage darf ihre Rückfrage nicht unter sich verlieren: der Nutzer sähe
         // die Seite unverändert, während im Hintergrund gelöscht wird.

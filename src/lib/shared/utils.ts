@@ -3,11 +3,13 @@ import { toVerifyFailure, type VerifyFailure } from "@/lib/kontrollen/verifyReas
 import { isEffectiveEntry } from "@/lib/entries/lockPending";
 import { getMidnightToday, getWeekStart, getMonthStart, getYearStart } from "@/lib/shared/time";
 
-/** Auf eine Nachkommastelle runden. */
-export const round1 = (n: number) => Math.round(n * 10) / 10;
+/** Auf eine Nachkommastelle runden.
+ * @deprecated Use Number(n.toFixed(1)) instead.
+ */
+export const round1 = (n: number) => Number(n.toFixed(1));
 
 /** Millisekunden → Stunden, auf eine Nachkommastelle gerundet. */
-export const msToHours = (ms: number) => round1(ms / 3_600_000);
+export const msToHours = (ms: number) => Number((ms / 3_600_000).toFixed(1));
 
 /** Median einer Zahlenliste (leere Liste → 0). */
 export function median(values: number[]): number {
@@ -49,7 +51,7 @@ export function summarizeDurations(durations: number[]): {
  */
 export function swapAt<T>(list: T[], i: number, j: number): T[] {
   if (i === j || i < 0 || j < 0 || i >= list.length || j >= list.length) return list;
-  return list.map((x, k) => (k === i ? list[j] : k === j ? list[i] : x));
+  return list.with(i, list[j]).with(j, list[i]);
 }
 
 /**
@@ -65,15 +67,13 @@ export function swapAt<T>(list: T[], i: number, j: number): T[] {
  */
 export function moveToEdge<T>(list: T[], index: number, edge: "start" | "end"): T[] {
   if (index < 0 || index >= list.length) return list;
-  const rest = list.filter((_, k) => k !== index);
+  const rest = list.toSpliced(index, 1);
   return edge === "start" ? [list[index], ...rest] : [...rest, list[index]];
 }
 
 /** Zeilen je `userId` bündeln — einmal O(n), statt je Nutzer die ganze Liste zu durchsuchen. */
 export function groupByUser<T extends { userId: string }>(rows: readonly T[]): Map<string, T[]> {
-  const m = new Map<string, T[]>();
-  for (const r of rows) (m.get(r.userId) ?? m.set(r.userId, []).get(r.userId)!).push(r);
-  return m;
+  return Map.groupBy(rows, r => r.userId);
 }
 
 /** Fügt die vorhandenen Teile einer einzeiligen Beschriftung mit „ · " zusammen; bleibt nichts
@@ -577,7 +577,7 @@ export function longestOrgasmFreeGap(
   now: Date,
 ): { ms: number; since: Date } | null {
   if (times.length === 0) return null;
-  const last = times[times.length - 1];
+  const last = times.at(-1)!; // already checked the length one line above, this cannot be undefined
   // Startwert ist die laufende Strecke; nur eine STRIKT längere abgeschlossene Lücke verdrängt sie —
   // bei Gleichstand bleibt es die laufende, denn die ist der lebendige (noch wachsende) Rekord.
   let best: { ms: number; since: Date } = { ms: now.getTime() - last.getTime(), since: last };
@@ -637,7 +637,7 @@ export function mergeWearPairs(pairs: WearPair[]): WearPair[] {
   const asc = [...pairs].sort((a, b) => a.start.getTime() - b.start.getTime());
   const merged: WearPair[] = [];
   for (const p of asc) {
-    const last = merged[merged.length - 1];
+    const last = merged.at(-1);
     if (last && p.start.getTime() <= last.end.getTime()) {
       if (p.end.getTime() > last.end.getTime()) last.end = p.end;
     } else {
