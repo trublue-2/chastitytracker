@@ -1,6 +1,6 @@
 import { KeyRound, ShieldCheck, Circle, Diamond, Gem, Sparkles, Link, Link2, Anchor, Crown, Heart, Bookmark, Shirt, Feather, Watch, Cpu, Footprints, Glasses, Tag, type LucideIcon } from "lucide-react";
 import { PlugIcon, HandcuffsIcon, RingOIcon, GagIcon } from "@/app/components/deviceIcons";
-import { type CategoryIcon } from "@/lib/categoryConstants";
+import { type CategoryIcon } from "@/lib/devices/categoryConstants";
 import type { CSSProperties } from "react";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 

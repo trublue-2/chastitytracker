@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
-import { manageableDeviceOwner } from "@/lib/deviceAccess";
-import { deleteReference } from "@/lib/deviceReferenceService";
+import { manageableDeviceOwner } from "@/lib/devices/deviceAccess";
+import { deleteReference } from "@/lib/devices/deviceReferenceService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 type Params = { params: Promise<{ id: string; refId: string }> };

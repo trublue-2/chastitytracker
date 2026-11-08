@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { listDeviceReferences } from "@/lib/deviceReferenceService";
+import { listDeviceReferences } from "@/lib/devices/deviceReferenceService";
 import { buildEnvelope, makeIso, matchByNameCI, resolveUserContext, type Envelope } from "@/lib/mcp/common";
 
 /**

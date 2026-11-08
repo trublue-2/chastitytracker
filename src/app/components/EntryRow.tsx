@@ -8,7 +8,7 @@ import { FullscreenImageModal } from "@/app/components/ImageViewer";
 import EntryDetailPanel from "@/app/components/EntryDetailPanel";
 import InspectionReviewButtons, { type InspectionReviewData } from "@/app/admin/kontrollen/InspectionReviewButtons";
 import CategoryIconRender from "@/app/components/CategoryIcon";
-import { categoryStyle } from "@/lib/categoryConstants";
+import { categoryStyle } from "@/lib/devices/categoryConstants";
 import { listRowCls, listRowButtonCls, listRowTimeCls } from "@/app/components/inputStyles";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";

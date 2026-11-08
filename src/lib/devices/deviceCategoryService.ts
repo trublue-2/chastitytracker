@@ -3,7 +3,7 @@ import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import {
   CATEGORY_SLUG_MAX_LENGTH, DEFAULT_USER_CATEGORY_COLOR, DEFAULT_USER_CATEGORY_ICON,
   slugifyCategoryName, validateCategoryInput,
-} from "@/lib/categoryConstants";
+} from "@/lib/devices/categoryConstants";
 import type { TxClient } from "@/lib/mcp/writeFramework";
 import type { DeviceCategory } from "@prisma/client";
 

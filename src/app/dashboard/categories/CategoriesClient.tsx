@@ -14,7 +14,7 @@ import EmptyState from "@/app/components/EmptyState";
 import Badge from "@/app/components/Badge";
 import ActionModal from "@/app/components/ActionModal";
 import useToast from "@/app/hooks/useToast";
-import { categoryStyle } from "@/lib/categoryConstants";
+import { categoryStyle } from "@/lib/devices/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import CategoryFormSheet from "./CategoryFormSheet";
 import { parseApiError } from "@/lib/apiClient";

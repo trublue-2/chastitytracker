@@ -5,7 +5,7 @@ import { isValidImageUrl } from "@/lib/constants";
 import { detectDevice } from "@/lib/kontrollen/detectDevice";
 import { detectDeviceByEmbedding } from "@/lib/kontrollen/deviceEmbedding";
 import { embedAvailable } from "@/lib/kontrollen/embed";
-import { gatherDeviceReferences } from "@/lib/deviceReferenceService";
+import { gatherDeviceReferences } from "@/lib/devices/deviceReferenceService";
 
 /**
  * POST /api/detect-device

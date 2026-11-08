@@ -59,7 +59,7 @@ import { type RecurrenceFreq } from "@/lib/tasks/taskRecurrence";
 import { chainBreakPartner, correctEntry, correctionProblem, deleteEntryForUser, type EntryCorrection } from "@/lib/entryCorrection";
 import { createEntryForUser, validateEntryCreate } from "@/lib/entryCreateService";
 import { createEntryGapForUser, validateEntryGap, entryGapEnabled, type EntryGapKind } from "@/lib/entryGapService";
-import { deleteReference, importEntryAsReference, importRecentVerschluss, selectImportCandidates } from "@/lib/deviceReferenceService";
+import { deleteReference, importEntryAsReference, importRecentVerschluss, selectImportCandidates } from "@/lib/devices/deviceReferenceService";
 import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks/tasks";
 import { releaseNow, previewReleaseNow } from "@/lib/releaseNowService";
 import { RELEASE_ORGASM_WINDOW_H } from "@/lib/constants";

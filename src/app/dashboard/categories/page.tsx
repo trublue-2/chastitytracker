@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { deviceCategoriesEnabled } from "@/lib/constants";
-import { buildCategoryRows } from "@/lib/categoryRows";
+import { buildCategoryRows } from "@/lib/devices/categoryRows";
 import CategoriesClient from "./CategoriesClient";
 
 export default async function CategoriesPage() {

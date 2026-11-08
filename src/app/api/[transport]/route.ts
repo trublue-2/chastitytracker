@@ -26,7 +26,7 @@ import { getSession } from "@/lib/mcp/sessions";
 import { queryNotes, upsertNoteDef, linkNoteDef, NOTE_TYPES, NOTE_STATUS, NOTE_SOURCE, NOTE_CONFIDENCE, ENTITY_TYPES } from "@/lib/mcp/notes";
 import { listDevicesV2, setDeviceMetaDef, upsertDeviceDef, deleteDeviceDef, SECURITY_LEVELS } from "@/lib/mcp/devices";
 import { upsertCategoryDef, deleteCategoryDef } from "@/lib/mcp/categories";
-import { CATEGORY_COLORS, CATEGORY_ICONS, CATEGORY_NAME_MAX_LENGTH } from "@/lib/categoryConstants";
+import { CATEGORY_COLORS, CATEGORY_ICONS, CATEGORY_NAME_MAX_LENGTH } from "@/lib/devices/categoryConstants";
 import { executeWrite, recordAction, type WriteDef, type WriteSource } from "@/lib/mcp/writeFramework";
 import { buildWriteContext, NOTE_TEXT_LIMIT } from "@/lib/mcp/common";
 import { computeToolSurfaceFingerprint, setToolSurfaceFingerprint, toolSurfaceFingerprint } from "@/lib/mcp/toolSurface";

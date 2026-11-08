@@ -6,8 +6,8 @@ import {
   resolveCategoryRuleChanges,
   type CategoryRuleCode, type CategoryRuleField, type CategoryRuleOutcome, type CategorySlugOutcome,
   type CategoryUsage,
-} from "@/lib/deviceCategoryService";
-import { validateCategoryInput } from "@/lib/categoryConstants";
+} from "@/lib/devices/deviceCategoryService";
+import { validateCategoryInput } from "@/lib/devices/categoryConstants";
 import { deviceCategoriesEnabled, DEVICE_NAME_MAX_LENGTH } from "@/lib/constants";
 import { CATEGORY_LIST_ORDER, CATEGORY_LIST_SELECT } from "@/lib/queries";
 

@@ -4,7 +4,7 @@ import { entryManageAccess } from "@/lib/keyholder";
 import { prisma } from "@/lib/prisma";
 import { isValidImageUrl, validateDeviceInput } from "@/lib/constants";
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
-import { resolveOwnedCategory } from "@/lib/deviceCategoryService";
+import { resolveOwnedCategory } from "@/lib/devices/deviceCategoryService";
 
 /**
  * GET /api/devices

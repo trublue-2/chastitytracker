@@ -31,7 +31,7 @@ function constFromSource(file: string, name: string): string {
 }
 
 const APP_NAME = constFromSource("src/lib/constants.ts", "APP_NAME");
-const KG_BUILTIN_NAME = constFromSource("src/lib/deviceCategories.ts", "KG_BUILTIN_NAME");
+const KG_BUILTIN_NAME = constFromSource("src/lib/devices/deviceCategories.ts", "KG_BUILTIN_NAME");
 
 describe("Der App-Name steht überall gleich", () => {
   it("liest die Konstante wirklich", () => {

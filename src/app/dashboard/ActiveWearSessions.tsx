@@ -7,7 +7,7 @@ import { ListChecks } from "lucide-react";
 import Card from "@/app/components/Card";
 import RowAction from "@/app/components/RowAction";
 import { formatElapsedMs } from "@/lib/utils";
-import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
+import { categoryStyle, wearActionHref } from "@/lib/devices/categoryConstants";
 import CategoryPhotoThumb from "@/app/components/CategoryPhotoThumb";
 import DashboardBlock from "@/app/components/DashboardBlock";
 

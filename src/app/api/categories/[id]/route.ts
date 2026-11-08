@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApi, deviceCategoriesGate } from "@/lib/authGuards";
 import { entryManageAccess } from "@/lib/keyholder";
-import { validateCategoryInput } from "@/lib/categoryConstants";
+import { validateCategoryInput } from "@/lib/devices/categoryConstants";
 import { errorResponse } from "@/lib/serviceResult";
-import { resolveCategoryRuleChanges, currentCategoryRules, categoryUsage, categoryDeleteBlock } from "@/lib/deviceCategoryService";
+import { resolveCategoryRuleChanges, currentCategoryRules, categoryUsage, categoryDeleteBlock } from "@/lib/devices/deviceCategoryService";
 
 type Params = { params: Promise<{ id: string }> };
 

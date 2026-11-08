@@ -2,7 +2,7 @@ import { buildKgWearPairs, wearHoursOfPairs, longestOrgasmFreeGap, median, msToH
 import { type ByPeriod, type GoalChangedInPeriod, type VorgabeTargets } from "@/lib/goalFulfillment";
 import { resolveGoalRow } from "@/lib/goalSegments";
 import { getActiveVorgabe, getKgVorgabeSegments } from "@/lib/queries";
-import { buildCategoryWearGoals } from "@/lib/categoryGoals";
+import { buildCategoryWearGoals } from "@/lib/devices/categoryGoals";
 import { buildSessions, buildWearSessions, deviceDisplayName, deviceGroupKey, isLiveOpenSession, isUnassignedDevice, segmentsByDevice, type DeviceRef, type Session, type Segment } from "@/lib/sessionModel";
 import { pct } from "@/lib/mcp/format";
 import { makeIso, buildEnvelope, loadTrackingContext, loadCategoryNames, type Envelope, type TrackingContext } from "@/lib/mcp/common";

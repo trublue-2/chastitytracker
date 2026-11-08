@@ -9,7 +9,7 @@ import Spinner from "@/app/components/Spinner";
 import PoorConnectionNote from "@/app/components/PoorConnectionNote";
 import Sheet from "./Sheet";
 import CategoryIconRender from "./CategoryIcon";
-import { categoryStyle, wearActionHref } from "@/lib/categoryConstants";
+import { categoryStyle, wearActionHref } from "@/lib/devices/categoryConstants";
 import { entryFormBase, inspectionHref } from "@/lib/entryFormRoute";
 import { actionIcon } from "@/app/entries/actionSign";
 import type { BildersafeMenuAction } from "@/lib/queries";

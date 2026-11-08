@@ -31,7 +31,7 @@ import { currentOrNextCleaningWindow } from "@/lib/cleaningService";
 import { datedWindowLabel } from "@/lib/weekdays";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
 import { resolveReasonLabel } from "@/lib/reasonsService";
-import { categoryNeedsDevice } from "@/lib/categoryConstants";
+import { categoryNeedsDevice } from "@/lib/devices/categoryConstants";
 import { inspectionHref, openInspections } from "@/lib/entryFormRoute";
 import { inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
 import { belongsOnDashboard, isHeldByTask } from "@/lib/tasks/taskIntervals";

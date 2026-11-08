@@ -4,7 +4,7 @@ import { prepareEmailInput } from "@/lib/loginIdentity";
 import { requireAdminApi } from "@/lib/authGuards";
 import bcrypt from "bcryptjs";
 import { passwordErrorCode } from "@/lib/constants";
-import { ensureKgCategory } from "@/lib/deviceCategories";
+import { ensureKgCategory } from "@/lib/devices/deviceCategories";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { latestKgTimesByUser } from "@/lib/queries";
 

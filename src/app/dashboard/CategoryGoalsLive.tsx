@@ -6,11 +6,11 @@ import { useTranslations } from "next-intl";
 
 import Section from "@/app/components/Section";
 import GoalProgressRows from "@/app/components/GoalProgressRows";
-import { categoryStyle } from "@/lib/categoryConstants";
+import { categoryStyle } from "@/lib/devices/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
-import type { CategoryWearGoal } from "@/lib/categoryGoals";
+import type { CategoryWearGoal } from "@/lib/devices/categoryGoals";
 import type { ByPeriod } from "@/lib/goalFulfillment";
 import type { KgGoalRow } from "@/lib/goalSegments";
 import { LockClosedIcon } from "@/app/components/lockIcons";

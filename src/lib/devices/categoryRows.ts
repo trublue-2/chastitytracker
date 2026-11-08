@@ -3,7 +3,7 @@ import { SESSION_ENTRY_SELECT, CATEGORY_LIST_ORDER, CATEGORY_LIST_SELECT, getUse
 import { buildKgWearPairs, wearingHoursFromPairs, getWeekStart } from "@/lib/utils";
 import { buildWearSessions, isLiveOpenSession, wearHourPairsByCategory } from "@/lib/sessionModel";
 import { deviceCategoriesEnabled } from "@/lib/constants";
-import { categoryNeedsDevice } from "@/lib/categoryConstants";
+import { categoryNeedsDevice } from "@/lib/devices/categoryConstants";
 import type { CategoryRow } from "@/app/dashboard/categories/CategoriesClient";
 import type { NewEntryCategoryRow } from "@/app/components/NewEntrySheet";
 

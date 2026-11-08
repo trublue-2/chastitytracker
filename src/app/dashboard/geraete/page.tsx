@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import DevicesClient from "./DevicesClient";
-import { CATEGORY_QUERY_KEY } from "@/lib/categoryConstants";
+import { CATEGORY_QUERY_KEY } from "@/lib/devices/categoryConstants";
 
 export default async function DevicesPage({
   searchParams,

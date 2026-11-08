@@ -4,7 +4,7 @@ import { weightDayKey } from "@/lib/weight/weight";
 import { getUserTimezone } from "@/lib/queries";
 import { reorderVorgabenDates } from "@/lib/vorgaben";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
-import { resolveOwnedCategory } from "@/lib/deviceCategoryService";
+import { resolveOwnedCategory } from "@/lib/devices/deviceCategoryService";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 import { markLastAction } from "@/lib/appMeta";
 import {

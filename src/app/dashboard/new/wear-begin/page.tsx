@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { deviceCategoriesEnabled } from "@/lib/constants";
-import { deviceFormHref } from "@/lib/categoryConstants";
+import { deviceFormHref } from "@/lib/devices/categoryConstants";
 import { getActiveWearSessionForCategory, getMobileDesktopMode } from "@/lib/queries";
 import { nowDatetimeLocal, safeInternalPath, APP_TZ } from "@/lib/utils";
 import WearForm from "../../WearForm";

@@ -6,7 +6,7 @@ import { requireAdminApi, requireKeyholderOrAdminApi, requireKeyholderOrAdminAct
 import bcrypt from "bcryptjs";
 import { passwordErrorCode, isValidLocale } from "@/lib/constants";
 import { getActiveLockPeriod, getIsLocked } from "@/lib/queries";
-import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
+import { buildNewEntryCategoryRows } from "@/lib/devices/categoryRows";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { recordAdminPasswordChange } from "@/lib/passwordAudit";
 import { setCleaningSettings } from "@/lib/cleaningService";

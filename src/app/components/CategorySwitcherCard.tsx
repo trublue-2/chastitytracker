@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Section from "./Section";
 import CategoryIconRender from "./CategoryIcon";
-import { categoryStyle } from "@/lib/categoryConstants";
+import { categoryStyle } from "@/lib/devices/categoryConstants";
 
 /** Das Minimum, das eine Variante zum Umschalten braucht. Kalender- und Device-Nutzungs-Varianten
  *  erweitern das um ihren Inhalt. */

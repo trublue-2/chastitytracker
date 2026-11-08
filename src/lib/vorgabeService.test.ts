@@ -16,7 +16,7 @@ vi.mock("@/lib/prisma", () => ({
 // `<input type="date">`) als LOKALE Mitternacht zu speichern statt als UTC-Mitternacht.
 vi.mock("@/lib/queries", () => ({ getUserTimezone: vi.fn(async () => "Europe/Zurich") }));
 vi.mock("@/lib/vorgaben", () => ({ reorderVorgabenDates: vi.fn() }));
-vi.mock("@/lib/deviceCategoryService", () => ({ resolveOwnedCategory: vi.fn(async () => ({ ok: true, data: null })) }));
+vi.mock("@/lib/devices/deviceCategoryService", () => ({ resolveOwnedCategory: vi.fn(async () => ({ ok: true, data: null })) }));
 
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility } from "./vorgabeService";
 import { prisma } from "@/lib/prisma";

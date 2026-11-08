@@ -1,7 +1,7 @@
 import type { EvaluatedTask, TaskProofView } from "@/lib/tasks/taskIntervals";
 import { endIsProvisional, firstOutOfOrderProof, proofDueOffsetPending, proofAcceptsNow, type ProofLike, isTaskOffense, isTaskOpen, ownProofDeadline, proofResubmittable, startDeadline, taskAnchor, taskFailureKind, type TaskEvaluation, type TaskFailureKind, type TaskOffenseState, type TaskState } from "@/lib/tasks/tasks";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
-import { wearActionHref } from "@/lib/categoryConstants";
+import { wearActionHref } from "@/lib/devices/categoryConstants";
 
 /**
  * Die serialisierbare Sicht auf eine ausgewertete Aufgabe — das, was `TaskCard` rendert.

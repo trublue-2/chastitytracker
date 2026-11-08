@@ -10,7 +10,7 @@ import { auth } from "@/lib/auth";
 import { bildersafeMenuAction, getLatestKgEntry, pendingLockCallAt } from "@/lib/queries";
 import { subVisibleInspectionsNow } from "@/lib/dashboardData";
 import { pendingInspection } from "@/lib/entryFormRoute";
-import { buildNewEntryCategoryRows } from "@/lib/categoryRows";
+import { buildNewEntryCategoryRows } from "@/lib/devices/categoryRows";
 import { bildersafeEnabled } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { subWorld } from "@/lib/theme";

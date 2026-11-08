@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { requireApi, deviceCategoriesGate } from "@/lib/authGuards";
 import { entryManageAccess } from "@/lib/keyholder";
 import { errorResponse } from "@/lib/serviceResult";
-import { createCategory } from "@/lib/deviceCategoryService";
-import { validateCategoryInput } from "@/lib/categoryConstants";
+import { createCategory } from "@/lib/devices/deviceCategoryService";
+import { validateCategoryInput } from "@/lib/devices/categoryConstants";
 import { DEVICE_NAME_MAX_LENGTH } from "@/lib/constants";
 import { CATEGORY_LIST_ORDER, CATEGORY_LIST_SELECT } from "@/lib/queries";
 

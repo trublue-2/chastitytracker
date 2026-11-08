@@ -19,7 +19,7 @@ import {
   isValidCategoryIcon,
   type CategoryColor,
   type CategoryIcon,
-} from "@/lib/categoryConstants";
+} from "@/lib/devices/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import { DEVICE_NAME_MAX_LENGTH } from "@/lib/constants";
 import Toggle from "@/app/components/Toggle";

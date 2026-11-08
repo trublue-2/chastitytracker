@@ -5,8 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { isValidImageUrl, validateDeviceInput } from "@/lib/constants";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
-import { resolveOwnedCategory } from "@/lib/deviceCategoryService";
-import { removeDevice } from "@/lib/deviceService";
+import { resolveOwnedCategory } from "@/lib/devices/deviceCategoryService";
+import { removeDevice } from "@/lib/devices/deviceService";
 
 type Params = { params: Promise<{ id: string }> };
 

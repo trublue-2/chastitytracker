@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Plus } from "lucide-react";
 import CategoryLinkRow from "@/app/components/CategoryLinkRow";
 import DashboardBlock from "@/app/components/DashboardBlock";
-import { deviceFormHref } from "@/lib/categoryConstants";
+import { deviceFormHref } from "@/lib/devices/categoryConstants";
 
 export interface IncompleteCategoryRow {
   id: string;

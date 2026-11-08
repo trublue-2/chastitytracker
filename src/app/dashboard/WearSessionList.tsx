@@ -12,7 +12,7 @@ import DetailField from "@/app/components/DetailField";
 import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
 import { BLOCK_PAGE_SIZE } from "@/lib/constants";
-import { categoryStyle } from "@/lib/categoryConstants";
+import { categoryStyle } from "@/lib/devices/categoryConstants";
 
 import type { WearSessionRow } from "@/lib/wearSessionRows";
 export type { WearSessionRow } from "@/lib/wearSessionRows";
