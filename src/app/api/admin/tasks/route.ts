@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
-import { createTask, type CreateTaskParams } from "@/lib/taskService";
+import { createTask, type CreateTaskParams } from "@/lib/tasks/taskService";
 import { punishWithTask, type StoredOffenseType } from "@/lib/strafurteilService";
 import { TASK_FORM_QUERY } from "@/lib/entryFormRoute";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";

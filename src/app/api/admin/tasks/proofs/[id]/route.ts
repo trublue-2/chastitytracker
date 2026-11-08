@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
-import { reviewTaskProof } from "@/lib/taskProofService";
+import { reviewTaskProof } from "@/lib/tasks/taskProofService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 /**

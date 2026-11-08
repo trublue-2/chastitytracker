@@ -7,7 +7,7 @@ import { getTranslations } from "next-intl/server";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { getActiveWearSessionForCategory } from "@/lib/queries";
 import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
-import { getTasksBlocking } from "@/lib/taskIntervals";
+import { getTasksBlocking } from "@/lib/tasks/taskIntervals";
 import WearForm from "../../WearForm";
 
 export default async function NewWearEndPage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {

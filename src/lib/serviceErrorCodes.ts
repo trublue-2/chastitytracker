@@ -308,7 +308,7 @@ export const TASK_CODES = [
 ] as const;
 
 /** taskSeriesService (#26, wiederkehrende Aufgaben). Die `RECURRENCE_*`-Codes sind genau die
- *  {@link import("./taskRecurrence").RecurrenceProblem}-Werte, damit der reine Rechenkern seinen
+ *  {@link import("./tasks/taskRecurrence").RecurrenceProblem}-Werte, damit der reine Rechenkern seinen
  *  Grund direkt als Service-Fehler zurückgeben kann. `TASK_SERIES_HOLD_MODE`: es muss genau ein
  *  Halte-Modus gesetzt sein (Dauer ODER Fenster). */
 export const TASK_SERIES_CODES = [

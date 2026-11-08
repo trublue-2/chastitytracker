@@ -173,7 +173,7 @@ describe("Die Erstell-Dienste prüfen den Halt selbst", () => {
     "orgasmusAnforderungService.ts": readFileSync("src/lib/orgasmusAnforderungService.ts", "utf8"),
     // Die Aufgabe prüft in `checkTask`, nicht in `createTask` — damit die MCP-dryRun-Vorschau
     // dieselbe Absage zeigt, statt Erfolg für einen Commit zu versprechen, der mit 409 endet.
-    "taskService.ts": readFileSync("src/lib/taskService.ts", "utf8"),
+    "taskService.ts": readFileSync("src/lib/tasks/taskService.ts", "utf8"),
   };
 
   it.each(Object.keys(files))("%s weist bei laufendem Halt ab", (name) => {

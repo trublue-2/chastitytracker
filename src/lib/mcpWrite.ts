@@ -49,18 +49,18 @@ import { createManualOffense, validateManualOffenseInput, withdrawManualOffense 
 import type { ServiceResult } from "@/lib/serviceResult";
 import { KEYHOLDER_LOCK_STATE_WORDING } from "@/lib/serviceErrorCodes";
 import en from "../../messages/en.json";
-import { reviewTaskProof, proofReviewBlockedReason } from "@/lib/taskProofService";
-import { createTask, checkTask, updateTask, checkTaskUpdate, withdrawTask, mergeTaskPatch, TASK_EDIT_INCLUDE, type CreateTaskParams, type TaskRequirementInput } from "@/lib/taskService";
+import { reviewTaskProof, proofReviewBlockedReason } from "@/lib/tasks/taskProofService";
+import { createTask, checkTask, updateTask, checkTaskUpdate, withdrawTask, mergeTaskPatch, TASK_EDIT_INCLUDE, type CreateTaskParams, type TaskRequirementInput } from "@/lib/tasks/taskService";
 import {
   createTaskSeries, updateTaskSeries, withdrawTaskSeries, checkTaskSeries, previewSeriesOccurrences,
   type CreateTaskSeriesParams, type RecurrenceInput,
-} from "@/lib/taskService";
-import { type RecurrenceFreq } from "@/lib/taskRecurrence";
+} from "@/lib/tasks/taskService";
+import { type RecurrenceFreq } from "@/lib/tasks/taskRecurrence";
 import { chainBreakPartner, correctEntry, correctionProblem, deleteEntryForUser, type EntryCorrection } from "@/lib/entryCorrection";
 import { createEntryForUser, validateEntryCreate } from "@/lib/entryCreateService";
 import { createEntryGapForUser, validateEntryGap, entryGapEnabled, type EntryGapKind } from "@/lib/entryGapService";
 import { deleteReference, importEntryAsReference, importRecentVerschluss, selectImportCandidates } from "@/lib/deviceReferenceService";
-import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks";
+import { effectiveProofOrderMatters, earliestActionableAt } from "@/lib/tasks/tasks";
 import { releaseNow, previewReleaseNow } from "@/lib/releaseNowService";
 import { RELEASE_ORGASM_WINDOW_H } from "@/lib/constants";
 import { setLockRequiresBolt } from "@/lib/lockCommit";

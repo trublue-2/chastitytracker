@@ -97,7 +97,7 @@ import { buildStrafbuch } from "@/lib/strafbuch";
 import { requestKontrolle, resolveKontrolle, sendKontrolleNotification } from "./kontrolleService";
 import { sendVerschlussAnforderungNotifications, withdrawVerschlussAnforderungById } from "./verschlussAnforderungService";
 import { withdrawOrgasmusAnforderungById } from "./orgasmusAnforderungService";
-import { withdrawTask, settleTaskResult } from "./taskService";
+import { withdrawTask, settleTaskResult } from "./tasks/taskService";
 import { judgeOffense } from "./strafurteilService";
 import { emptyOffenseLists } from "@/test/strafbuchFixture";
 

@@ -27,9 +27,9 @@ import {
   TASK_DEFAULT_START_GRACE_MIN, TASK_START_GRACE_RANGE, clampStartGrace, startGraceFromClock, clampHoldDuration,
   DURATION_UNITS, durationToHours, durationFromHours, type DurationUnit,
 } from "@/lib/constants";
-import { minHoldMs, startDeadline } from "@/lib/tasks";
+import { minHoldMs, startDeadline } from "@/lib/tasks/tasks";
 import { TASK_FORM_QUERY } from "@/lib/entryFormRoute";
-import type { TaskRequirementInput, TaskProofInput } from "@/lib/taskService";
+import type { TaskRequirementInput, TaskProofInput } from "@/lib/tasks/taskService";
 import TaskRequirementPicker, { type PickerCategory } from "./TaskRequirementPicker";
 import TaskProofPicker from "./TaskProofPicker";
 import RecurrenceFields from "./RecurrenceFields";

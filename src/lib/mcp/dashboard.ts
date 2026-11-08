@@ -16,9 +16,9 @@ import { offenseNeedsAttention } from "@/lib/offenseTypes";
 import { queryNotes } from "@/lib/mcp/notes";
 import { loadActiveHealthHold, type HealthHoldView } from "@/lib/mcp/context";
 import { toBoxKind, toPendingCommand, boxFailsafeWarnings, boxIsPhysicallyLocked, boxBoltOpenDespiteLocked, type BoxFailsafeWarning, type BoxKind } from "@/lib/boxStatus";
-import { getEvaluatedTasks, loadTaskProofViews, type EvaluatedTask, type TaskProofView } from "@/lib/taskIntervals";
-import { isTaskOpen, needsKeyholderReview, firstOutOfOrderProof, ownProofDeadline, type TaskLike, proofDueOffsetPending,} from "@/lib/tasks";
-import { taskProofState } from "@/lib/taskView";
+import { getEvaluatedTasks, loadTaskProofViews, type EvaluatedTask, type TaskProofView } from "@/lib/tasks/taskIntervals";
+import { isTaskOpen, needsKeyholderReview, firstOutOfOrderProof, ownProofDeadline, type TaskLike, proofDueOffsetPending,} from "@/lib/tasks/tasks";
+import { taskProofState } from "@/lib/tasks/taskView";
 import { pendingDispatchWhere } from "@/lib/delayedTrigger";
 import { weightSummary, type WeightSummary } from "@/lib/mcp/weight";
 

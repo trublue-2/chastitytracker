@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
-import { completeTask } from "@/lib/taskService";
+import { completeTask } from "@/lib/tasks/taskService";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 /** Der Sub meldet seine eigene Aufgabe als erledigt. Mehrfach-Zustellung ist eingeplant (die Meldung

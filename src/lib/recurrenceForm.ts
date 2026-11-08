@@ -1,7 +1,7 @@
 import { fromDatetimeLocal, toDatetimeLocal, toDateLocale } from "@/lib/utils";
 import { ALL_WEEKDAYS, weekdayMaskOf, isoWeekdayOfDateKey } from "@/lib/weekdays";
-import { type RecurrenceFreq } from "@/lib/taskRecurrence";
-import type { RecurrenceInput } from "@/lib/taskService";
+import { type RecurrenceFreq } from "@/lib/tasks/taskRecurrence";
+import type { RecurrenceInput } from "@/lib/tasks/taskService";
 
 /**
  * Die REINE Form-Logik der Wiederhol-Regel — Zustand ⇄ Nutzlast, Frequenz-Schlüssel, Formatierer.

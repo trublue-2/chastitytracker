@@ -15,7 +15,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import TaskFields, { type PunishmentOffenseOption, type TaskFormInitial } from "@/app/admin/tasks/TaskFields";
 import { recurrenceFromRow } from "@/lib/recurrenceForm";
 import { TASK_FORM_QUERY } from "@/lib/entryFormRoute";
-import type { RecurrenceFreq } from "@/lib/taskRecurrence";
+import type { RecurrenceFreq } from "@/lib/tasks/taskRecurrence";
 
 /** Minuten → Dauer-Eingabe (Stunden bei glattem Wert, sonst Minuten) fürs Vorbefüllen. */
 function minutesToDuration(min: number): { hours: string; holdUnit: "h" | "min" } {

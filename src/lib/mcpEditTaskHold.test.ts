@@ -18,16 +18,16 @@ vi.mock("@/lib/prisma", () => ({
     task: { findUnique: vi.fn() },
   },
 }));
-vi.mock("@/lib/taskService", async (importOriginal) => {
+vi.mock("@/lib/tasks/taskService", async (importOriginal) => {
   // `mergeTaskPatch` bleibt ECHT: die Vorschau soll durch dieselbe reine Zusammenführung laufen wie
   // der Commit — genau das ist ihre Zusage.
-  const actual = await importOriginal<typeof import("@/lib/taskService")>();
+  const actual = await importOriginal<typeof import("@/lib/tasks/taskService")>();
   return { ...actual, createTask: vi.fn(), updateTask: vi.fn(), withdrawTask: vi.fn() };
 });
 
 import { mcpEditTask } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
-import { updateTask } from "@/lib/taskService";
+import { updateTask } from "@/lib/tasks/taskService";
 import { taskRow } from "@/test/taskRow";
 
 const userFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;

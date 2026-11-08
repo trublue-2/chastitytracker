@@ -10,7 +10,7 @@ import { datedWindowLabel } from "@/lib/weekdays";
 import { type OeffnenGrund } from "@/lib/constants";
 import type { ResolvedReason } from "@/lib/reasonsService";
 import useTaskHoldGate from "@/app/hooks/useTaskHoldGate";
-import type { TaskWarning } from "@/lib/taskIntervals";
+import type { TaskWarning } from "@/lib/tasks/taskIntervals";
 import { useEntrySubmit } from "@/app/hooks/useEntrySubmit";
 import FormError from "@/app/components/FormError";
 import RequiredHint from "@/app/components/RequiredHint";

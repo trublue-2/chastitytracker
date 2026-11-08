@@ -18,7 +18,7 @@ import { taskFormHref } from "@/lib/entryFormRoute";
 import { joinParts } from "@/lib/utils";
 import { STORED_TYPE, type AssertCoversAllOffenses, type OffenseCanonicalType } from "@/lib/offenseTypes";
 import { AI_AUTHOR, hasAuthor } from "@/lib/constants";
-import { taskFailureKind, type TaskFailureKind, type TaskOffenseState } from "@/lib/tasks";
+import { taskFailureKind, type TaskFailureKind, type TaskOffenseState } from "@/lib/tasks/tasks";
 
 /** Das Urteil einer Zeile, so weit die Anzeige es braucht.
  *

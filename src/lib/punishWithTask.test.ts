@@ -41,8 +41,8 @@ vi.mock("@/lib/strafbuch", async (importOriginal) => ({
 }));
 // Nur die beiden DB-Wege ersetzt; `taskNoticeDeadline` bleibt echt, damit die Strafaufgabe ihre
 // Frist hier genauso benennt wie eine gewöhnliche Aufgabe (sonst prüfte der Test eine Attrappe).
-vi.mock("@/lib/taskService", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/taskService")>()),
+vi.mock("@/lib/tasks/taskService", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/tasks/taskService")>()),
   checkTask: vi.fn(),
   writeTask: vi.fn(),
 }));
@@ -53,7 +53,7 @@ import { punishWithTask, judgeOffense } from "./strafurteilService";
 import { POST as postTask } from "@/app/api/admin/tasks/route";
 import type { NextRequest } from "next/server";
 import { buildStrafbuch } from "@/lib/strafbuch";
-import { checkTask, writeTask } from "@/lib/taskService";
+import { checkTask, writeTask } from "@/lib/tasks/taskService";
 import { notifyUser } from "@/lib/notify";
 import { emptyOffenseLists } from "@/test/strafbuchFixture";
 

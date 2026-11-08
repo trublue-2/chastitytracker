@@ -19,7 +19,7 @@ import {
   clampProofDueOffset, durationToHours, type DurationUnit,
 } from "@/lib/constants";
 import { swapAt } from "@/lib/utils";
-import type { TaskProofInput } from "@/lib/taskService";
+import type { TaskProofInput } from "@/lib/tasks/taskService";
 
 /**
  * Der Bedienzustand EINER Zeile: die rohe Eingabe in der gerade gewählten Einheit — und der Reiter.

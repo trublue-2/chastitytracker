@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { nextTaskStep, proofIsSubmitted, taskDeadlineLine, taskFailureLabelKey, toTaskCard, visibleStartDeadline } from "./taskView";
-import { safeInternalPath } from "./utils";
+import { safeInternalPath } from "../utils";
 import type { EvaluatedTask, TaskProofView } from "./taskIntervals";
 import type { TaskEvaluation } from "./tasks";
 

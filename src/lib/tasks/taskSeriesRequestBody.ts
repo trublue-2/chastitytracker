@@ -1,4 +1,4 @@
-import type { CreateTaskSeriesParams } from "@/lib/taskService";
+import type { CreateTaskSeriesParams } from "@/lib/tasks/taskService";
 
 /** Die Serien-Vorlage aus dem rohen Request-Body — Felder EINZELN übernommen (nie den Body spreaden),
  *  wie bei `POST /api/admin/tasks`. Geteilt von Anlege- und Änderungs-Route, damit beide dieselbe

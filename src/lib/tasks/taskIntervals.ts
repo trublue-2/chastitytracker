@@ -5,7 +5,7 @@ import { buildWearSessions, wearSessionPairsByCategory, wearSessionPairsByDevice
 import { SESSION_ENTRY_SELECT } from "@/lib/queries";
 import { CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/cleaningRules";
-import { evaluateTask, coversPoint, isTaskOffense, isTaskOpen, needsKeyholderReview, requirementsShownAt, type Interval, type ProofLike, type TaskEvaluation, type TaskRequirementLike } from "@/lib/tasks";
+import { evaluateTask, coversPoint, isTaskOffense, isTaskOpen, needsKeyholderReview, requirementsShownAt, type Interval, type ProofLike, type TaskEvaluation, type TaskRequirementLike } from "@/lib/tasks/tasks";
 
 /**
  * Das Bindeglied zwischen Aufgaben und Einträgen: baut je Bedingung die Zeiträume, in denen sie galt,

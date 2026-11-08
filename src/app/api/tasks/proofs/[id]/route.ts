@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
-import { submitTaskProof } from "@/lib/taskProofService";
+import { submitTaskProof } from "@/lib/tasks/taskProofService";
 import { isValidImageUrl } from "@/lib/constants";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
-import { createTaskSeries, listTaskSeries } from "@/lib/taskService";
-import { taskSeriesParamsFromBody } from "@/lib/taskSeriesRequestBody";
+import { createTaskSeries, listTaskSeries } from "@/lib/tasks/taskService";
+import { taskSeriesParamsFromBody } from "@/lib/tasks/taskSeriesRequestBody";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 /** Aktive Serien eines Subs — für die Keyholder-Liste (samt Termin-Vorschau). */

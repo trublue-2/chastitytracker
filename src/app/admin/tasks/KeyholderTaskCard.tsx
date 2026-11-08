@@ -8,8 +8,8 @@ import Button from "@/app/components/Button";
 import ProofReviewActions from "@/app/admin/tasks/ProofReviewActions";
 import WithdrawButton from "@/app/admin/WithdrawButton";
 import DeleteTaskButton from "@/app/admin/tasks/DeleteTaskButton";
-import { isTaskOpen, needsKeyholderReview } from "@/lib/tasks";
-import type { TaskCardData } from "@/lib/taskView";
+import { isTaskOpen, needsKeyholderReview } from "@/lib/tasks/tasks";
+import type { TaskCardData } from "@/lib/tasks/taskView";
 
 /**
  * Eine Aufgabe, wie der Keyholder sie sieht — Karte plus das, was er daran tun kann.

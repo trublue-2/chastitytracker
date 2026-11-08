@@ -4,7 +4,7 @@ import ListPager from "@/app/components/ListPager";
 import usePagedList from "@/app/hooks/usePagedList";
 import { LIST_PAGE_SIZE } from "@/lib/constants";
 import KeyholderTaskCard from "@/app/admin/tasks/KeyholderTaskCard";
-import type { TaskCardData } from "@/lib/taskView";
+import type { TaskCardData } from "@/lib/tasks/taskView";
 
 
 /**

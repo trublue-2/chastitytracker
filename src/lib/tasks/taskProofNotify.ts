@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { evaluateTaskById } from "@/lib/taskIntervals";
+import { evaluateTaskById } from "@/lib/tasks/taskIntervals";
 import { structuredLog } from "@/lib/serverLog";
 import { notifyControllers } from "@/lib/notify";
 import { getControllerAudience, type Controller } from "@/lib/keyholder";
-import { proofSubmittedLate, type TaskLike, type ProofLike, type ProofDeadlineWindow,} from "@/lib/tasks";
+import { proofSubmittedLate, type TaskLike, type ProofLike, type ProofDeadlineWindow,} from "@/lib/tasks/tasks";
 
 /**
  * Die Meldung „ein verspäteter Nachweis wartet auf dein Urteil" — und die beiden Stellen, an denen

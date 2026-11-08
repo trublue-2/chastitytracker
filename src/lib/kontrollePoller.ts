@@ -15,8 +15,8 @@ import { sendInspectionReminder, autoMarkInspectionRemoved, notifyInspectionAuto
 import { maybeRunHealthChecks } from "@/lib/healthCheck";
 import { maybeAnnounceOffenses } from "@/lib/offenseAnnounce";
 import { deadlineFromDispatch, dueForDispatchWhere } from "@/lib/delayedTrigger";
-import { dispatchDueTasks, processDueTasks, materializeDueSeries } from "@/lib/taskService";
-import { remindDueProofs } from "@/lib/taskProofReminder";
+import { dispatchDueTasks, processDueTasks, materializeDueSeries } from "@/lib/tasks/taskService";
+import { remindDueProofs } from "@/lib/tasks/taskProofReminder";
 import { NOT_PAUSED_WHERE, USER_NOT_PAUSED_WHERE } from "@/lib/healthHold";
 
 // Verschickt fällige, zeitversetzte Kontroll-Anforderungen (wirksamAb erreicht, noch nicht

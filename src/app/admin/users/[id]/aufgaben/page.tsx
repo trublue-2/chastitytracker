@@ -9,13 +9,13 @@ import EmptyState from "@/app/components/EmptyState";
 import SettingsSection from "@/app/components/SettingsSection";
 import AdminTaskListClient from "@/app/admin/tasks/AdminTaskListClient";
 import TaskSeriesListClient, { type TaskSeriesUi } from "@/app/admin/tasks/TaskSeriesListClient";
-import { listTaskSeries } from "@/lib/taskService";
-import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
-import { toTaskCard } from "@/lib/taskView";
-import { loadTaskProofViews } from "@/lib/taskIntervals";
+import { listTaskSeries } from "@/lib/tasks/taskService";
+import { evaluateTasks, TASK_INCLUDE } from "@/lib/tasks/taskIntervals";
+import { toTaskCard } from "@/lib/tasks/taskView";
+import { loadTaskProofViews } from "@/lib/tasks/taskIntervals";
 import { APP_TZ } from "@/lib/utils";
 import { BLOCK_PAGE_SIZE } from "@/lib/constants";
-import { isTaskOpenForKeyholder } from "@/lib/tasks";
+import { isTaskOpenForKeyholder } from "@/lib/tasks/tasks";
 import { taskFormHref } from "@/lib/entryFormRoute";
 
 /** Die Aufgaben-Historie eines Subs — ohne sie sähe der Keyholder im Web nie, ob eine gestellte

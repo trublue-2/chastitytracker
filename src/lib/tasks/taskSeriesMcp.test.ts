@@ -18,7 +18,7 @@ vi.mock("@/lib/keyholder", () => ({
   getControllersOfUser: vi.fn(async () => []),
 }));
 
-import { mcpCreateTaskSeries, mcpEditTaskSeries, mcpWithdrawTaskSeries, type CreateTaskSeriesArgs } from "./mcpWrite";
+import { mcpCreateTaskSeries, mcpEditTaskSeries, mcpWithdrawTaskSeries, type CreateTaskSeriesArgs } from "../mcpWrite";
 import { prisma } from "@/lib/prisma";
 
 const db = prisma as unknown as {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminActor } from "@/lib/authGuards";
-import { previewSeriesOccurrences } from "@/lib/taskService";
-import { taskSeriesParamsFromBody } from "@/lib/taskSeriesRequestBody";
+import { previewSeriesOccurrences } from "@/lib/tasks/taskService";
+import { taskSeriesParamsFromBody } from "@/lib/tasks/taskSeriesRequestBody";
 import { errorResponse } from "@/lib/serviceResult";
 
 /** Termin-Vorschau (Agenda) für eine noch nicht angelegte Serie — nur die Wiederhol-Regel zählt.

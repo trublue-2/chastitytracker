@@ -27,12 +27,12 @@ vi.mock("@/lib/prisma", () => {
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn(), notifyControllers: vi.fn() }));
 // Teilmock wie in `taskProofService.test.ts`: die Auswertung ist dort geprüft, hier zählt, was die
 // App mit ihrem Ergebnis tut.
-vi.mock("@/lib/taskIntervals", async (orig) => ({
+vi.mock("@/lib/tasks/taskIntervals", async (orig) => ({
   ...(await orig<object>()),
   evaluateTaskById: vi.fn(),
 }));
 vi.mock("@/lib/keyholder", () => ({ getControllerAudience: vi.fn(async () => ({ controllers: [], username: "sub" })) }));
-vi.mock("@/lib/taskProofNotify", () => ({ notifyLateProofsForTask: vi.fn() }));
+vi.mock("@/lib/tasks/taskProofNotify", () => ({ notifyLateProofsForTask: vi.fn() }));
 vi.mock("@/lib/imageUtils", () => ({ deleteUploadedFiles: vi.fn() }));
 // Nur den Zufall festnageln — `utils` ist sonst reine Arithmetik und soll echt laufen.
 vi.mock("@/lib/utils", async (orig) => ({ ...(await orig<object>()), generateKontrollCode: () => "12345" }));
@@ -41,8 +41,8 @@ import { createTask, updateTask, withdrawTask, deleteTask, completeTask, mergeTa
 import { deleteUploadedFiles } from "@/lib/imageUtils";
 import { prisma } from "@/lib/prisma";
 import { notifyUser, notifyControllers } from "@/lib/notify";
-import { evaluateTaskById } from "@/lib/taskIntervals";
-import { notifyLateProofsForTask } from "@/lib/taskProofNotify";
+import { evaluateTaskById } from "@/lib/tasks/taskIntervals";
+import { notifyLateProofsForTask } from "@/lib/tasks/taskProofNotify";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const catMock = prisma.deviceCategory.findMany as unknown as ReturnType<typeof vi.fn>;

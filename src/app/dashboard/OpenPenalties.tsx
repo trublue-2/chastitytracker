@@ -8,7 +8,7 @@ import { messageFilterToParams } from "@/lib/messageCategories";
 import { loadSubOffenses, subAttentionOffensesOf } from "@/lib/subOffenses";
 import { announcedOpenRefs } from "@/lib/offenseAnnounce";
 import { loadStatementViews } from "@/lib/offenseStatementService";
-import { SUB_VISIBLE_WHERE } from "@/lib/taskIntervals";
+import { SUB_VISIBLE_WHERE } from "@/lib/tasks/taskIntervals";
 
 /** Wie viele Karten JE ART (unbeurteilt / offene Strafe) im Dashboard ausliegen, bevor auf den
  *  Posteingang verwiesen wird. Kein

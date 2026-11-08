@@ -5,11 +5,11 @@ import { serviceFail, type ServiceResult, type ServiceFailure } from "@/lib/serv
 import { notifyUser, notifyControllers, type NotifyContent, type NotifyRecipient } from "@/lib/notify";
 import { actorColumn, type MessageActor } from "@/lib/messageService";
 import { getControllerAudience } from "@/lib/keyholder";
-import { notifyLateProofsForTask } from "@/lib/taskProofNotify";
-import { evaluateTasks, evaluateTaskById, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
+import { notifyLateProofsForTask } from "@/lib/tasks/taskProofNotify";
+import { evaluateTasks, evaluateTaskById, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/tasks/taskIntervals";
 import type { PrismaTx } from "@/lib/queries";
 import { parseTriggerAt, computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
-import { startDeadline, taskAnchor, earliestActionableAt, earliestTaskEnd, latestTaskEnd, isTaskResultFinal, effectiveProofOrderMatters, type TaskLike } from "@/lib/tasks";
+import { startDeadline, taskAnchor, earliestActionableAt, earliestTaskEnd, latestTaskEnd, isTaskResultFinal, effectiveProofOrderMatters, type TaskLike } from "@/lib/tasks/tasks";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import {
   TASK_TITLE_MAX_LENGTH, TASK_DESCRIPTION_MAX_LENGTH, clampStartGrace, clampHoldDuration,
@@ -21,7 +21,7 @@ import { formatDateTime, generateKontrollCode, groupByUser, midnightInTZ, APP_TZ
 import {
   recurrenceProblem, occurrencesBetween, upcomingOccurrences,
   type RecurrenceRule, type RecurrenceFreq,
-} from "@/lib/taskRecurrence";
+} from "@/lib/tasks/taskRecurrence";
 import { structuredLog } from "@/lib/serverLog";
 import { deleteUploadedFiles } from "@/lib/imageUtils";
 import { NOT_PAUSED_WHERE, isHealthHoldActive } from "@/lib/healthHold";
@@ -35,7 +35,7 @@ import { markLastAction } from "@/lib/appMeta";
  *  - das `updateMany`-Ersetzen beim Anlegen: Aufgaben koexistieren, sie verdrängen einander nicht.
  *  - `notifyHeimdallForUserId`: eine Aufgabe bewegt keinen Riegel, die Box geht sie nichts an.
  *
- * Der Fortschritt wird NICHT hier gestempelt, sondern in `src/lib/tasks.ts` aus den Einträgen
+ * Der Fortschritt wird NICHT hier gestempelt, sondern in `src/lib/tasks/tasks.ts` aus den Einträgen
  * abgeleitet. Dieser Service verwaltet nur die Aufgabe selbst.
  */
 

@@ -5,7 +5,7 @@ import CategoryIconRender from "@/app/components/CategoryIcon";
 import FieldLabel from "@/app/components/FieldLabel";
 import Select from "@/app/components/Select";
 import { categoryStyle } from "@/lib/categoryConstants";
-import type { TaskRequirementInput } from "@/lib/taskService";
+import type { TaskRequirementInput } from "@/lib/tasks/taskService";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 
 export interface PickerCategory {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminActor, sessionActor } from "@/lib/authGuards";
-import { updateTaskSeries, withdrawTaskSeries } from "@/lib/taskService";
-import { taskSeriesParamsFromBody } from "@/lib/taskSeriesRequestBody";
+import { updateTaskSeries, withdrawTaskSeries } from "@/lib/tasks/taskService";
+import { taskSeriesParamsFromBody } from "@/lib/tasks/taskSeriesRequestBody";
 import { serviceFailure, errorResponse } from "@/lib/serviceResult";
 
 /** Serie ändern — Voll-Ersetzung der Vorlage (künftige Termine). */

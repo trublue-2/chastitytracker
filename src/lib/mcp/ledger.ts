@@ -3,7 +3,7 @@ import { resolveUserContext, notesForEntities, entityKey, makeIso, makeFmt, buil
 import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
 import { collectDetectedOffenses, cleaningNotRelockedRef, STORED_TYPE, type OffenseCanonicalType } from "@/lib/strafurteilService";
 import { offenseState, offenseNeedsAttention, type OffenseState } from "@/lib/offenseTypes";
-import { taskFailureKind, type TaskFailureKind } from "@/lib/tasks";
+import { taskFailureKind, type TaskFailureKind } from "@/lib/tasks/tasks";
 import { missedWeightRef } from "@/lib/weight/weightObligation";
 import { loadStatements } from "@/lib/offenseStatementService";
 

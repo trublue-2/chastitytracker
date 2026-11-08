@@ -20,7 +20,7 @@ import { usePhotoUpload } from "@/app/hooks/usePhotoUpload";
 import { fromDatetimeLocal, toDateLocale, formatDurationBetween } from "@/lib/utils";
 import { categoryStyle } from "@/lib/categoryConstants";
 import useTaskHoldGate from "@/app/hooks/useTaskHoldGate";
-import type { TaskWarning } from "@/lib/taskIntervals";
+import type { TaskWarning } from "@/lib/tasks/taskIntervals";
 import CategoryIconRender from "@/app/components/CategoryIcon";
 import type { WearBeginPayload, WearEndPayload } from "@/app/entries/types";
 import { entryRequest, postAdminEntry, parseApiErrorCode } from "@/lib/apiClient";

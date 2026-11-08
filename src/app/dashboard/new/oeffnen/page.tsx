@@ -13,7 +13,7 @@ import { nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { effectiveOeffnenGruende, resolveReasonList } from "@/lib/reasonsService";
 import { cleaningUsedToday, nextCleaningWindow, CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import { boxHoldOutlook } from "@/lib/boxOpenOutlook";
-import { getTasksBlocking } from "@/lib/taskIntervals";
+import { getTasksBlocking } from "@/lib/tasks/taskIntervals";
 import { structuredLog } from "@/lib/serverLog";
 
 export default async function NewOeffnenPage() {

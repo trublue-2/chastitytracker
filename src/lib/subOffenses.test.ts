@@ -16,7 +16,7 @@ import { describe, it, expect, vi } from "vitest";
 // strafurteilService → notify/taskService) vom Laden ab.
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/notify", () => ({ notifyUser: vi.fn() }));
-vi.mock("@/lib/taskService", () => ({ checkTask: vi.fn(), writeTask: vi.fn() }));
+vi.mock("@/lib/tasks/taskService", () => ({ checkTask: vi.fn(), writeTask: vi.fn() }));
 vi.mock("@/lib/appMeta", () => ({ markLastAction: vi.fn() }));
 
 import { selectSubOffenses } from "./subOffenses";

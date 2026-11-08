@@ -22,16 +22,16 @@ vi.mock("@/lib/keyholder", () => ({ getControllerAudience: vi.fn(async () => ({ 
 // Nur `evaluateTaskById` festnageln, der Rest bleibt ECHT: `SUB_VISIBLE_WHERE` hängt am Einreiche-Pfad
 // und wird unten geprüft. Als Attrappe (`{}` oder eine abgeschriebene Kopie) prüfte der Test die
 // Attrappe statt die Regel — grün, während das Fragment fehlt oder veraltet ist.
-vi.mock("@/lib/taskIntervals", async (orig) => ({ ...(await orig<object>()), evaluateTaskById: vi.fn() }));
+vi.mock("@/lib/tasks/taskIntervals", async (orig) => ({ ...(await orig<object>()), evaluateTaskById: vi.fn() }));
 // Der Sichtungs-Pfad verbucht über den geteilten Helfer; WAS der verbucht, prüft
 // `taskService.test.ts`. Hier zählt, ob er gerufen wird — und was der Pfad tut, wenn die Aufgabe
 // danach noch nicht feststeht.
-vi.mock("@/lib/taskService", () => ({ settleIfFinal: vi.fn(async () => "notFinal") }));
+vi.mock("@/lib/tasks/taskService", () => ({ settleIfFinal: vi.fn(async () => "notFinal") }));
 
 import { submitTaskProof, proofVerificationOutcome, proofSubmitBlockedReason, proofReviewBlockedReason, reviewTaskProof } from "./taskProofService";
 import { notifyUser, notifyControllers } from "@/lib/notify";
-import { evaluateTaskById } from "@/lib/taskIntervals";
-import { settleIfFinal } from "@/lib/taskService";
+import { evaluateTaskById } from "@/lib/tasks/taskIntervals";
+import { settleIfFinal } from "@/lib/tasks/taskService";
 import { prisma } from "@/lib/prisma";
 import { verifyKontrolleCodeDetailed } from "@/lib/verifyCode";
 

@@ -1,6 +1,6 @@
 import type { EntryValidationCode } from "@/lib/entryErrors";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
-import type { TaskState } from "@/lib/tasks";
+import type { TaskState } from "@/lib/tasks/tasks";
 import type { PasswordChangeVia } from "@/lib/passwordAudit";
 
 export const VALID_LOCALES = ["de", "en"] as const;

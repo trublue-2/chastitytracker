@@ -17,8 +17,8 @@ import { buildStrafbuch } from "@/lib/strafbuch";
 import { selectSubOffenses } from "@/lib/subOffenses";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
 import { effectiveOrgasmusArten, resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
-import { belongsOnDashboard, getEvaluatedTaskHistory, loadTaskProofViews } from "@/lib/taskIntervals";
-import { toTaskCard } from "@/lib/taskView";
+import { belongsOnDashboard, getEvaluatedTaskHistory, loadTaskProofViews } from "@/lib/tasks/taskIntervals";
+import { toTaskCard } from "@/lib/tasks/taskView";
 import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { isKgVorgabe } from "@/lib/vorgaben";
 import {

@@ -34,7 +34,7 @@ import { resolveReasonLabel } from "@/lib/reasonsService";
 import { categoryNeedsDevice } from "@/lib/categoryConstants";
 import { inspectionHref, openInspections } from "@/lib/entryFormRoute";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
-import { belongsOnDashboard, isHeldByTask } from "@/lib/taskIntervals";
+import { belongsOnDashboard, isHeldByTask } from "@/lib/tasks/taskIntervals";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import DashboardAlerts, { type DashboardAlertsProps } from "./DashboardAlerts";
 import OpenTasks from "./OpenTasks";

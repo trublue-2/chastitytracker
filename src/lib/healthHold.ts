@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import type { PrismaTx } from "@/lib/queries";
-import { taskAnchor } from "@/lib/tasks";
+import { taskAnchor } from "@/lib/tasks/tasks";
 import { notifyUser, type NotifyContent } from "@/lib/notify";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { structuredLog } from "@/lib/serverLog";

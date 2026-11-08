@@ -11,7 +11,7 @@ import { formatDateTime, toDateLocale } from "@/lib/utils";
 import { parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import { useActionPatch } from "@/app/hooks/useActionPatch";
-import { proofIsSubmitted, type TaskCardProof } from "@/lib/taskView";
+import { proofIsSubmitted, type TaskCardProof } from "@/lib/tasks/taskView";
 
 /**
  * Annehmen oder Ablehnen der eingereichten Nachweise einer Aufgabe (Issue #39, Etappe 4).

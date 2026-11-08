@@ -20,10 +20,10 @@ vi.mock("@/lib/keyholder", () => ({
 
 // Die Auswertung gibt dem Sweep das Fenster, gegen das er misst — mit einem angenommenen Nullpunkt
 // meldete er pünktliche Nachweise als verspätet (Befund 20.09.2026).
-vi.mock("@/lib/taskIntervals", () => ({ evaluateTaskById: vi.fn() }));
+vi.mock("@/lib/tasks/taskIntervals", () => ({ evaluateTaskById: vi.fn() }));
 
 import { notifyLateProof, notifyLateProofsForTask } from "./taskProofNotify";
-import { evaluateTaskById } from "@/lib/taskIntervals";
+import { evaluateTaskById } from "@/lib/tasks/taskIntervals";
 import { notifyControllers } from "@/lib/notify";
 import { getControllerAudience } from "@/lib/keyholder";
 import { prisma } from "@/lib/prisma";

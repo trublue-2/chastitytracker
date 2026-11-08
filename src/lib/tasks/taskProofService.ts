@@ -5,10 +5,10 @@ import { verifyKontrolleCodeDetailed, type VerifyDetailedResult } from "@/lib/ve
 import { structuredLog } from "@/lib/serverLog";
 import { notifyUser } from "@/lib/notify";
 import { getControllerAudience } from "@/lib/keyholder";
-import { notifyLateProof } from "@/lib/taskProofNotify";
-import { evaluateTaskById, SUB_VISIBLE_WHERE } from "@/lib/taskIntervals";
-import { isTaskResultFinal, proofResubmittable, type TaskEvaluation, proofAcceptsNow, type ProofDeadlineWindow,} from "@/lib/tasks";
-import { settleIfFinal, settleIfNowDone } from "@/lib/taskService";
+import { notifyLateProof } from "@/lib/tasks/taskProofNotify";
+import { evaluateTaskById, SUB_VISIBLE_WHERE } from "@/lib/tasks/taskIntervals";
+import { isTaskResultFinal, proofResubmittable, type TaskEvaluation, proofAcceptsNow, type ProofDeadlineWindow,} from "@/lib/tasks/tasks";
+import { settleIfFinal, settleIfNowDone } from "@/lib/tasks/taskService";
 import { TASK_PROOF_TEXT_MAX_LENGTH } from "@/lib/constants";
 import type { MessageActor } from "@/lib/messageService";
 

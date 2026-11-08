@@ -11,7 +11,7 @@ import type { BoxHold } from "@/lib/boxOpenOutlook";
 import { entryRequest, parseApiErrorCode } from "@/lib/apiClient";
 import { useApiError } from "@/app/hooks/useApiError";
 import type { ResolvedReason } from "@/lib/reasonsService";
-import type { TaskWarning } from "@/lib/taskIntervals";
+import type { TaskWarning } from "@/lib/tasks/taskIntervals";
 
 interface Props {
   initial?: { id: string; startTime: string; note?: string | null; oeffnenGrund?: string | null };
