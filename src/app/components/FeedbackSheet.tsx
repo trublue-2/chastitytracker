@@ -14,17 +14,11 @@ import Card from "./Card";
 import { parseApiError } from "@/lib/apiClient";
 import { isValidEmail } from "@/lib/constants";
 import { isThrowawayEmail, type FeedbackMode } from "@/lib/feedback";
+import { nativePlatformNow } from "@/lib/nativeApp";
 
 type FeedbackType = "BUG" | "IDEA" | "QUESTION" | "THANKS";
 
-function detectPlatform(): "web" | "ios" | "android" {
-  if (typeof window === "undefined") return "web";
-  const cap = (window as { Capacitor?: { getPlatform?: () => string } }).Capacitor;
-  const p = cap?.getPlatform?.();
-  if (p === "ios") return "ios";
-  if (p === "android") return "android";
-  return "web";
-}
+const detectPlatform = () => nativePlatformNow() ?? "web";
 
 /**
  * Each type uses one of the existing semantic CSS tokens so the picker

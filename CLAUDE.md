@@ -328,6 +328,15 @@ TELEGRAM_WEBHOOK_SECRET=<random>   # optional, aber Pflicht sobald der Webhook l
 # vom Betreiber, steht NICHT im Repo. Ohne ihn keine Kopplung, keine Route `/api/box/ble`, kein
 # Einstellungs-Eintrag.
 BLE_BRIDGE_KEY=<hex>               # optional
+# Push an die Android-App (FCM HTTP v1): Service-Account-JSON des Firebase-Projekts, als Datei oder
+# Inhalt. Ohne sie bleiben Android-Geräte bei Web-Push (siehe ANDROID.md). Das Portal kopiert die
+# Datei bei neuen Instanzen wie die APNs-.p8 nach /app/data/fcm.json.
+FCM_SERVICE_ACCOUNT_PATH=<pfad>    # optional
+FCM_SERVICE_ACCOUNT_JSON=<json>    # optional, statt _PATH
+# Passkeys in der Android-App: Fingerabdruck des Signatur-Zertifikats für /.well-known/assetlinks.json
+# (öffentlich, kommagetrennt). Ohne ihn liefert die Route eine leere Liste.
+ANDROID_CERT_SHA256=<AA:BB:…>      # optional
+ANDROID_PACKAGE=<paket>            # optional, Vorgabe ch.chastitytracker.app
 # MCP-Bildauslieferung (`get_image`): Bindung an den Sub. `MCP_IMAGE_KEY` muss die `User.id` des
 # `MCP_USERNAME` sein; fehlt er, passt er nicht oder ist die DB nicht erreichbar, liefert der MCP keine
 # Fotos aus (fail-closed, der Grund steht als Logzeile). Die id ist eine Bindung, kein Geheimnis.
@@ -425,7 +434,7 @@ keine Closure. `src/lib/nestedComponents.test.ts` liest den Baum und erzwingt da
 - `src/app/hooks/useDialogBehaviour.ts` — was einen modalen Dialog bedienbar macht: Fokus hinein, Fokus-Falle, Escape, Fokus zurück an den Auslöser, Scroll-Sperre. **Jeder** Dialog nimmt ihn; vier hatten die Mechanik einmal selbst gebaut und jeder andere Teile davon vergessen. Er zählt die offenen Dialoge an EINER Stelle — nur der oberste hört auf Escape und Tab, und die Scroll-Sperre gehört dem Stapel, nicht dem einzelnen Dialog
 - `src/app/components/LiveStatus.tsx` + `useAnnouncement()` — die `sr-only`-Zeile, die eine Zustandsänderung ansagt (Auswahlmodus, Trefferzahl, neue Position). **Ihr Inhalt darf sich NIE im Takt ändern** — ein `aria-live` auf einer tickenden Zahl lässt den Screenreader sich endlos selbst unterbrechen (Vorfall `TimerDisplay`). Der Hook bringt den Zähler mit, ohne den dieselbe Meldung zweimal hintereinander stumm bliebe
 - `src/app/components/SkipLink.tsx` — „Zum Inhalt springen", hängt in beiden Kopfzeilen und sucht die `<main>`-Landmarke beim Klick
-- `src/lib/theme.ts` — **welche Farbwelt gilt, und zwar abgeleitet statt gewählt.** `subWorld(isLocked)` → `sub-locked` (grün) oder `sub-open` (rosa), `keyholderWorld()` → `keyholder` (indigo), `DEFAULT_WORLD` für Bildschirme ohne Zustand (Anmeldung, `/info`). Alle drei sind DUNKEL; einen hellen Modus und einen Umschalter gibt es seit v6 nicht mehr. Gesetzt wird beim Rendern im Bereichs-Layout, `ThemeRootSync` trägt die Welt an ZWEI Abnehmer nach, die den Bereichs-Wrapper nicht lesen: an `<html>` (für alles, was per Portal am Body hängt) und über `nativeWorld.ts` an den nativen Sperrbildschirm. **Eine neue Welt braucht vier Dinge:** einen Eintrag in `WELTEN` (`docs/design/tokens.mjs`), einen in `World`/`WORLDS` — `theme.test.ts` hält die beiden gegeneinander —, einen Lauf von `node docs/design/tokens.mjs --write` und eine Farbtafel in `LockPalette` (`ios/App/App/AppDelegate.swift` — versioniert, aber kein Test hält sie gegen `WELTEN`; wirksam erst mit dem nächsten iOS-Build)
+- `src/lib/theme.ts` — **welche Farbwelt gilt, und zwar abgeleitet statt gewählt.** `subWorld(isLocked)` → `sub-locked` (grün) oder `sub-open` (rosa), `keyholderWorld()` → `keyholder` (indigo), `DEFAULT_WORLD` für Bildschirme ohne Zustand (Anmeldung, `/info`). Alle drei sind DUNKEL; einen hellen Modus und einen Umschalter gibt es seit v6 nicht mehr. Gesetzt wird beim Rendern im Bereichs-Layout, `ThemeRootSync` trägt die Welt an ZWEI Abnehmer nach, die den Bereichs-Wrapper nicht lesen: an `<html>` (für alles, was per Portal am Body hängt) und über `nativeWorld.ts` an den nativen Sperrbildschirm. **Eine neue Welt braucht vier Dinge:** einen Eintrag in `WELTEN` (`docs/design/tokens.mjs`), einen in `World`/`WORLDS` — `theme.test.ts` hält die beiden gegeneinander —, einen Lauf von `node docs/design/tokens.mjs --write` und eine Farbtafel in BEIDEN nativen Sperrbildschirmen (`LockPalette` in `ios/App/App/AppDelegate.swift` und `android/…/LockPalette.java` — `nativeParity.test.ts` hält beide gegen `globals.css`; wirksam erst mit dem nächsten App-Build)
 - `src/app/components/EmptyState.tsx` — Leer-Zustand Platzhalter
 - `src/app/components/Skeleton.tsx` — Loading-Skeleton
 - `src/app/components/Spinner.tsx` — Loading-Spinner
@@ -474,8 +483,9 @@ keine Closure. `src/lib/nestedComponents.test.ts` liest den Baum und erzwingt da
 - `src/lib/queries.ts` — `getIsLocked()`, `getActiveVorgabe()`
 - `src/lib/kontrollePills.ts` — `ANFORDERUNG_PILLS`, `getKombinierterPill()`
 - `src/lib/compressImage.ts` — Client-seitige Bildkomprimierung vor Upload
-- `src/lib/capacitorPrefs.ts` — `prefGet`/`prefSet`: der EINE gekapselte Zugriff auf Capacitor Preferences (dynamischer Import, `catch` statt Plattform-Abfrage — im Server-Rendering und im reinen Browser soll er still nichts tun). **Jeder Preferences-Zugriff gehört hierher.** Auf iOS liegen die Werte in `UserDefaults.standard` unter `CapacitorStorage.<key>`
-- `src/lib/nativeWorld.ts` — `rememberWorld(world)`: hinterlegt die Farbwelt für den nativen iOS-Sperrbildschirm, der VOR der WebView zeichnet und sie deshalb nicht erfragen kann. Der Wert ist ein Gedächtnis, keine Auskunft — die Grenzen stehen dort. Gerufen von `ThemeRootSync`
+- `src/lib/capacitorPrefs.ts` — `prefGet`/`prefSet`: der EINE gekapselte Zugriff auf Capacitor Preferences (dynamischer Import, `catch` statt Plattform-Abfrage — im Server-Rendering und im reinen Browser soll er still nichts tun). **Jeder Preferences-Zugriff gehört hierher.** Auf iOS liegen die Werte in `UserDefaults.standard` unter `CapacitorStorage.<key>`, auf Android in der SharedPreferences-Datei `CapacitorStorage` unter `<key>`
+- `src/lib/nativeApp.ts` — Client-seitig: Laufe ich in der App-Hülle, und in welcher? `nativePlatformNow()` (synchron, `window.Capacitor`), `isNativePlatform()`, `getNativeAppInfo()` (Version/Build der Hülle; Anzeige: `NativeAppVersion`). **Jede solche Abfrage gehört hierher** — sie stand einmal dreifach da. Die Plattform-NAMEN stehen in `nativePlatforms.ts` (importfrei, Server und Client)
+- `src/lib/nativeWorld.ts` — `rememberWorld(world)`: hinterlegt die Farbwelt für den nativen Sperrbildschirm (iOS und Android), der VOR der WebView zeichnet und sie deshalb nicht erfragen kann. Der Wert ist ein Gedächtnis, keine Auskunft — die Grenzen stehen dort. Gerufen von `ThemeRootSync`
 - `src/lib/haptics.ts` — Haptisches Feedback (Vibration API)
 - `src/lib/swMessages.ts` — Service-Worker-Kommunikation: `postSwMessage()`, `clearSwUserCache()`, `activateWaitingSw()` (wartenden SW aktivieren + auf Übernahme warten), `setAppBadgeSafe()` (App-Badge = ungelesene Nachrichten; nativ über `@capawesome/capacitor-badge`, im Browser über `navigator.setAppBadge`). **Jeder SW-Zugriff gehört hierher** — `navigator.serviceWorker` fehlt in der iOS-WKWebView der Capacitor-App und in Privatfenstern komplett; ein ungeschützter Zugriff wirft dort und verschluckt die Aktion drumherum
 - `src/lib/idb.ts` — IndexedDB-Wrapper (Offline-Cache)
@@ -537,6 +547,29 @@ Daraus folgt für jede Änderung:
 schliessen) beginnt; `funktionsmodellDoc.test.ts` erzwingt beides und meldet ausserdem jede
 Keyholder-Fähigkeit, die weder einen MCP-Weg noch einen Eintrag hat. Eine zweite Liste in Prosa
 hier wäre die halbe Wahrheit — sie liefe der geprüften davon.
+
+### Native Parität — was die iOS-App kann, kann die Android-App
+
+**Die beiden Apps sind dünne Hüllen um dieselbe Web-App** (`ios/`, `android/`, beide versioniert).
+Fast jede Funktion entsteht deshalb im Web und erreicht beide von selbst. Was NATIV gebaut wird —
+Sperrbildschirm, Push-Versand, Berechtigungen, Plugins, Passkey-Zuordnung — wird für **beide
+Plattformen im selben Zweig** gebaut. Eine Hälfte nachzureichen fällt erfahrungsgemäss niemandem
+auf, bis ein Nutzer der anderen Plattform sie vermisst.
+
+Dafür gibt es drei Stellen, und an ihnen bleibt hängen, wer eine Plattform vergisst:
+
+- **`src/lib/nativePlatforms.ts`** — `NATIVE_PLATFORMS`, die eine Liste. Plattform-Weichen
+  (`getPlatform() === "…"`, `platform: "…"`) stehen nur dort; der Push-Versand hält einen Sender je
+  Plattform als `Record<NativePlatform, …>`, eine neue Plattform ohne Sender kompiliert nicht.
+- **`src/lib/nativeParity.test.ts`** — liest beide App-Projekte: jedes Capacitor-Plugin in beiden
+  eingebunden (`npx cap sync`), jede iOS-Berechtigung mit Android-Gegenstück oder begründetem
+  „nicht nötig", Sperrbildschirm mit denselben Welten, Farben (gegen `globals.css`) und Texten,
+  derselbe Passwort-Ausweg, Dev-Variante und Release-Wächter auf beiden Seiten.
+- **Release-Wächter** im Build: Xcode-Schritt „Keine Dev-URL im Release" bzw. Gradle-Task
+  `checkReleaseReady` (zusätzlich: ohne `google-services.json` keine Release-APK).
+
+Build und Auslieferung: `TESTFLIGHT.md` (iOS) und `ANDROID.md` (Android). Wie bei iOS gilt:
+Änderungen nur an `android/` brauchen `/simplify` + `/code-review`, aber keinen Web-Versions-Bump.
 
 ### MCP schemaVersion-Disziplin
 - Jede MCP-Deep-View trägt eine `schemaVersion`. **Ändert sich Semantik eines Felds oder fällt ein Feld weg, MUSS die schemaVersion des betroffenen Tools erhöht werden** — sonst sind historische Werte rückwirkend uninterpretierbar (Vorfall 16.07.2026: `hardwareEnforced` zweimal umgedeutet bei unveränderter Version 2). Rein additive Felder brauchen keinen Bump.

@@ -853,9 +853,9 @@ export const FM_CAPABILITIES: FmCapability[] = [
     actors: ["sub", "admin"], surfaces: ["sub-ui"], routes: ["/api/feedback"],
   }),
   c({
-    id: "app-links", mechanic: "Zugang", title: "App-Verknüpfung für iOS",
-    what: "Die Datei, mit der iOS Links dieser Instanz der App zuordnet.",
-    actors: ["system"], surfaces: ["extern"], routes: ["/api/apple-app-site-association"],
+    id: "app-links", mechanic: "Zugang", title: "App-Verknüpfung für iOS und Android",
+    what: "Die Dateien, mit denen iOS und Android diese Instanz der App zuordnen (Passkeys in der App).",
+    actors: ["system"], surfaces: ["extern"], routes: ["/api/apple-app-site-association", "/api/assetlinks"],
   }),
   c({
     id: "photo-analysis", mechanic: "Zugang", title: "Foto-Prüfung einrichten",

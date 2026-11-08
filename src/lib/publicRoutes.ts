@@ -44,7 +44,7 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
   { match: "prefix", path: "/api/integration/", guard: "box-secret", reason: "LockMeBox-Brücke: Shared-Secret (requireBoxSync), keine Session" },
   { match: "exact", path: "/api/telegram/webhook", guard: "webhook-secret", reason: "Telegram ruft an; gesichert über den secret_token-Header" },
   { match: "prefix", path: "/api/oauth/", guard: "oauth", reason: "OAuth-Endpunkte: Clients rufen sie direkt auf, geschützt über Client/Code/Token und Rate-Limit" },
-  { match: "prefix", path: "/.well-known/", guard: "public-info", reason: "Metadaten für OAuth-Discovery und Apple-Passkeys, ohne Nutzdaten" },
+  { match: "prefix", path: "/.well-known/", guard: "public-info", reason: "Metadaten für OAuth-Discovery und App-Passkeys (Apple, Android), ohne Nutzdaten" },
   { match: "prefix", path: "/oauth/", guard: "oauth", reason: "Consent-Seite; leitet selbst auf /login, wenn keine Session besteht" },
 ];
 

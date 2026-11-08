@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
-import { isNativePlatform, isNativePushRegistered, registerNativePush, unregisterNativePush } from "@/lib/nativePush";
+import { isNativePushRegistered, registerNativePush, unregisterNativePush } from "@/lib/nativePush";
+import { isNativePlatform } from "@/lib/nativeApp";
 
 function urlBase64ToUint8Array(base64: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);

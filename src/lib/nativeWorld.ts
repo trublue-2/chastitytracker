@@ -1,5 +1,5 @@
 import { prefSet } from "@/lib/capacitorPrefs";
-import { isNativePlatform } from "@/lib/nativePush";
+import { isNativePlatform } from "@/lib/nativeApp";
 import type { World } from "@/lib/theme";
 
 /**
@@ -16,16 +16,17 @@ export const WORLD_PREF_KEY = "world";
 /**
  * Die zuletzt gültige Farbwelt für den NATIVEN Sperrbildschirm hinterlegen.
  *
- * Der Sperrbildschirm der iOS-Hülle (`ios/App/App/AppDelegate.swift`, `LockScreenView`) liegt vor
- * der WebView. Er zeichnet, bevor überhaupt eine Seite geladen ist, und hat weder Sitzung noch
- * Netz. Er kann die Welt also nicht ERFRAGEN — sie muss beim letzten Mal hinterlegt worden sein.
- * Auf iOS liest er den Wert als `UserDefaults.standard.string(forKey: "CapacitorStorage.world")`.
+ * Der Sperrbildschirm der App-Hüllen liegt vor der WebView: iOS `LockScreenView` in
+ * `ios/App/App/AppDelegate.swift`, Android `LockScreenView`/`LockPalette` unter
+ * `android/app/src/main/java/ch/chastitytracker/app/`. Er zeichnet, bevor überhaupt eine Seite
+ * geladen ist, und hat weder Sitzung noch Netz. Er kann die Welt also nicht ERFRAGEN — sie muss
+ * beim letzten Mal hinterlegt worden sein. iOS liest sie als
+ * `UserDefaults.standard.string(forKey: "CapacitorStorage.world")`, Android aus der
+ * SharedPreferences-Datei `CapacitorStorage` unter `world`.
  *
- * **Die Gegenstelle liegt im Repo** (`ios/App/App/AppDelegate.swift`) — sie ist seit dem v6-Zweig
- * eingecheckt, und `.gitignore` nimmt nur noch `/android/` aus. Wer den Schlüsselnamen unten
- * ändert, muss sie also mitziehen; ein Compiler oder Test verbindet die beiden nicht. Dieser
- * Absatz behauptete bis v6 das Gegenteil — er stammte aus der Zeit, als `npx cap add ios` das
- * Xcode-Projekt nur lokal erzeugte —, und wer ihm glaubte, suchte die Gegenstelle gar nicht erst.
+ * **Beide Gegenstellen liegen im Repo, und ein Test verbindet sie:** `nativeParity.test.ts` prüft
+ * Schlüssel, Welten und Farben beider Plattformen gegen `globals.css`. Wer den Schlüsselnamen unten
+ * ändert, zieht beide nativen Seiten mit.
  *
  * **Der Wert ist damit ein Gedächtnis, keine Auskunft.** Öffnet die Keyholderin den Verschluss,
  * während die App geschlossen ist, zeigt der Sperrbildschirm beim nächsten Start noch Grün — bis
@@ -39,10 +40,6 @@ export const WORLD_PREF_KEY = "world";
  * dorthin, wo v6 sie WEGGENOMMEN hat, weil sie zwischen Handy und Rechner auseinanderlief (#88).
  * Ein Schlüssel, den niemand liest, wäre dabei nicht das Problem; das Problem wäre, dass wir das
  * Theme wieder in einen Gerätespeicher schreiben, nachdem wir es dort ausgebaut haben.
- *
- * (`isNativePlatform` liegt in `nativePush.ts` und hat dort nichts verloren — es ist der dritte
- * Abnehmer nach `swMessages.ts` und diesem. Der Umzug in ein eigenes Modul gehört nicht in diesen
- * Zweig, ist aber fällig.)
  *
  * Kein `await` beim Aufrufer: schlägt das Schreiben fehl, behält der Sperrbildschirm seine
  * Vorgabe-Farben. Das ist die einzige Folge.

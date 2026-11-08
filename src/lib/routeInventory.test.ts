@@ -70,6 +70,8 @@ const FACTORY_EXPORTS = /=\s*(ownInboxRoutes|keyholderInboxRoutes)\.\w+\s*;?\s*$
 const GATED_BUT_OPEN: Record<string, string> = {
   "src/app/api/apple-app-site-association/route.ts":
     "Wird über den Rewrite /.well-known/apple-app-site-association ausgeliefert (der Proxy sieht den .well-known-Pfad, der ausgenommen ist); nur Team- und Bundle-ID, nichts Geheimes. Der Direktaufruf bleibt hinter der Session.",
+  "src/app/api/assetlinks/route.ts":
+    "Android-Gegenstück der AASA, über den Rewrite /.well-known/assetlinks.json ausgeliefert; nur Paketname und öffentlicher Zertifikats-Fingerabdruck. Der Direktaufruf bleibt hinter der Session.",
 };
 
 /**

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { X, Download, Share } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { nativePlatformNow } from "@/lib/nativeApp";
 
 type Platform = "android" | "ios" | null;
 
@@ -36,7 +37,7 @@ export default function InstallBanner() {
     if (isStandalone) return; // already installed as PWA
 
     // Hide in Capacitor native app — already installed as a native app
-    if ((window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()) return;
+    if (nativePlatformNow()) return;
 
     if (isIos) {
       setPlatform("ios");

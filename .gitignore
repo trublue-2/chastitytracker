@@ -52,8 +52,8 @@ dev.db-journal
 
 # Capacitor native projects.
 #
-# `/ios/` war hier pauschal gesperrt, mit der Begründung „generated, not committed". Die stimmt für
-# Android; für iOS stimmt sie seit dem ersten Handgriff nicht mehr. `npx cap sync` erzeugt weder
+# `/ios/` und `/android/` waren hier pauschal gesperrt, mit der Begründung „generated, not
+# committed". Die stimmt für keine der beiden Plattformen mehr. `npx cap sync` erzeugt weder
 # `AppDelegate.swift` (dort wohnt die `LockPalette` des nativen Sperrbildschirms) noch
 # `App.entitlements` (Push und Passkeys) — das ist Handarbeit, die nur einmal existierte, auf einer
 # Maschine, ungesichert. Dass die `Info.plist` schon einzeln hereingezwungen war, sagt alles.
@@ -61,8 +61,9 @@ dev.db-journal
 # Was NICHT hineingehört, regelt Capacitors eigene `ios/.gitignore` an Ort und Stelle: Build,
 # Pods, DerivedData, die synchronisierten Web-Assets, die generierten Config-Dateien — und
 # `xcuserdata`, in dessen VERZEICHNISNAMEN der Mac-Benutzername steckt. Das ist die Datei, die bei
-# einem Capacitor-Update mitwandert; eine zweite Liste hier liefe ihr davon.
-/android/
+# einem Capacitor-Update mitwandert; eine zweite Liste hier liefe ihr davon. Für Android gilt
+# dasselbe: `MainActivity.java` (Sperrbildschirm), Manifest und Gradle-Dateien sind Handarbeit,
+# `android/.gitignore` sperrt Build, synchronisierte Assets, Keystore und Firebase-Datei.
 
 # APNs private key — never commit this
 *.p8

@@ -341,7 +341,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                 "authjs.session-token",
                 "__Secure-authjs.session-token",
             ]
-            let toDelete = cookies.filter { sessionCookieNames.contains($0.name) }
+            // Ein grosses JWT teilt NextAuth in Stücke (`<name>.0`, `<name>.1` …) — die zählen mit.
+            let toDelete = cookies.filter { cookie in
+                sessionCookieNames.contains { cookie.name == $0 || cookie.name.hasPrefix($0 + ".") }
+            }
 
             let group = DispatchGroup()
             for cookie in toDelete {

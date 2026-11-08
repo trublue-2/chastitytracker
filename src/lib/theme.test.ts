@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { subWorld, keyholderWorld, WORLDS, DEFAULT_WORLD } from "./theme";
 import { WORLD_PREF_KEY } from "./nativeWorld";
+import { themeBlocks } from "@/test/themeCss";
 
 /**
  * Die drei Welten und ihre Blöcke.
@@ -48,16 +49,9 @@ describe("Die Welt folgt dem Zustand", () => {
   });
 
   /**
-   * Der vierte Abnehmer der Welten ist der NATIVE Sperrbildschirm — und er ist der einzige, den
-   * kein Compiler und kein Test erreichen kann: `AppDelegate.swift` liegt nicht im Repo, `/ios/`
-   * ist gitignoriert. Ein Test, der die Swift-Datei liest, wäre in CI und in jedem frischen Klon
-   * rot; das ist kein Nachteil dieses Ansatzes, das ist sein Ausschlussgrund.
-   *
-   * Deshalb prüft dieser Test das, was IM Repo liegt: den Vertrag in `TESTFLIGHT.md`. Dieselbe
-   * Bauart nutzt die Datei schon für die APNs-Callbacks — unversionierter Swift-Code, dessen
-   * Bedingung im Repo dokumentiert ist. Wer eine vierte Welt einführt oder eine umbenennt, muss
-   * hier vorbei, statt drei grüne Häkchen zu bekommen, während der Sperrbildschirm still auf seine
-   * Vorgabefarben zurückfällt.
+   * Der vierte Abnehmer der Welten ist der NATIVE Sperrbildschirm. Seine Farbtafeln selbst prüft
+   * `nativeParity.test.ts` (iOS und Android gegen `globals.css`); dieser Test hält zusätzlich den
+   * Vertrag in `TESTFLIGHT.md` aktuell, den ein Mensch beim nativen Build liest.
    *
    * Geprüft wird BEIDES, weil der Vertrag aus beidem besteht: der Schlüsselname und die Wertemenge.
    */
@@ -123,28 +117,6 @@ describe("Die Welt folgt dem Zustand", () => {
 //
 // Der unauffällige Fall ist Tailwinds `@container` (= `container-type: inline-size`): eine
 // Utility-Klasse, die auf einer Layout-Wurzel völlig harmlos aussieht.
-/** Selektor-Liste und Deklarationen jedes Regelblocks, der ein Theme setzt (`:root` eingeschlossen).
- *  Kommentare fallen vorher weg, damit ein `--token` in einer Erklärung nicht mitzählt. */
-function themeBlocks(): { selektoren: string[]; deklarationen: string[] }[] {
-  const css = readFileSync("src/app/globals.css", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-  const blocks: { selektoren: string[]; deklarationen: string[] }[] = [];
-  for (const [, sel, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    // Vor dem Selektor kann noch eine At-Regel oder das Ende des Vorgänger-Blocks stehen
-    // (`@import "tailwindcss";` gleich am Dateianfang). Alles bis zum letzten `;` wegschneiden,
-    // sonst heisst der erste Selektor `@import …;\n:root` und trifft keinen Vergleich.
-    const selektoren = sel
-      .split(",")
-      .map((x) => x.slice(x.lastIndexOf(";") + 1).trim())
-      .filter(Boolean);
-    if (!selektoren.some((x) => x === ":root" || x.startsWith("[data-theme"))) continue;
-    blocks.push({
-      selektoren,
-      deklarationen: body.split(";").map((d) => d.trim()).filter(Boolean),
-    });
-  }
-  return blocks;
-}
-
 describe("Theme-Wrapper bleiben Containing-Block-frei", () => {
   // Das Wrapper-Tag wird als Ganzes geprüft, Klassen-Utilities wie Inline-Styles. Beide
   // Schreibweisen müssen also drinstehen: `will-change` (Klasse) UND `willChange` (Style-Objekt).

@@ -25,6 +25,15 @@ const config: CapacitorConfig = {
     ...(devUrl ? { url: devUrl, cleartext: true } : {}),
   },
   plugins: {
+    SystemBars: {
+      // Android: die WebView läuft wie auf iOS unter Status- und Navigationsleiste durch
+      // (`viewport-fit=cover` in Hülle und App); die Abstände kommen aus `env(safe-area-inset-*)`.
+      // Dazu gehört `EdgeToEdge.enable` in `MainActivity`.
+      insetsHandling: "css",
+      // Alle drei Farbwelten sind dunkel → helle Symbole in den Leisten (nur Android; auf iOS gilt
+      // die Vorgabe des Systems).
+      style: "DARK",
+    },
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"],
     },

@@ -7,7 +7,7 @@
 
 import { fetchWithTimeout, parseApiErrorCode } from "@/lib/apiClient";
 import { codedError, codeOf } from "@/lib/codedError";
-import { isNativePlatform } from "@/lib/nativePush";
+import { isNativePlatform } from "@/lib/nativeApp";
 import {
   LOCKMEBOX_COMMAND_LETTER, LOCKMEBOX_NAME_PREFIX, LOCKMEBOX_NAME_RE, LOCKMEBOX_RX, LOCKMEBOX_SERVICE,
   LOCKMEBOX_TX, splitLockmeboxFrames, type LockmeboxCommand, type LockmeboxInfo, type LockmeboxProblem,

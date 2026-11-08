@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ChastityTracker</string>
+    <string name="title_activity_main">ChastityTracker</string>
+    <string name="package_name">ch.chastitytracker.app</string>
+    <string name="custom_url_scheme">ch.chastitytracker.app</string>
+
+    <!-- Sperrbildschirm — dieselben Texte wie LockScreenView in ios/App/App/AppDelegate.swift
+         (nativeParity.test.ts vergleicht sie). -->
+    <string name="lock_title">ChastityTracker</string>
+    <string name="lock_subtitle">Identität bestätigen um fortzufahren</string>
+    <string name="lock_unlock">Entsperren</string>
+    <string name="lock_password">Mit Passwort anmelden</string>
+    <string name="lock_prompt_title">Identität bestätigen</string>
+</resources>

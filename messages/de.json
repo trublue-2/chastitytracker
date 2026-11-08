@@ -302,6 +302,7 @@
     "INSPECTION_JOKER_UNAVAILABLE": "Für diese Kontrolle ist kein Joker verfügbar"
   },
   "common": {
+    "nativeAppVersion": "App: {platform, select, ios {iOS} android {Android} other {{platform}}} {version} (Build {build})",
     "daily": "täglich",
     "today": "Heute",
     "yesterday": "Gestern",

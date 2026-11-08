@@ -242,7 +242,7 @@ Steckbrief: [85-zugang.md](85-zugang.md)
 | **Version und Bau-Datum melden** | Womit die App prüft, ob eine neue Fassung läuft. | System | Gegenstelle | `/api/version` |
 | **Auf neue Fassung prüfen** | Liest den Changelog der veröffentlichten Fassung und meldet, wenn diese Instanz zurückliegt. | System | läuft von selbst | `/api/upstream-changelog` |
 | **Lebenszeichen** | Der Takt, an dem die zeitgesteuerten Abläufe hängen. | System | läuft von selbst | `/api/heartbeat` |
-| **App-Verknüpfung für iOS** | Die Datei, mit der iOS Links dieser Instanz der App zuordnet. | System | Gegenstelle | `/api/apple-app-site-association` |
+| **App-Verknüpfung für iOS und Android** | Die Dateien, mit denen iOS und Android diese Instanz der App zuordnen (Passkeys in der App). | System | Gegenstelle | `/api/apple-app-site-association` `/api/assetlinks` |
 | **Foto-Prüfung einrichten** | Wählt, ob und bei welchem Anbieter eingereichte Fotos automatisch geprüft werden (Anthropic, OpenAI, Gemini, Mistral, beliebiger kompatibler Dienst, eigener Server), samt eigenem API-Schlüssel und Modellen; testet die Einstellung an einem Beispielfoto. <br>*Überschreibt die `.env`. Der Schlüssel liegt verschlüsselt in `AppMeta` und wird nie ausgeliefert. Bei externem Anbieter bekommen alle Nutzer einen Hinweis.* | Keyholder (UI) | App (Keyholder) | `/api/admin/photo-analysis` `/api/admin/photo-analysis/test` |
 
 ## Gewicht

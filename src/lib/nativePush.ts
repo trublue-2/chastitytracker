@@ -7,15 +7,6 @@ import { prefGet, prefSet } from "@/lib/capacitorPrefs";
 // für eine Wahrheit, die auseinanderlaufen können). Vorhanden = Push für dieses Gerät aktiv.
 const NATIVE_PUSH_TOKEN = "pushToken";
 
-export async function isNativePlatform(): Promise<boolean> {
-  try {
-    const { Capacitor } = await import("@capacitor/core");
-    return Capacitor.isNativePlatform();
-  } catch {
-    return false;
-  }
-}
-
 /** Ist auf diesem Gerät ein Push-Token registriert? (Aus dem gespeicherten Token abgeleitet.) */
 export async function isNativePushRegistered(): Promise<boolean> {
   return (await prefGet(NATIVE_PUSH_TOKEN)) !== null;
@@ -73,7 +64,7 @@ async function doRegisterNativePush(): Promise<RegisterResult> {
     }
   });
   const errHandle = await PushNotifications.addListener("registrationError", (err) => {
-    console.error("[nativePush] APNs registration error", err);
+    console.error("[nativePush] registration error", err);
     finish({ ok: false, reason: "error" });
   });
   const timeout = setTimeout(() => finish({ ok: false, reason: "timeout" }), 15_000);

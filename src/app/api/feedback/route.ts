@@ -3,9 +3,10 @@ import { requireApi } from "@/lib/authGuards";
 import { isValidEmail } from "@/lib/constants";
 import { censusEnabled, censusInstanceId, imageOrigin, imageOriginLabel } from "@/lib/census";
 import { FEEDBACK_DEFAULT_UPSTREAM_URL, feedbackMode, isThrowawayEmail } from "@/lib/feedback";
+import { NATIVE_PLATFORMS } from "@/lib/nativePlatforms";
 
 const VALID_TYPES = ["BUG", "IDEA", "QUESTION", "THANKS"] as const;
-const VALID_PLATFORMS = ["web", "ios", "android"] as const;
+const VALID_PLATFORMS = ["web", ...NATIVE_PLATFORMS] as const;
 const MAX_MESSAGE_LEN = 2000;
 const MAX_URL_LEN = 500;
 const MAX_EMAIL_LEN = 254;

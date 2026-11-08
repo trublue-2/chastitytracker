@@ -5,6 +5,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale } from "@/lib/utils";
 import releasesData from "@/data/changelog.json";
 import UpstreamSection from "./UpstreamSection";
+import NativeAppVersion from "@/app/components/NativeAppVersion";
 import Section from "@/app/components/Section";
 import { blockStackCls, titleCls } from "@/app/components/inputStyles";
 import { pickChangelogText, type ChangelogText } from "@/lib/changelogText";
@@ -96,6 +97,7 @@ export default async function ChangelogPage() {
         <div className="flex flex-col gap-1">
           <h1 className={titleCls}>{t("title")}</h1>
           <p className="text-sm text-foreground-faint">{t("currentVersion")}: <span className="font-mono bg-surface-raised text-foreground-muted px-1.5 py-0.5 rounded text-xs">v{currentVersion}</span></p>
+          <NativeAppVersion className="text-xs text-foreground-faint" />
         </div>
       </div>
 

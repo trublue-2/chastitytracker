@@ -1,4 +1,4 @@
-import { isNativePlatform } from "@/lib/nativePush";
+import { isNativePlatform } from "@/lib/nativeApp";
 
 /**
  * Sends a message to the active Service Worker if one is registered.

@@ -35,6 +35,11 @@ const nextConfig: NextConfig = {
         source: "/.well-known/apple-app-site-association",
         destination: "/api/apple-app-site-association",
       },
+      {
+        // Android-Gegenstück (Digital Asset Links) — gleiche Bauart wie die AASA
+        source: "/.well-known/assetlinks.json",
+        destination: "/api/assetlinks",
+      },
     ];
   },
 

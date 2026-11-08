@@ -1,6 +1,7 @@
 "use client";
 
-// Lock screen is handled natively in AppDelegate.swift (iOS) via LAContext.
+// Lock screen is handled natively: AppDelegate.swift (iOS, LAContext) and MainActivity.java
+// (Android, BiometricPrompt).
 // This component is intentionally empty — the native overlay is shown before
 // the WebView becomes interactive, so no JS-side lock is needed.
 export default function AppLock() {

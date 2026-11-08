@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
+import { isDeliverablePlatform } from "@/lib/push";
 
 export async function POST(req: NextRequest) {
   const session = await requireApi();
@@ -10,10 +11,11 @@ export async function POST(req: NextRequest) {
   const { token, platform } = body as { token?: string; platform?: string };
 
   if (!token || !platform) {
-    return NextResponse.json({ error: "token and platform (ios) required" }, { status: 400 });
+    return NextResponse.json({ error: "token and platform required" }, { status: 400 });
   }
-  // Android-Push (Legacy-FCM) wird nicht mehr bedient; eine Registrierung liefe ins Leere.
-  if (platform !== "ios") {
+  // Nur Plattformen, an die diese Instanz zustellen kann (Schlüssel gesetzt). Sonst meldete die App
+  // „Push an", und es käme nie etwas.
+  if (!isDeliverablePlatform(platform)) {
     return NextResponse.json({ error: "nativePlatformUnsupported" }, { status: 400 });
   }
 

@@ -302,6 +302,7 @@
     "INSPECTION_JOKER_UNAVAILABLE": "No joker is available for this inspection"
   },
   "common": {
+    "nativeAppVersion": "App: {platform, select, ios {iOS} android {Android} other {{platform}}} {version} (build {build})",
     "daily": "daily",
     "today": "Today",
     "yesterday": "Yesterday",

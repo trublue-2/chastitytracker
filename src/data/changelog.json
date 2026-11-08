@@ -1,5 +1,25 @@
 [
   {
+    "version": "6.5.6",
+    "date": "2026-11-08",
+    "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "Android-App: Mitteilungen kommen jetzt auch aufs Android-Handy, und die App sperrt sich wie auf dem iPhone mit Fingerabdruck oder Gerätecode.",
+          "en": "Android app: notifications now reach Android phones too, and the app locks with fingerprint or device code just like on the iPhone."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "In der App zeigt der Changelog jetzt auch die Version der installierten App.",
+          "en": "In the app, the changelog now also shows the version of the installed app."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.5.5",
     "date": "2026-11-08",
     "changes": [
