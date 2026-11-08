@@ -1,12 +1,12 @@
 # ── Stage 1: Dependencies ────────────────────────────────────────────────────
-FROM node:24-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 
 COPY package*.json ./
 RUN npm ci
 
 # ── Stage 2: Build ────────────────────────────────────────────────────────────
-FROM node:24-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 
 # Damit "native" hier dasselbe bedeutet wie im runner. Ohne openssl löst Prisma im Builder auf die
@@ -28,7 +28,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # ── Stage 3: Runtime ──────────────────────────────────────────────────────────
-FROM node:24-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production

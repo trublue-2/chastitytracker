@@ -4,7 +4,7 @@
 
 ![Version](https://img.shields.io/github/package-json/v/trublue-2/chastitytracker?label=version&color=blue)
 ![License](https://img.shields.io/badge/license-PolyForm_Noncommercial_1.0.0-orange)
-![Node](https://img.shields.io/badge/node-24+-brightgreen)
+![Node](https://img.shields.io/badge/node-26+-brightgreen)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
 
 > [!NOTE]
@@ -137,7 +137,7 @@ environment variables. Everything above is on by default.
 | Mobile | Capacitor wrappers (iOS via TestFlight, Android via direct APK) |
 | Icons | Lucide React |
 | Testing | Vitest (unit) |
-| Runtime | Node.js 24 Alpine (Docker) |
+| Runtime | Node.js 26 Alpine (Docker) |
 
 ## Architecture
 
@@ -163,7 +163,7 @@ Each tracker instance is an independent container with its own SQLite database. 
 
 ### Prerequisites
 
-- Node.js 24+
+- Node.js 26+
 - npm 10+
 - An SMTP server for email delivery (password reset, notifications)
 - *Optional:* an Anthropic API key, or a local vision provider, for AI-powered inspection verification — without either, the app runs and simply skips the photo checks (see [Optional features](#optional-features-toggleable))
@@ -298,7 +298,7 @@ docker run -d \
   kg-tracker
 ```
 
-The container starts as `root` to fix volume ownership, then drops to `www-data` via `su-exec`. Uses a multi-stage build (Node.js 24 Alpine) with standalone Next.js output. The `/app/data` volume persists the SQLite database and uploaded photos.
+The container starts as `root` to fix volume ownership, then drops to `www-data` via `su-exec`. Uses a multi-stage build (Node.js 26 Alpine) with standalone Next.js output. The `/app/data` volume persists the SQLite database and uploaded photos.
 
 At startup, the entrypoint script automatically runs Prisma migrations and creates the initial admin user (if none exists). See the [Self-Hosting](#self-hosting) section below for a sample `docker-compose.yml` and a complete `.env` template.
 
