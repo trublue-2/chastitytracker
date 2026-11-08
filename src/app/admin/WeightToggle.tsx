@@ -18,7 +18,7 @@ import { WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE } from "@/lib/cons
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 import { parseDecimalInput, weightFieldValue, weightText, weightInputToKg, type UnitSystem } from "@/lib/weight/weight";
 import { weighingWindowEnd, type WeighingWindow } from "@/lib/weight/weightWindows";
-import { ALL_WEEKDAYS } from "@/lib/weekdays";
+import { ALL_WEEKDAYS } from "@/lib/stats/weekdays";
 
 /**
  * Die Gewichts-Einstellungen der Keyholderin für EINEN Sub: Freischaltung, Wiege-Fenster und **ihr**

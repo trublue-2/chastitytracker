@@ -5,8 +5,8 @@ import { useLocale, useTranslations } from "next-intl";
 
 import { fromDatetimeLocal, toDateLocale } from "@/lib/utils";
 import { useEntryStartTime } from "@/app/hooks/useEntryStartTime";
-import { buildWeekdayLabels } from "@/lib/statsBuilders";
-import { datedWindowLabel } from "@/lib/weekdays";
+import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
+import { datedWindowLabel } from "@/lib/stats/weekdays";
 import { type OeffnenGrund } from "@/lib/constants";
 import type { ResolvedReason } from "@/lib/reasonsService";
 import useTaskHoldGate from "@/app/hooks/useTaskHoldGate";

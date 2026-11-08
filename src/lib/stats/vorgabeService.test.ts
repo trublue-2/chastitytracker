@@ -15,12 +15,12 @@ vi.mock("@/lib/prisma", () => ({
 // Der Service löst die Zeitzone des Subs auf, um ein reines Kalenderdatum („2026-08-23" aus dem
 // `<input type="date">`) als LOKALE Mitternacht zu speichern statt als UTC-Mitternacht.
 vi.mock("@/lib/queries", () => ({ getUserTimezone: vi.fn(async () => "Europe/Zurich") }));
-vi.mock("@/lib/vorgaben", () => ({ reorderVorgabenDates: vi.fn() }));
+vi.mock("@/lib/stats/vorgaben", () => ({ reorderVorgabenDates: vi.fn() }));
 vi.mock("@/lib/devices/deviceCategoryService", () => ({ resolveOwnedCategory: vi.fn(async () => ({ ok: true, data: null })) }));
 
 import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, checkGoalPlausibility } from "./vorgabeService";
 import { prisma } from "@/lib/prisma";
-import { reorderVorgabenDates } from "@/lib/vorgaben";
+import { reorderVorgabenDates } from "@/lib/stats/vorgaben";
 
 const findFirstMock = prisma.trainingVorgabe.findFirst as unknown as ReturnType<typeof vi.fn>;
 const findManyMock = prisma.trainingVorgabe.findMany as unknown as ReturnType<typeof vi.fn>;

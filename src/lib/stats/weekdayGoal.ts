@@ -1,5 +1,5 @@
 import { listProblem, parseJsonList, type ListProblem } from "@/lib/jsonList";
-import { firstWeekdayRule, isoWeekdayInTZ, parseWeekdayMask, weekdayMaskValid } from "@/lib/weekdays";
+import { firstWeekdayRule, isoWeekdayInTZ, parseWeekdayMask, weekdayMaskValid } from "@/lib/stats/weekdays";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 
 /**

@@ -3,7 +3,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import { auth } from "@/lib/auth/auth";
 import { APP_TZ, toDateLocale } from "@/lib/utils";
 import { viewerLayout } from "@/lib/ui/viewerLayout";
-import { requestNowMs } from "@/lib/dashboardData";
+import { requestNowMs } from "@/lib/stats/dashboardData";
 import { renderStack } from "@/lib/ui/blockStack";
 import BlockStack from "@/app/components/BlockStack";
 import { SUB_DASHBOARD_BLOCK_TABLE, type SubDashboardCtx } from "./dashboardBlocks";

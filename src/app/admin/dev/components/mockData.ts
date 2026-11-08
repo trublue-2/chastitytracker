@@ -1,5 +1,5 @@
-import { goalPct } from "@/lib/percent";
-import type { CalendarMonthData, CalendarDayData, DayVorgabe, MonthStat } from "@/lib/statsTypes";
+import { goalPct } from "@/lib/stats/percent";
+import type { CalendarMonthData, CalendarDayData, DayVorgabe, MonthStat } from "@/lib/stats/statsTypes";
 import type { KontrolleItemData } from "@/app/components/KontrolleItemListClient";
 import type { OrgasmusItemData } from "@/app/components/OrgasmenListClient";
 

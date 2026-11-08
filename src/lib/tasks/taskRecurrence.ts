@@ -1,7 +1,7 @@
 import { dateAtLocalMinutes, hhmmToMinutes } from "@/lib/utils";
 import { HHMM } from "@/lib/constants";
 import { weightDayKey, addWeightDays, dayNumber, endOfWeightDay, daysInMonth } from "@/lib/weight/weight";
-import { weekdayMaskHas, isoWeekdayInTZ } from "@/lib/weekdays";
+import { weekdayMaskHas, isoWeekdayInTZ } from "@/lib/stats/weekdays";
 import { parseJsonList } from "@/lib/jsonList";
 
 /**

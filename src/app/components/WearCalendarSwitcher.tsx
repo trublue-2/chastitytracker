@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import CalendarExpand from "./CalendarExpand";
 import CategorySwitcherCard, { type CategoryVariant } from "./CategorySwitcherCard";
-import type { CalendarMonthData } from "@/lib/statsTypes";
+import type { CalendarMonthData } from "@/lib/stats/statsTypes";
 
 /** One picker entry — built server-side from KG + each non-KG category with wear data. */
 export type CalendarVariant = CategoryVariant & {

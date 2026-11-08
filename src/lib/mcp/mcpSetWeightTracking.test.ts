@@ -20,7 +20,7 @@ vi.mock("@/lib/weight/weightSettingsService", async (importOriginal) => {
 import { mcpSetWeightTracking } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
 import { setWeightSettingsKeyholder } from "@/lib/weight/weightSettingsService";
-import { ALL_WEEKDAYS, weekdayMaskOf } from "../weekdays";
+import { ALL_WEEKDAYS, weekdayMaskOf } from "../stats/weekdays";
 
 const findUniqueOrThrowMock = prisma.user.findUniqueOrThrow as unknown as ReturnType<typeof vi.fn>;
 const setSettingsMock = setWeightSettingsKeyholder as unknown as ReturnType<typeof vi.fn>;

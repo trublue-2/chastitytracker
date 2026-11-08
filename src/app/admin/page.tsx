@@ -30,7 +30,7 @@ import { orgasmusAnforderungArtLabel, boxCouplingEnabled } from "@/lib/constants
 import { QUICK_SETTING_SELECT, quickSettingOnCard, parseQuickSettings, quickSettingValue } from "@/lib/ui/quickSettings";
 import Section from "@/app/components/Section";
 import Badge from "@/app/components/Badge";
-import { strafbuchCached } from "@/lib/dashboardData";
+import { strafbuchCached } from "@/lib/stats/dashboardData";
 import { selectSubOffenses, attentionOffensesOf } from "@/lib/strafbuch/subOffenses";
 import { rowHoverCls } from "@/app/components/inputStyles";
 import { LockClosedIcon, LockOpenIcon } from "@/app/components/lockIcons";

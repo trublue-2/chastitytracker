@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { assertKeyholderOrAdmin } from "@/lib/auth/authGuards";
 import { LOCK_FORM_PLAN_MODE } from "@/lib/lockRequestPlanning";
 import { getIsLocked } from "@/lib/queries";
-import { subLockPeriodCached } from "@/lib/dashboardData";
+import { subLockPeriodCached } from "@/lib/stats/dashboardData";
 import { buildNewEntryCategoryRows } from "@/lib/devices/categoryRows";
 import { categoryStyle, wearActionHref } from "@/lib/devices/categoryConstants";
 import CategoryIconRender from "@/app/components/CategoryIcon";

@@ -3,14 +3,14 @@
 import { useState, Fragment, useRef } from "react";
 import BlockHeading from "@/app/components/BlockHeading";
 import { toDateLocale, formatTotalHours } from "@/lib/utils";
-import { buildWeekdayLabels } from "@/lib/statsBuilders";
+import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
 import { iconButtonCls } from "@/app/components/inputStyles";
 import { useDialogBehaviour } from "@/app/hooks/useDialogBehaviour";
 import { useLocale, useTranslations } from "next-intl";
 import { offenseNameKey } from "@/lib/strafbuch/offenseLabels";
 import type { OffenseCanonicalType } from "@/lib/strafbuch/offenseTypes";
 
-import type { DayEntry, DayVorgabe, CalendarDayData, CalendarMonthData } from "@/lib/statsTypes";
+import type { DayEntry, DayVorgabe, CalendarDayData, CalendarMonthData } from "@/lib/stats/statsTypes";
 
 export default function CalendarContainer({ months }: { months: CalendarMonthData[] }) {
   const locale = useLocale();

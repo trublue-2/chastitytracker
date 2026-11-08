@@ -5,7 +5,7 @@ import { conflictingLockSpecs, hasLockSpec } from "@/lib/lockSpec";
 import { createVerschlussAnforderung, updateLockPeriodEnd, updateLockRequest, mergeLockRequestPatch, withdrawVerschlussAnforderung, withdrawVerschlussAnforderungById, checkLockEnd, type UpdateLockRequestParams, type MergedLockRequest } from "@/lib/verschlussAnforderungService";
 import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, extendInspectionDeadline, extendInspectionProblem, hasActiveKontrolle, verifikationStatusFor } from "@/lib/kontrollen/kontrolleService";
 import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";
-import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, validateGoalTargets, findActiveVorgabe } from "@/lib/vorgabeService";
+import { createVorgabe, updateVorgabe, deleteVorgabe, listVorgaben, validateGoalTargets, findActiveVorgabe } from "@/lib/stats/vorgabeService";
 import { setCleaningSettings, maxPausesPerDaySentinel, parseCleaningWindows, cleaningWindowListProblem, formatCleaningWindows, type CleaningWindows, CLEANING_USER_SELECT } from "@/lib/cleaningService";
 import { checkWeightRelease, openWeightRelease, setWeightRelease, weightReleaseStatus, withdrawWeightRelease } from "@/lib/weight/weightReleaseService";
 import { setWeightSettingsKeyholder } from "@/lib/weight/weightSettingsService";
@@ -14,8 +14,8 @@ import { isSwitchableOffenseType, isValidOffenseMode, OFFENSE_RULE_MODES, type O
 import { setInspectionEscalationSettings } from "@/lib/kontrollen/inspectionEscalationService";
 import { parseWeighingWindows, weighingWindowEnd, weighingWindowsProblem, type WeighingWindow } from "@/lib/weight/weightWindows";
 import { effectiveTarget, isUnderweightTarget, keyholderTargetOf, subTargetOf, weightProblem } from "@/lib/weight/weight";
-import { ALL_WEEKDAYS, isoDaysOfMask, weekdayMaskKeys, weekdayMaskOf, weekdayMaskValid } from "@/lib/weekdays";
-import { parseWeekdayGoalRules, type WeekdayGoalRule } from "@/lib/weekdayGoal";
+import { ALL_WEEKDAYS, isoDaysOfMask, weekdayMaskKeys, weekdayMaskOf, weekdayMaskValid } from "@/lib/stats/weekdays";
+import { parseWeekdayGoalRules, type WeekdayGoalRule } from "@/lib/stats/weekdayGoal";
 import { createOrgasmusAnforderung, withdrawOrgasmusAnforderung, checkOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
 import { judgeOffense, checkPenaltyText, judgmentStatus, collectDetectedOffenses, requireDetectedOffense, punishWithTask } from "@/lib/strafbuch/strafurteilService";
 import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
@@ -43,8 +43,8 @@ import {
   RELEASE_AVERAGE_DAYS_RANGE, RELEASE_MIN_MEASUREMENTS_RANGE, RELEASE_WINDOW_HOURS_RANGE,
 } from "@/lib/constants";
 import { clamp, randomInt, midnightAfterDays } from "@/lib/utils";
-import { goalCategoryKey } from "@/lib/vorgaben";
-import { goalDateFromInput } from "@/lib/vorgabeService";
+import { goalCategoryKey } from "@/lib/stats/vorgaben";
+import { goalDateFromInput } from "@/lib/stats/vorgabeService";
 import { createManualOffense, validateManualOffenseInput, withdrawManualOffense } from "@/lib/strafbuch/manualOffenseService";
 import type { ServiceResult } from "@/lib/serviceResult";
 import { KEYHOLDER_LOCK_STATE_WORDING } from "@/lib/serviceErrorCodes";

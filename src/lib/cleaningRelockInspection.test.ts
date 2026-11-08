@@ -19,7 +19,7 @@ const TAGS = new Date("2026-06-15T12:00:00Z");
 /** 2026-06-15T22:30Z = 00:30 Zürcher Ortszeit — mitten im Schlaf-Fenster (22:00–06:00). */
 const NACHTS = new Date("2026-06-15T22:30:00Z");
 
-const { ALL_WEEKDAYS } = await import("./weekdays");
+const { ALL_WEEKDAYS } = await import("./stats/weekdays");
 
 const USER = {
   id: "u1", timezone: TZ, autoKontrolleAktiv: true,

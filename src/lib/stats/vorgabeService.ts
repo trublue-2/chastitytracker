@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { midnightOfLocalDate, APP_TZ } from "@/lib/utils";
 import { weightDayKey } from "@/lib/weight/weight";
 import { getUserTimezone } from "@/lib/queries";
-import { reorderVorgabenDates } from "@/lib/vorgaben";
+import { reorderVorgabenDates } from "@/lib/stats/vorgaben";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { resolveOwnedCategory } from "@/lib/devices/deviceCategoryService";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
@@ -10,7 +10,7 @@ import { markLastAction } from "@/lib/appMeta";
 import {
   parseWeekdayGoalRules, weekdayGoalRulesProblem, weekdayGoalRuleTooHigh, weekdayGoalRulesHaveTarget,
   type WeekdayGoalRule,
-} from "@/lib/weekdayGoal";
+} from "@/lib/stats/weekdayGoal";
 
 export interface CreateVorgabeParams {
   userId: string;

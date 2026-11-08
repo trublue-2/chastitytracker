@@ -15,7 +15,7 @@ import LockPeriodRemaining from "@/app/components/LockPeriodRemaining";
 
 import type { SessionEvent } from "@/lib/sessionHelpers";
 import { inspectionHref } from "@/lib/entryFormRoute";
-import { hasVisibleGoalRow, periodEndsMs, type VorgabeTargets } from "@/lib/goalFulfillment";
+import { hasVisibleGoalRow, periodEndsMs, type VorgabeTargets } from "@/lib/stats/goalFulfillment";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 
 interface Props {

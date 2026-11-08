@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import Section from "@/app/components/Section";
 import GoalProgressRows from "@/app/components/GoalProgressRows";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
-import type { ByPeriod, VorgabeTargets } from "@/lib/goalFulfillment";
+import type { ByPeriod, VorgabeTargets } from "@/lib/stats/goalFulfillment";
 
 interface Props {
   serverNow: string;

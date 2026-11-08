@@ -5,11 +5,11 @@ import {
   type WearHours,
 } from "@/lib/utils";
 import { buildWearSessions, wearHourPairsByCategory, type SegmentEntry } from "@/lib/sessionModel";
-import { hasVisibleGoalRow, type VorgabeTargets } from "@/lib/goalFulfillment";
-import { resolveGoalRow, segmentHours } from "@/lib/goalSegments";
-import { isActive } from "@/lib/statsBuilders";
+import { hasVisibleGoalRow, type VorgabeTargets } from "@/lib/stats/goalFulfillment";
+import { resolveGoalRow, segmentHours } from "@/lib/stats/goalSegments";
+import { isActive } from "@/lib/stats/statsBuilders";
 import { getNonKgTrackingCategories, getWearEntries, getUserTimezone } from "@/lib/queries";
-import { groupVorgabenByCategory } from "@/lib/vorgaben";
+import { groupVorgabenByCategory } from "@/lib/stats/vorgaben";
 
 /** Wearing hours + active TrainingVorgabe targets for one non-KG tracking category.
  *  Die Ziele sind bereits nach den Regeln in `goalFulfillment.ts` aufgelöst: eine Periode mit

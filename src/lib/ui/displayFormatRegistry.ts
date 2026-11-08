@@ -203,7 +203,7 @@ export const DURATION_ASSEMBLY_EXCEPTIONS: readonly DisplayFormatException[] = [
 /** Wer Prozent rechnen darf. */
 export const PERCENT_MATH_EXCEPTIONS: readonly DisplayFormatException[] = [
   {
-    file: "src/lib/percent.ts",
+    file: "src/lib/stats/percent.ts",
     contains: "asPct",
     reason: "Die eine Rundung, auf die alle vier Funktionen gehen.",
   },

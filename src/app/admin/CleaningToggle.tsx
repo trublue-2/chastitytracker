@@ -13,7 +13,7 @@ import NumberInput from "@/app/components/NumberInput";
 import InlineSettingRow from "@/app/components/InlineSettingRow";
 import { editRowCardCls, inlineLabelCls as faintCls } from "@/app/components/inputStyles";
 import { CLEANING_MAX_MINUTES_RANGE, CLEANING_MAX_PER_DAY_RANGE, CLEANING_WINDOWS_MAX } from "@/lib/constants";
-import { ALL_WEEKDAYS } from "@/lib/weekdays";
+import { ALL_WEEKDAYS } from "@/lib/stats/weekdays";
 import { useUserSettingsSave } from "@/app/hooks/useUserSettingsSave";
 
 

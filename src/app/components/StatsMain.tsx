@@ -1,6 +1,6 @@
 import { getTranslations, getLocale } from "next-intl/server";
 import { APP_TZ, toDateLocale } from "@/lib/utils";
-import { entriesCached, hasWeightDataCached, userRowCached } from "@/lib/dashboardData";
+import { entriesCached, hasWeightDataCached, userRowCached } from "@/lib/stats/dashboardData";
 import { renderStack } from "@/lib/ui/blockStack";
 import { viewerLayout } from "@/lib/ui/viewerLayout";
 import BlockStack from "@/app/components/BlockStack";

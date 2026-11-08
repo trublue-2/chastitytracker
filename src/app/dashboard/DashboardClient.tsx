@@ -8,7 +8,7 @@ import EmptyState from "@/app/components/EmptyState";
 import Section from "@/app/components/Section";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import { formatTotalHours } from "@/lib/utils";
-import { coveragePct } from "@/lib/percent";
+import { coveragePct } from "@/lib/stats/percent";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 

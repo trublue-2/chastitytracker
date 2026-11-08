@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireKeyholderOrAdminApi } from "@/lib/auth/authGuards";
-import { createVorgabe } from "@/lib/vorgabeService";
+import { createVorgabe } from "@/lib/stats/vorgabeService";
 import { serviceFailure } from "@/lib/serviceResult";
 
 export async function POST(req: NextRequest) {

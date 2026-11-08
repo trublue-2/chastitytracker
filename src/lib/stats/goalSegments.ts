@@ -44,7 +44,7 @@ import {
   periodBounds, goalEffectiveEndMs, resolveDayGoalTarget, hasVisibleGoalRow,
   type GoalWindow, type GoalPeriod, type VorgabePeriodTargets, type VorgabeTargets,
   type ByPeriod, type GoalChangedInPeriod,
-} from "@/lib/goalFulfillment";
+} from "@/lib/stats/goalFulfillment";
 
 /** Die Perioden, die über die Segmente gerechnet werden — alle ausser dem Tag (Begründung im Kopf).
  *  Als `Exclude` abgeleitet und nicht danebengeschrieben: käme je eine fünfte Periode dazu, fiele

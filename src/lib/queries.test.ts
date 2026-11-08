@@ -18,7 +18,7 @@ import type { PrismaMock } from "@/test/prismaMock";
 
 const db = prisma as unknown as PrismaMock;
 
-import { weekdayMaskOf } from "@/lib/weekdays";
+import { weekdayMaskOf } from "@/lib/stats/weekdays";
 
 const TZ = "Europe/Zurich";
 const FENSTER = [{ start: "19:00", end: "20:00" }];

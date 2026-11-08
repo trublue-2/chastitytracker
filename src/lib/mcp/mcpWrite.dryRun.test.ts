@@ -46,8 +46,8 @@ vi.mock("@/lib/kontrollen/kontrolleService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/kontrollen/kontrolleService")>();
   return { ...actual, requestKontrolle: vi.fn(), resolveKontrolle: vi.fn(), resolveInspectionEntry: vi.fn(), hasActiveKontrolle: vi.fn() };
 });
-vi.mock("@/lib/vorgabeService", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/vorgabeService")>();
+vi.mock("@/lib/stats/vorgabeService", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/stats/vorgabeService")>();
   return { ...actual, createVorgabe: vi.fn(), updateVorgabe: vi.fn(), deleteVorgabe: vi.fn(), listVorgaben: vi.fn() };
 });
 vi.mock("@/lib/kontrollen/autoKontrolleService", async (importOriginal) => {
@@ -91,7 +91,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { createVerschlussAnforderung, updateLockPeriodEnd, updateLockRequest, withdrawVerschlussAnforderungById } from "@/lib/verschlussAnforderungService";
 import { requestKontrolle, resolveKontrolle, resolveInspectionEntry, hasActiveKontrolle } from "@/lib/kontrollen/kontrolleService";
-import { createVorgabe, updateVorgabe, deleteVorgabe } from "@/lib/vorgabeService";
+import { createVorgabe, updateVorgabe, deleteVorgabe } from "@/lib/stats/vorgabeService";
 import { setCleaningSettings } from "@/lib/cleaningService";
 import { setAutoKontrolleSettings } from "@/lib/kontrollen/autoKontrolleService";
 import { createOrgasmusAnforderung } from "@/lib/orgasmusAnforderungService";
@@ -99,7 +99,7 @@ import { judgeOffense, requireDetectedOffense } from "@/lib/strafbuch/strafurtei
 import { releaseNow } from "@/lib/releaseNowService";
 import { setWeightRelease } from "@/lib/weight/weightReleaseService";
 import { CLEANING_WINDOWS_MAX } from "@/lib/constants";
-import { ALL_WEEKDAYS, weekdayMaskOf } from "@/lib/weekdays";
+import { ALL_WEEKDAYS, weekdayMaskOf } from "@/lib/stats/weekdays";
 import { taskRow } from "@/test/taskRow";
 import { taskProofRow } from "@/test/taskProofRow";
 

@@ -1,6 +1,6 @@
 import { buildKgWearPairs, wearHoursOfPairs, longestOrgasmFreeGap, median, msToHours, orgasmTimes, round1, summarizeDurations } from "@/lib/utils";
-import { type ByPeriod, type GoalChangedInPeriod, type VorgabeTargets } from "@/lib/goalFulfillment";
-import { resolveGoalRow } from "@/lib/goalSegments";
+import { type ByPeriod, type GoalChangedInPeriod, type VorgabeTargets } from "@/lib/stats/goalFulfillment";
+import { resolveGoalRow } from "@/lib/stats/goalSegments";
 import { getActiveVorgabe, getKgVorgabeSegments } from "@/lib/queries";
 import { buildCategoryWearGoals } from "@/lib/devices/categoryGoals";
 import { buildSessions, buildWearSessions, deviceDisplayName, deviceGroupKey, isLiveOpenSession, isUnassignedDevice, segmentsByDevice, type DeviceRef, type Session, type Segment } from "@/lib/sessionModel";

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { getUserTimezone } from "@/lib/queries";
 import { formatDateTime, nowDatetimeLocal, toDateLocale, toDatetimeLocal } from "@/lib/utils";
-import { strafbuchCached } from "@/lib/dashboardData";
+import { strafbuchCached } from "@/lib/stats/dashboardData";
 import { openOffensesOf, selectSubOffenses } from "@/lib/strafbuch/subOffenses";
 import { STORED_TYPE } from "@/lib/strafbuch/offenseTypes";
 import { offenseNameKey } from "@/lib/strafbuch/offenseLabels";

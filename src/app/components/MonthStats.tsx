@@ -7,7 +7,7 @@ import Section from "@/app/components/Section";
 import ShowMore, { useShowMore } from "@/app/components/ShowMore";
 import { blockInsetCls } from "@/app/components/inputStyles";
 
-import type { MonthStat } from "@/lib/statsTypes";
+import type { MonthStat } from "@/lib/stats/statsTypes";
 
 const INITIAL_COUNT = 2;
 

@@ -2,14 +2,14 @@ import {
   dayKeyOfLocalDate, formatMonthYear, formatTime, formatTotalHours, midnightAfterDays, midnightOfLocalDate,
   mondayIndexOfLocalDate, tzDateParts, tzDayKey, wearingHoursFromPairs, type WearPair,
 } from "@/lib/utils";
-import { periodTarget } from "@/lib/goalFulfillment";
-import { segmentedGoalWindows, NO_SEGMENTED_GOAL, type SegmentedGoalProgress } from "@/lib/goalSegments";
-import { parseWeekdayGoalRules, resolveDayTarget } from "@/lib/weekdayGoal";
-import { coveragePct, goalPct } from "@/lib/percent";
-import { wearIntensityLevel, WEAR_LEVEL_BG, WEAR_LEVEL_TEXT } from "@/lib/wearIntensity";
+import { periodTarget } from "@/lib/stats/goalFulfillment";
+import { segmentedGoalWindows, NO_SEGMENTED_GOAL, type SegmentedGoalProgress } from "@/lib/stats/goalSegments";
+import { parseWeekdayGoalRules, resolveDayTarget } from "@/lib/stats/weekdayGoal";
+import { coveragePct, goalPct } from "@/lib/stats/percent";
+import { wearIntensityLevel, WEAR_LEVEL_BG, WEAR_LEVEL_TEXT } from "@/lib/stats/wearIntensity";
 import type {
   MonthStat, CalendarMonthData, CalendarDayData, DayEntry, DayVorgabe, HeatmapDay, YearHeatmapData,
-} from "@/lib/statsTypes";
+} from "@/lib/stats/statsTypes";
 
 /**
  * Reine Datenaufbereitung für die Statistik-Seite. Kein JSX, kein Prisma, kein `next-intl` —

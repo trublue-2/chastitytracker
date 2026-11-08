@@ -19,7 +19,7 @@ const { ensureDailyAutoKontrollenForUser, rerollTodayAutoKontrollenForUser, auto
   await import("./autoKontrolleService");
 const { midnightInTZ, dateAtLocalMinutes } = await import("../utils");
 
-const { ALL_WEEKDAYS, weekdayMaskOf } = await import("../weekdays");
+const { ALL_WEEKDAYS, weekdayMaskOf } = await import("../stats/weekdays");
 
 const TZ = "Europe/Zurich";
 /** Lokale Mitternacht — ab hier liegt der ganze Tag in der Zukunft. */

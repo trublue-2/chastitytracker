@@ -23,8 +23,8 @@ import { getOffenseRules } from "@/lib/strafbuch/offenseRulesService";
 import { weightReleaseStatus } from "@/lib/weight/weightReleaseService";
 import { weightText, type UnitSystem } from "@/lib/weight/weight";
 import { APP_TZ, formatDateTime, toDateLocale } from "@/lib/utils";
-import { buildWeekdayLabels } from "@/lib/statsBuilders";
-import { ALL_WEEKDAYS, weekdayMaskLabel } from "@/lib/weekdays";
+import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
+import { ALL_WEEKDAYS, weekdayMaskLabel } from "@/lib/stats/weekdays";
 
 /** Ein „von–bis"-Paar als eine Zeile. Die Seite zeigt drei Sorten davon (Uhrzeiten, Minuten,
  *  Anzahl) — `formatCleaningWindows` bleibt beim Reinigungs-Fenster, dessen Form es kennt. */

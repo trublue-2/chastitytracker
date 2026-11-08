@@ -8,7 +8,7 @@ import DashboardBottomNav from "./DashboardBottomNav";
 import BottomNavSpacer from "./BottomNavSpacer";
 import { auth } from "@/lib/auth/auth";
 import { bildersafeMenuAction, getLatestKgEntry, pendingLockCallAt } from "@/lib/queries";
-import { subVisibleInspectionsNow } from "@/lib/dashboardData";
+import { subVisibleInspectionsNow } from "@/lib/stats/dashboardData";
 import { pendingInspection } from "@/lib/entryFormRoute";
 import { buildNewEntryCategoryRows } from "@/lib/devices/categoryRows";
 import { bildersafeEnabled } from "@/lib/constants";

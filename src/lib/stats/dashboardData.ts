@@ -12,7 +12,7 @@ import {
   completedPairsFrom, getOpenPair, KG_PAIR, pairDurationMs, tzDayKey,
 } from "@/lib/utils";
 import { buildWearSessions, wearHourPairsByCategory } from "@/lib/sessionModel";
-import { buildDailyData } from "@/lib/statsBuilders";
+import { buildDailyData } from "@/lib/stats/statsBuilders";
 import { buildStrafbuch } from "@/lib/strafbuch/strafbuch";
 import { selectSubOffenses } from "@/lib/strafbuch/subOffenses";
 import { buildSessionEvents } from "@/lib/sessionHelpers";
@@ -20,7 +20,7 @@ import { effectiveOrgasmusArten, resolveOrgasmusArtDisplay } from "@/lib/reasons
 import { belongsOnDashboard, getEvaluatedTaskHistory, loadTaskProofViews } from "@/lib/tasks/taskIntervals";
 import { toTaskCard } from "@/lib/tasks/taskView";
 import { buildWearSessionRows } from "@/lib/wearSessionRows";
-import { isKgVorgabe } from "@/lib/vorgaben";
+import { isKgVorgabe } from "@/lib/stats/vorgaben";
 import {
   CATEGORY_LIST_ORDER, aktiveKontrolleWhere, keyholderVisibleKontrolleWhere, KONTROLLE_TARGET_INCLUDE,
   getActiveVorgabe, getActiveLockPeriod, getKeyholderLockPeriod, getActiveWearSessions,

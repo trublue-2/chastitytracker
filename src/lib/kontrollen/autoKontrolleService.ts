@@ -15,7 +15,7 @@ import {
   autoInspectionDayRulesProblem, fixedWindowMinutes, formatAutoInspectionDayRule,
   parseAutoInspectionDayRules, timesForDay, triggerWindowAllQuiet, type AutoInspectionDayRule,
 } from "@/lib/kontrollen/autoKontrolleDayRules";
-import { isoWeekdayInTZ, weekdayMaskHas, weekdayMaskKeys, weekdayMaskValid } from "@/lib/weekdays";
+import { isoWeekdayInTZ, weekdayMaskHas, weekdayMaskKeys, weekdayMaskValid } from "@/lib/stats/weekdays";
 import type { Prisma } from "@prisma/client";
 import { USER_NOT_PAUSED_WHERE, isHealthHoldActive } from "@/lib/healthHold";
 

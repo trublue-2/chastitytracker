@@ -9,18 +9,18 @@ import {
   keyholderRunningSessionCached, keyholderLockPeriodCached, latestKeyInBoxCached, latestKgEntryCached, orgasmConfigCached,
   orgasmEntriesCached, sessionListDataCached, taskCardsCached, wearCountsCached,
   wearingHoursCached, wearSessionRowsCached,
-} from "@/lib/dashboardData";
+} from "@/lib/stats/dashboardData";
 import { deviceCategoriesEnabled, orgasmusAnforderungArtLabel } from "@/lib/constants";
 import { getIsLocked, isScheduledDirective, userHasBox } from "@/lib/queries";
 import { currentOrNextCleaningWindow, type NextCleaningWindow } from "@/lib/cleaningService";
-import { datedWindowLabel } from "@/lib/weekdays";
-import { parseWeekdayGoalRules } from "@/lib/weekdayGoal";
-import { buildWeekdayLabels } from "@/lib/statsBuilders";
-import { userRowCached, strafbuchCached } from "@/lib/dashboardData";
+import { datedWindowLabel } from "@/lib/stats/weekdays";
+import { parseWeekdayGoalRules } from "@/lib/stats/weekdayGoal";
+import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
+import { userRowCached, strafbuchCached } from "@/lib/stats/dashboardData";
 import { selectSubOffenses, attentionOffensesOf } from "@/lib/strafbuch/subOffenses";
 import { loadStatementViews } from "@/lib/strafbuch/offenseStatementService";
 import OffenseList from "@/app/components/OffenseList";
-import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/goalSegments";
+import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/stats/goalSegments";
 import { resolveOrgasmusArtDisplay } from "@/lib/reasonsService";
 import { ANFORDERUNG_PILLS, VERIFIKATION_PILLS } from "@/lib/kontrollen/kontrollePills";
 import { inspectionTargetLabel } from "@/lib/kontrollen/inspectionTarget";

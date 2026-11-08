@@ -1,6 +1,6 @@
 import { APP_TZ, hhmmFromMinutes, hhmmInTZ, hhmmToMinutes } from "@/lib/utils";
 import { HHMM, WEIGHING_WINDOWS_MAX, WEIGHING_WINDOW_DURATION_RANGE } from "@/lib/constants";
-import { isoDayPlus, isoWeekdayInTZ, parseWeekdayMask, weekdayMaskHas, weekdayMaskValid } from "@/lib/weekdays";
+import { isoDayPlus, isoWeekdayInTZ, parseWeekdayMask, weekdayMaskHas, weekdayMaskValid } from "@/lib/stats/weekdays";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 import { listProblem, parseJsonList, type ListProblem } from "@/lib/jsonList";
 

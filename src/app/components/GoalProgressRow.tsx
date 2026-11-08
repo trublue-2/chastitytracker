@@ -1,6 +1,6 @@
 import { formatTotalHours } from "@/lib/utils";
-import { goalPct } from "@/lib/percent";
-import { goalOutlook } from "@/lib/goalOutlook";
+import { goalPct } from "@/lib/stats/percent";
+import { goalOutlook } from "@/lib/stats/goalOutlook";
 
 /**
  * Eine Zielzeile: Beschriftung – `ist / soll` – **Auskunft**, darunter der Balken als Grundlinie.

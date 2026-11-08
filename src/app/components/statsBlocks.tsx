@@ -8,8 +8,8 @@ import {
   kgDailyDataCached, kgPairsCached, kgVorgabenCached, kgWearPairsCached, orgasmDaysCached,
   orgasmEntriesCached, punishedDaysCached, statsCategoriesCached, strafbuchCached, subVisibleInspectionsCached,
   vorgabenCached, wearCountsCached, wearPairsByCategoryCached, wearSessionsCached,
-} from "@/lib/dashboardData";
-import { goalPct, sharePct } from "@/lib/percent";
+} from "@/lib/stats/dashboardData";
+import { goalPct, sharePct } from "@/lib/stats/percent";
 import {
   formatDate, formatDateTime, formatDurationMs, formatTotalHours, formatTotalMs,
   buildKontrolleItems, isSubVisibleKontrolle, getMidnightToday,
@@ -17,11 +17,11 @@ import {
 } from "@/lib/utils";
 import {
   buildCalendarMonths, buildMonthStats, buildWeekdayLabels, buildYearHeatmaps, isActive,
-} from "@/lib/statsBuilders";
-import { hasVisibleGoalRow, GOAL_PERIODS, type GoalPeriod } from "@/lib/goalFulfillment";
-import { resolveGoalRow } from "@/lib/goalSegments";
+} from "@/lib/stats/statsBuilders";
+import { hasVisibleGoalRow, GOAL_PERIODS, type GoalPeriod } from "@/lib/stats/goalFulfillment";
+import { resolveGoalRow } from "@/lib/stats/goalSegments";
 import { getKombinierterPill } from "@/lib/kontrollen/kontrollePills";
-import { isKgVorgabe, goalCategoryKey, groupVorgabenByCategory } from "@/lib/vorgaben";
+import { isKgVorgabe, goalCategoryKey, groupVorgabenByCategory } from "@/lib/stats/vorgaben";
 import { isEffectiveEntry, latestEffectiveKgEntry } from "@/lib/lockPending";
 import { categoryStyle } from "@/lib/devices/categoryConstants";
 import { KG_CATEGORY_META } from "@/lib/devices/deviceCategories";

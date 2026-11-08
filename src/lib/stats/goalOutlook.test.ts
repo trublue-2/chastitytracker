@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { goalOutlook } from "@/lib/goalOutlook";
+import { goalOutlook } from "@/lib/stats/goalOutlook";
 
 const H = 3_600_000;
 

@@ -11,8 +11,8 @@ import CategoryIconRender from "@/app/components/CategoryIcon";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import { useLiveHours } from "@/app/hooks/useLiveHours";
 import type { CategoryWearGoal } from "@/lib/devices/categoryGoals";
-import type { ByPeriod } from "@/lib/goalFulfillment";
-import type { KgGoalRow } from "@/lib/goalSegments";
+import type { ByPeriod } from "@/lib/stats/goalFulfillment";
+import type { KgGoalRow } from "@/lib/stats/goalSegments";
 import { LockClosedIcon } from "@/app/components/lockIcons";
 
 export interface CategoryGoalRow extends CategoryWearGoal {

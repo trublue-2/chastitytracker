@@ -37,7 +37,7 @@
  */
 
 import { getWeekStart, getMonthStart, getMonthEnd, getYearStart, getYearEnd, midnightAfterDays, type WearHours } from "@/lib/utils";
-import { tagesSollFuer } from "@/lib/weekdayGoal";
+import { tagesSollFuer } from "@/lib/stats/weekdayGoal";
 
 /** Validity window of a goal. `end === null` = open-ended (covers everything after `start`). */
 export interface GoalWindow {

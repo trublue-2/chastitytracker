@@ -18,7 +18,7 @@ import WeekdayPicker from "@/app/components/WeekdayPicker";
 import RemoveRowButton from "@/app/components/RemoveRowButton";
 import AddRowButton from "@/app/components/AddRowButton";
 import SettingLabel from "@/app/components/SettingLabel";
-import { ALL_WEEKDAYS } from "@/lib/weekdays";
+import { ALL_WEEKDAYS } from "@/lib/stats/weekdays";
 import {
   AUTO_INSPECTION_DAY_RULES_MAX, parseAutoInspectionDayRules, type AutoInspectionDayRule,
 } from "@/lib/kontrollen/autoKontrolleDayRules";

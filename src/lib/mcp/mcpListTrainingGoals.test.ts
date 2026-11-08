@@ -10,13 +10,13 @@ vi.mock("@/lib/prisma", () => ({
     user: { findUnique: vi.fn() },
   },
 }));
-vi.mock("@/lib/vorgabeService", () => ({
+vi.mock("@/lib/stats/vorgabeService", () => ({
   listVorgaben: vi.fn(),
 }));
 
 import { mcpListTrainingGoals } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
-import { listVorgaben } from "@/lib/vorgabeService";
+import { listVorgaben } from "@/lib/stats/vorgabeService";
 
 const userFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const listMock = listVorgaben as unknown as ReturnType<typeof vi.fn>;

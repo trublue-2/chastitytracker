@@ -2,8 +2,8 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { toDateLocale } from "@/lib/utils";
-import { buildWeekdayLabels } from "@/lib/statsBuilders";
-import { WEEKDAY_KEYS, toggleWeekday, weekdayMaskHas } from "@/lib/weekdays";
+import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
+import { WEEKDAY_KEYS, toggleWeekday, weekdayMaskHas } from "@/lib/stats/weekdays";
 
 /**
  * Sieben Häkchen für „an welchen Tagen gilt das" — als Reihe kleiner Schalter, nicht als Liste.

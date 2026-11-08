@@ -7,8 +7,8 @@ vi.mock("@/lib/prisma", () => ({
     user: { findUnique: vi.fn() },
   },
 }));
-vi.mock("@/lib/vorgabeService", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../vorgabeService")>()),
+vi.mock("@/lib/stats/vorgabeService", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../stats/vorgabeService")>()),
   createVorgabe: vi.fn(),
   updateVorgabe: vi.fn(),
   deleteVorgabe: vi.fn(),
@@ -20,7 +20,7 @@ vi.mock("@/lib/vorgabeService", async (importOriginal) => ({
 
 import { mcpEditTrainingGoal } from "./mcpWrite";
 import { prisma } from "@/lib/prisma";
-import { updateVorgabe, findActiveVorgabe } from "@/lib/vorgabeService";
+import { updateVorgabe, findActiveVorgabe } from "@/lib/stats/vorgabeService";
 
 const userFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const vorgabeFind = findActiveVorgabe as unknown as ReturnType<typeof vi.fn>;

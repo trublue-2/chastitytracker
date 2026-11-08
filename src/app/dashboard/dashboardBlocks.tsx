@@ -15,7 +15,7 @@ import {
   orgasmConfigCached, orgasmEntriesCached, pendingLockCached, pendingOpenCached, sessionListDataCached, subOrgasmRequestCached, subRunningSessionCached,
   subLockPeriodCached, subVisibleInspectionsNow, taskCardsCached, trackingCategoriesCached,
   userRowCached, wearingHoursCached, wearSessionRowsCached, wearSessionsCached,
-} from "@/lib/dashboardData";
+} from "@/lib/stats/dashboardData";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { predictAutoMarkAt } from "@/lib/kontrollen/inspectionEscalationService";
 import { cleaningPermissionUserAt } from "@/lib/cleaningRules";
@@ -25,11 +25,11 @@ import {
   getMidnightToday, getWeekStart, getMonthStart, wearingHoursFromPairs, joinParts,
 } from "@/lib/utils";
 import { wearHourPairsByCategory } from "@/lib/sessionModel";
-import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/goalSegments";
+import { buildKgGoalRow, resolveGoalRow, segmentHours } from "@/lib/stats/goalSegments";
 import type { Translate } from "@/lib/box/boxStatus";
 import { currentOrNextCleaningWindow } from "@/lib/cleaningService";
-import { datedWindowLabel } from "@/lib/weekdays";
-import { buildWeekdayLabels } from "@/lib/statsBuilders";
+import { datedWindowLabel } from "@/lib/stats/weekdays";
+import { buildWeekdayLabels } from "@/lib/stats/statsBuilders";
 import { resolveReasonLabel } from "@/lib/reasonsService";
 import { categoryNeedsDevice } from "@/lib/devices/categoryConstants";
 import { inspectionHref, openInspections } from "@/lib/entryFormRoute";

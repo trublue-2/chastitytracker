@@ -4,7 +4,7 @@ import {
   parseCleaningWindows, cleaningWindowProblem, cleaningWindowListProblem, formatCleaningWindows,
 } from "./cleaningService";
 import { CLEANING_WINDOWS_MAX, CLEANING_WINDOWS_TOO_MANY, INVALID_TIME, TIME_RANGE_INVALID } from "@/lib/constants";
-import { ALL_WEEKDAYS, weekdayMaskOf } from "@/lib/weekdays";
+import { ALL_WEEKDAYS, weekdayMaskOf } from "@/lib/stats/weekdays";
 
 /** Montag … Sonntag als Maske — die Tests lesen sich damit wie der Zettel des Keyholders. */
 const MO = weekdayMaskOf([1]), DI = weekdayMaskOf([2]), FR = weekdayMaskOf([5]);

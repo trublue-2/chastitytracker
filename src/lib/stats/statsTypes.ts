@@ -3,7 +3,7 @@
  * Präsentations-Komponenten (`MonthStats`, `CalendarContainer`, `YearHeatmap`) rendern.
  *
  * Bewusst ein import-freies Blatt-Modul — wie `serviceErrorCodes.ts`. Vorher standen diese Typen in
- * den Komponenten, sodass `src/lib/statsBuilders.ts` auf `src/app/components/*` zeigte: der
+ * den Komponenten, sodass `src/lib/stats/statsBuilders.ts` auf `src/app/components/*` zeigte: der
  * Abhängigkeits-Pfeil lief von der Rechen- in die Darstellungsschicht. Type-only war das
  * folgenlos, aber sobald eine Komponente einen Laufzeit-Helfer aus `statsBuilders` importiert,
  * wäre daraus ein echter Zyklus geworden. Jetzt zeigen beide Seiten hierher.

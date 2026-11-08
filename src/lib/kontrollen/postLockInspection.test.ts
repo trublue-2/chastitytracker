@@ -19,7 +19,7 @@ vi.mock("@/lib/queries", async (importOriginal) => {
 });
 
 const { schedulePostLockInspection, scheduleCleaningRelockInspection } = await import("./autoKontrolleService");
-const { ALL_WEEKDAYS } = await import("../weekdays");
+const { ALL_WEEKDAYS } = await import("../stats/weekdays");
 
 const TZ = "Europe/Zurich";
 /** 14:00 Zürcher Ortszeit — mitten im Wach-Fenster. */

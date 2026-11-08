@@ -1,6 +1,6 @@
 import { effectiveAt, midnightOfLocalDate, round1, tzDateParts } from "@/lib/utils";
 import { HEIGHT_CM_RANGE, WEIGHT_KG_RANGE } from "@/lib/constants";
-import { coveragePct } from "@/lib/percent";
+import { coveragePct } from "@/lib/stats/percent";
 import type { ServiceErrorCode } from "@/lib/serviceErrorCodes";
 
 /**
