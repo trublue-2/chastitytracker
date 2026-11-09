@@ -1,19 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
+import { DatabaseSync } from "node:sqlite";
 import { parsePrismaSchema } from "@/lib/prismaSchema";
 import {
   STATE_TABLES, STATE_IGNORED_TABLES, STATE_TRIGGER_MARKER, buildStateTriggerSql,
 } from "./stateAreas";
-
-// `node:sqlite` (Node 24) über `require`: die eingesetzten `@types/node` kennen das Modul noch nicht,
-// und `next build` prüft auch die Test-Dateien. Nur die Methoden, die hier gebraucht werden.
-interface SqliteDb {
-  exec(sql: string): void;
-  prepare(sql: string): { get(...params: unknown[]): unknown };
-}
-const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as { DatabaseSync: new (path: string) => SqliteDb };
 
 const root = process.cwd();
 const schema = parsePrismaSchema(fs.readFileSync(path.join(root, "prisma/schema.prisma"), "utf8"));
@@ -63,7 +55,7 @@ describe("die Trigger-Migration passt zum Register", () => {
  * ein Prisma-Mock sähe von ihnen nichts.
  */
 describe("Trigger in einer echten Datenbank", () => {
-  let db: SqliteDb;
+  let db: DatabaseSync;
   const version = (area: string) =>
     (db.prepare(`SELECT version FROM StateVersion WHERE userId = 'u1' AND area = ?`).get(area) as { version: number } | undefined)?.version ?? 0;
 

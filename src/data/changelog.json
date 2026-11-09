@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.5.8",
+    "date": "2026-11-09",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Das Docker-Image läuft jetzt auf Node.js 26.",
+          "en": "The Docker image now runs on Node.js 26."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.5.7",
     "date": "2026-11-09",
     "changes": [
