@@ -42,7 +42,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   const blocked = await limited(req);
   if (blocked) return blocked;
-  const { rpId, rpOrigin } = getRpConfig();
+  const { rpId, expectedOrigins } = getRpConfig();
   const body = await req.json();
   const { response } = body;
 
@@ -68,7 +68,7 @@ export async function PUT(req: Request) {
         const stored = getAndDeleteChallenge(`auth:${c}`);
         return stored !== null;
       },
-      expectedOrigin: rpOrigin,
+      expectedOrigin: expectedOrigins,
       expectedRPID: rpId,
       credential: {
         id: passkey.credentialId,

@@ -8,7 +8,7 @@ import { APP_NAME } from "@/lib/constants";
 /**
  * Relying Party (RP) configuration.
  * rpId must match the domain the browser sees (no port, no protocol).
- * rpOrigin must match the full origin the browser sees.
+ * rpOrigin must match the full origin the browser sees; expectedOrigins adds the Android app's.
  *
  * Falls back to localhost for local development.
  */
@@ -18,8 +18,26 @@ export function getRpConfig() {
   // ein Wechsel hier entwertet also keine bestehenden Passkeys.
   const rpName = APP_NAME;
   const rpOrigin = process.env.WEBAUTHN_RP_ORIGIN ?? "http://localhost:3000";
+  // Die Android-App (WebView im App-Modus) meldet als Herkunft nicht die Instanz, sondern sich
+  // selbst: `android:apk-key-hash:<base64url(SHA-256 des Signatur-Zertifikats)>`.
+  const expectedOrigins = [rpOrigin, ...androidCertFingerprints().map(androidApkOrigin)];
 
-  return { rpId, rpName, rpOrigin };
+  return { rpId, rpName, expectedOrigins };
+}
+
+/** `ANDROID_CERT_SHA256`: öffentliche Fingerabdrücke des APK-Signatur-Zertifikats, kommagetrennt. */
+export function androidCertFingerprints(): string[] {
+  return (process.env.ANDROID_CERT_SHA256 ?? "")
+    .split(",")
+    .map((f) => f.trim().toUpperCase())
+    .filter((f) => SHA256_FINGERPRINT.test(f));
+}
+
+const SHA256_FINGERPRINT = /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/;
+
+/** `0E:55:…` → `android:apk-key-hash:DlW…` (WebAuthn-Herkunft einer Android-App). */
+export function androidApkOrigin(fingerprint: string): string {
+  return `android:apk-key-hash:${Buffer.from(fingerprint.replace(/:/g, ""), "hex").toString("base64url")}`;
 }
 
 // ---------------------------------------------------------------------------

@@ -60,7 +60,7 @@ export async function PUT(req: Request) {
   if (session instanceof NextResponse) return session;
 
   const userId = session.user.id;
-  const { rpId, rpOrigin } = getRpConfig();
+  const { rpId, expectedOrigins } = getRpConfig();
 
   const body = await req.json();
   const { response, deviceName } = body;
@@ -74,7 +74,7 @@ export async function PUT(req: Request) {
     const verification = await verifyRegistrationResponse({
       response,
       expectedChallenge,
-      expectedOrigin: rpOrigin,
+      expectedOrigin: expectedOrigins,
       expectedRPID: rpId,
     });
 

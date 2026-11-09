@@ -230,6 +230,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     private var isAuthenticating = false
     private var biometryAvailable = false
     private var initialLockShown = false
+    /// Gesperrt beim Verlassen der App: bei der Rückkehr EINMAL von selbst abfragen.
+    private var promptOnActive = false
 
     // MARK: - Lifecycle
 
@@ -244,9 +246,15 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func sceneDidBecomeActive(_ scene: UIScene) {
         guard biometryAvailable else { return }
         // Show on first launch — window is guaranteed ready here
+        let prompt = promptOnActive
+        promptOnActive = false
         if !initialLockShown {
             initialLockShown = true
             showLockScreen()
+            authenticate()
+        } else if prompt && lockView != nil {
+            // Nur nach echtem Hintergrund — das Face-ID-Blatt selbst macht die Szene ebenfalls
+            // inaktiv/aktiv; ohne den Merker startete ein Abbruch die Abfrage endlos neu.
             authenticate()
         }
     }
@@ -255,6 +263,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard biometryAvailable else { return }
         isAuthenticating = false
         showLockScreen()
+        promptOnActive = true
     }
 
     // MARK: - URLs & Universal Links (an Capacitor weitergereicht)

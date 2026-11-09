@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { NATIVE_APP_ID } from "@/lib/nativePlatforms";
+import { androidCertFingerprints } from "@/lib/webauthn";
 
 // Served at /.well-known/assetlinks.json via next.config.ts rewrite — das Android-Gegenstück zur
 // apple-app-site-association. Es erklärt die Android-App zur Vertreterin dieser Domain, damit
@@ -12,10 +13,7 @@ import { NATIVE_APP_ID } from "@/lib/nativePlatforms";
 // ihn eine leere Liste — keine Zuordnung statt einer falschen.
 export async function GET() {
   const packageName = process.env.ANDROID_PACKAGE ?? NATIVE_APP_ID;
-  const fingerprints = (process.env.ANDROID_CERT_SHA256 ?? "")
-    .split(",")
-    .map((f) => f.trim().toUpperCase())
-    .filter(Boolean);
+  const fingerprints = androidCertFingerprints();
 
   const statements = fingerprints.length === 0 ? [] : [{
     relation: ["delegate_permission/common.get_login_creds"],

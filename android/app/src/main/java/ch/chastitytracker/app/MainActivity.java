@@ -78,6 +78,8 @@ public class MainActivity extends BridgeActivity {
     private boolean initialLockShown;
     private boolean isAuthenticating;
     private boolean launchedForResult;
+    /** Gesperrt beim Verlassen der App: bei der Rückkehr EINMAL von selbst abfragen (wie iOS). */
+    private boolean promptOnResume;
 
     private final OnBackPressedCallback lockedBack = new OnBackPressedCallback(false) {
         @Override
@@ -160,12 +162,15 @@ public class MainActivity extends BridgeActivity {
         boolean longAway = launchedForResult && SystemClock.elapsedRealtime() - stoppedAt > RESULT_GRACE_MS;
         launchedForResult = false;
         if (!biometryAvailable) return;
-        if (!initialLockShown) {
+        boolean prompt = promptOnResume;
+        promptOnResume = false;
+        if (!initialLockShown || longAway) {
             initialLockShown = true;
             showLockScreen();
             authenticate();
-        } else if (longAway) {
-            showLockScreen();
+        } else if (prompt && lockView != null) {
+            // Nicht nach der Rückkehr aus der Geräte-PIN (dort sperrt onStop nicht) — sonst Endlosschleife.
+            authenticate();
         }
     }
 
@@ -175,6 +180,7 @@ public class MainActivity extends BridgeActivity {
         stoppedAt = SystemClock.elapsedRealtime();
         if (!biometryAvailable || isAuthenticating || launchedForResult || isChangingConfigurations()) return;
         showLockScreen();
+        promptOnResume = true;
     }
 
     /** Jede Activity-for-Result (Kamera, Dateiauswahl, Geräte-PIN) läuft hier durch. */
@@ -220,6 +226,8 @@ public class MainActivity extends BridgeActivity {
         biometricPrompt.authenticate(new BiometricPrompt.PromptInfo.Builder()
                 .setTitle(getString(R.string.lock_prompt_title))
                 .setAllowedAuthenticators(AUTHENTICATORS)
+                // Gesicht entsperrt direkt, ohne zusätzlichen Tipp auf „Bestätigen“.
+                .setConfirmationRequired(false)
                 .build());
     }
 
