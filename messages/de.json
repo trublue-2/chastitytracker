@@ -622,6 +622,8 @@
     "editLayoutStartsClosed": "„{name}\": startet Zu — antippen, damit der Block offen startet",
     "boxPhotoDueTitle": "Box-Bild mit sichtbarem Schlüssel hinterlegen",
     "boxPhotoDueText": "Der Riegel ist zu. Fotografiere die Box durchs Sichtfenster, sodass der Schlüssel gut erkennbar ist.",
+    "boxPhotoDueDeadline": "Frist bis {date} – danach zählt es als Vergehen.",
+    "boxPhotoDueDeadlinePassed": "Die Frist ist am {date} abgelaufen – das fehlende Foto zählt als Vergehen.",
     "boxPhotoDueSave": "Bild hinterlegen",
     "keyPhotoBeforeBolt": "Foto vor Riegel zu aufgenommen",
     "blockStatsMood": "Stimmung"
@@ -2056,6 +2058,7 @@
     "taskProofReminderMessage": "Zur Aufgabe „{title}“ fehlt noch der Nachweis „{description}“ — fällig um {until}.",
     "boxPhotoDuePushTitle": "Box-Bild hinterlegen",
     "boxPhotoDuePushBody": "Der Riegel ist zu. Öffne die App und hinterlege ein Bild der Box mit sichtbarem Schlüssel.",
+    "boxPhotoDuePushBodyDeadline": "Der Riegel ist zu. Hinterlege innerhalb von {hours} h ein Bild der Box mit sichtbarem Schlüssel.",
     "lockboxCodeSameSubjectKeyholder": "Schlüsselbox-Code nicht gewechselt?",
     "lockboxCodeSameMessageKeyholder": "{username} hat beim neuen Verschluss offenbar denselben Schlüsselbox-Code versiegelt wie beim letzten. Beide Fotos stehen in der Vergleichsansicht.",
     "lockboxCodeUncertainSubjectKeyholder": "Schlüsselbox-Code bitte prüfen",

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { getIsLocked, userHasBox } from "@/lib/queries";
-import { isBoxPhotoDue } from "@/lib/boxPhotoDue";
+import { boxPhotoDeadlineAt, isBoxPhotoDue } from "@/lib/boxPhotoDue";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { block, type StackBlock } from "@/lib/blockStack";
@@ -227,8 +227,15 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       ]);
       // Das Box-Foto, das nach „Riegel zu" fällig wurde (`boxPhotoDue.ts`). Nur der LAUFENDE Verschluss
       // zählt — `latestKgEntryCached` ist genau der.
+      // Die Frist nennt die Karte nur, wenn ihr Versäumen auch zählt — sonst wäre sie eine Drohung ohne Folge.
       const boxPhotoDue = latest && isBoxPhotoDue(latest)
-        ? { entryId: latest.id, mobileDesktopMode: user?.mobileDesktopUpload ?? false }
+        ? {
+            entryId: latest.id,
+            mobileDesktopMode: user?.mobileDesktopUpload ?? false,
+            deadline: (await getOffenseRules(userId)).box_photo_missing === "on" && user
+              ? boxPhotoDeadlineAt(latest.boxPhotoDueAt!, user.boxPhotoDeadlineHours)
+              : null,
+          }
         : null;
       return { anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg, boxPhotoDue };
     },
@@ -243,7 +250,13 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
 
       const alertProps: DashboardAlertsProps = {
         tz,
-        boxPhotoDue,
+        boxPhotoDue: boxPhotoDue && {
+          entryId: boxPhotoDue.entryId,
+          mobileDesktopMode: boxPhotoDue.mobileDesktopMode,
+          deadlineLabel: boxPhotoDue.deadline
+            ? t(boxPhotoDue.deadline > now ? "boxPhotoDueDeadline" : "boxPhotoDueDeadlinePassed", { date: formatDateTime(boxPhotoDue.deadline, dl, tz) })
+            : null,
+        },
 
         pendingInspections: pendingInspections.map((k) => ({
           deadline: k.deadline.toISOString(),

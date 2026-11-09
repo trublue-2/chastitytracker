@@ -159,10 +159,18 @@ export const SWITCHABLE_OFFENSE_TYPES_IN_ORDER: readonly SwitchableOffenseType[]
  * Regel bereits serverseitig auf `off` (`weightSettingsService.ts`), und wieder eingeschaltet bleibt
  * sie es. Hier verschwindet nur die Zeile, die sonst über einen Zustand redet, den es nicht gibt.
  */
-export function switchableOffenseTypesFor(
-  features: { weightTracking: boolean; box: boolean },
-): readonly SwitchableOffenseType[] {
-  // `box_photo_missing` aus demselben Grund: ohne gekoppelte Box wird nie ein Box-Foto fällig.
-  return SWITCHABLE_OFFENSE_TYPES_IN_ORDER.filter((type) =>
-    (features.weightTracking || type !== "missed_weight_report") && (features.box || type !== "box_photo_missing"));
+type OffenseFeatures = { weightTracking: boolean; box: boolean };
+
+/** Welche Art an welcher Funktion hängt. `box_photo_missing` aus demselben Grund wie die Meldepflicht:
+ *  ohne gekoppelte Box wird nie ein Box-Foto fällig. Eine weitere bedingte Art bekommt hier eine Zeile. */
+const OFFENSE_REQUIRES: Partial<Record<SwitchableOffenseType, keyof OffenseFeatures>> = {
+  missed_weight_report: "weightTracking",
+  box_photo_missing: "box",
+};
+
+export function switchableOffenseTypesFor(features: OffenseFeatures): readonly SwitchableOffenseType[] {
+  return SWITCHABLE_OFFENSE_TYPES_IN_ORDER.filter((type) => {
+    const needs = OFFENSE_REQUIRES[type];
+    return !needs || features[needs];
+  });
 }

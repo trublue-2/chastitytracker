@@ -140,11 +140,16 @@ export async function waiveBoxPhoto(userId: string, db: Db = prisma): Promise<Se
   return { ok: true, data: { entryId: lock.id } };
 }
 
+/** Eine Frist-Eingabe auf den erlaubten Bereich — dieselbe Klemme für Schreiben und MCP-Vorschau. */
+export function clampBoxPhotoDeadline(hours: unknown): number {
+  return clamp(Number(hours), BOX_PHOTO_DEADLINE_HOURS_RANGE);
+}
+
 /** Die Frist der Keyholderin für das Box-Foto (Stunden ab „Riegel zu"), geklemmt. Geteilt von der
  *  Admin-Route und `set_box` — beide schreiben denselben Wert über denselben Weg. Gibt den
  *  gespeicherten Wert zurück. */
 export async function setBoxPhotoDeadlineHours(userId: string, hours: unknown): Promise<number> {
-  const value = clamp(Number(hours), BOX_PHOTO_DEADLINE_HOURS_RANGE);
+  const value = clampBoxPhotoDeadline(hours);
   await prisma.user.update({ where: { id: userId }, data: { boxPhotoDeadlineHours: value } });
   return value;
 }

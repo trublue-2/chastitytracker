@@ -17,7 +17,12 @@ import { parseApiErrorCode } from "@/lib/apiClient";
  * Riegel als zu gemeldet hat (`boxPhotoDue.ts`). Sie bleibt, bis das Bild da ist oder die
  * Keyholderin es erlässt; wegklicken lässt sie sich nicht. Das Bild landet am Verschluss.
  */
-export default function BoxPhotoDueCard({ entryId, mobileDesktopMode }: { entryId: string; mobileDesktopMode?: boolean }) {
+export default function BoxPhotoDueCard({ entryId, mobileDesktopMode, deadlineLabel }: {
+  entryId: string;
+  mobileDesktopMode?: boolean;
+  /** „Bis …" — nur, wenn das Versäumen bei ihm als Vergehen zählt. */
+  deadlineLabel?: string | null;
+}) {
   const t = useTranslations("dashboard");
   const tCommon = useTranslations("common");
   const apiError = useApiError();
@@ -46,6 +51,7 @@ export default function BoxPhotoDueCard({ entryId, mobileDesktopMode }: { entryI
   return (
     <Section tone="sperrzeit" title={<span className="inline-flex items-center gap-1.5"><Camera size={13} aria-hidden />{t("boxPhotoDueTitle")}</span>}>
       <p className="text-neben text-foreground-muted">{t("boxPhotoDueText")}</p>
+      {deadlineLabel && <p className="text-neben font-medium text-foreground">{deadlineLabel}</p>}
       <BoxPhotoField photo={photo} mobileDesktopMode={mobileDesktopMode} required />
       <FormError message={error} />
       <Button

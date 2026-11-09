@@ -1,4 +1,3 @@
-import { BOX_PHOTO_DEADLINE_HOURS_RANGE } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { INSPECTION_JOKER_USER_SELECT } from "@/lib/inspectionJoker";
 import { currentVisionConfig, visionSpec } from "@/lib/vision/config";
@@ -216,6 +215,7 @@ const contextUserSelect = {
   inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true,
   ...INSPECTION_JOKER_USER_SELECT,
   lockRequiresBolt: true,
+  boxPhotoDeadlineHours: true,
   offenseStatementsAllowed: true,
   // Die Kanal-Stufen des Trägers: wie laut Mail, Push und Telegram für IHN sein dürfen.
   notifyMail: true, notifyPush: true, notifyTelegram: true,
@@ -223,16 +223,16 @@ const contextUserSelect = {
 
 /** Box-Bestand und wartender Aufruf — die Lese-Seite zu `set_box` (docs/riegel-konzept.md).
  *  Der Schalter selbst kommt aus der ohnehin geladenen User-Zeile. */
-export async function loadBoxSettings(userId: string) {
-  const [boxes, waitingSince, user] = await Promise.all([
+export async function loadBoxSettings(userId: string, photoDeadlineHours: number) {
+  const [boxes, waitingSince] = await Promise.all([
     prisma.boxStatus.findMany({ where: { userId }, select: { kind: true } }),
     pendingLockCallAt(userId),
-    prisma.user.findUnique({ where: { id: userId }, select: { boxPhotoDeadlineHours: true } }),
   ]);
   return {
     hasBox: boxes.length > 0, boltAlways: hasLockmebox(boxes), lockCallWaitingSince: waitingSince?.toISOString() ?? null,
-    // Stunden ab „Riegel zu" für das Box-Foto; zum Vergehen nur mit scharfer Regel `box_photo_missing`.
-    photoDeadlineHours: user?.boxPhotoDeadlineHours ?? BOX_PHOTO_DEADLINE_HOURS_RANGE.fallback,
+    // Stunden ab „Riegel zu" für das Box-Foto (aus der ohnehin geladenen User-Zeile des Aufrufers);
+    // zum Vergehen nur mit scharfer Regel `box_photo_missing`.
+    photoDeadlineHours,
   };
 }
 
@@ -267,7 +267,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     getOffenseRules(userId, now),
     weightReleaseStatus(userId, now),
     // Führt die Instanz keine Box, wird gar nicht gefragt — `null` ist dann die ganze Antwort.
-    boxCouplingEnabled() ? loadBoxSettings(userId) : Promise.resolve(null),
+    boxCouplingEnabled() ? loadBoxSettings(userId, user.boxPhotoDeadlineHours) : Promise.resolve(null),
     currentVisionConfig(now),
   ]);
 

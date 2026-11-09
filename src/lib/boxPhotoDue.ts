@@ -55,7 +55,7 @@ export function boxPhotoDueAtOf(e: BoxPhotoDueRow): Date | null {
 }
 
 /** Was {@link boxPhotoMissedAt} von einem Verschluss braucht. */
-export type BoxPhotoMissedRow = Pick<BoxPhotoDueRow, "keyInBox" | "boxImageUrl" | "boxPhotoDueAt" | "boxPhotoWaivedAt"> & {
+type BoxPhotoMissedRow = Pick<BoxPhotoDueRow, "keyInBox" | "boxImageUrl" | "boxPhotoDueAt" | "boxPhotoWaivedAt"> & {
   boxPhotoSubmittedAt: Date | null;
 };
 
@@ -76,15 +76,21 @@ export type BoxPhotoMissedRow = Pick<BoxPhotoDueRow, "keyInBox" | "boxImageUrl" 
 export function boxPhotoMissedAt(
   e: BoxPhotoMissedRow,
   opts: { deadlineHours: number; enforcedFrom: Date; endedAt: Date | null; now: Date },
-): Date | null {
+): { dueAt: Date; at: Date } | null {
   if (e.keyInBox !== true || !e.boxPhotoDueAt) return null;
   if (e.boxPhotoDueAt.getTime() < opts.enforcedFrom.getTime()) return null;
-  const deadline = new Date(e.boxPhotoDueAt.getTime() + opts.deadlineHours * 3_600_000);
+  const deadline = boxPhotoDeadlineAt(e.boxPhotoDueAt, opts.deadlineHours);
   if (opts.now.getTime() < deadline.getTime()) return null;
   if (opts.endedAt && opts.endedAt.getTime() <= deadline.getTime()) return null;
   if (e.boxPhotoWaivedAt && e.boxPhotoWaivedAt.getTime() <= deadline.getTime()) return null;
   if (e.boxImageUrl && (!e.boxPhotoSubmittedAt || e.boxPhotoSubmittedAt.getTime() <= deadline.getTime())) return null;
-  return deadline;
+  return { dueAt: e.boxPhotoDueAt, at: deadline };
+}
+
+/** Fristende des Box-Fotos: „Riegel zu" plus die Frist der Keyholderin. Geteilt von der Ableitung oben und
+ *  der Karte des Trägers, damit beide dieselbe Uhrzeit meinen. */
+export function boxPhotoDeadlineAt(dueAt: Date, deadlineHours: number): Date {
+  return new Date(dueAt.getTime() + deadlineHours * 3_600_000);
 }
 
 /** refId des Vergehens: eigener Namensraum, weil die Verschluss-id schon `wrong_device` gehört und

@@ -53,7 +53,7 @@ export interface DashboardAlertsProps {
   } | null;
 
   /** Das Box-Foto, das nach „Riegel zu" fällig wurde — bleibt, bis es da ist oder erlassen wird. */
-  boxPhotoDue: { entryId: string; mobileDesktopMode: boolean } | null;
+  boxPhotoDue: { entryId: string; mobileDesktopMode: boolean; deadlineLabel: string | null } | null;
 
   /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
   tz?: string;
@@ -135,7 +135,7 @@ export default async function DashboardAlerts({
         />
       )}
 
-      {boxPhotoDue && <BoxPhotoDueCard entryId={boxPhotoDue.entryId} mobileDesktopMode={boxPhotoDue.mobileDesktopMode} />}
+      {boxPhotoDue && <BoxPhotoDueCard entryId={boxPhotoDue.entryId} mobileDesktopMode={boxPhotoDue.mobileDesktopMode} deadlineLabel={boxPhotoDue.deadlineLabel} />}
     </DashboardBlock>
   );
 }

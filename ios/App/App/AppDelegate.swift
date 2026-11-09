@@ -233,6 +233,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     /// Gesperrt beim Verlassen der App: bei der Rückkehr EINMAL von selbst abfragen.
     private var promptOnActive = false
     private var backgroundAt = Date.distantPast
+    /// War die App beim Verlassen ENTSPERRT? Nur dann gilt die Schonfrist — eine schon stehende Sperre
+    /// (abgebrochene Abfrage) darf sich nicht durch Verlassen und Zurückkommen auflösen.
+    private var unlockedWhenBackgrounded = false
 
     // MARK: - Lifecycle
 
@@ -260,7 +263,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             showLockScreen()
             authenticate()
         } else if prompt && lockView != nil {
-            if Date().timeIntervalSince(backgroundAt) < grace {
+            if unlockedWhenBackgrounded && Date().timeIntervalSince(backgroundAt) < grace {
                 hideLockScreen() // innerhalb der Schonfrist zurück: Inhalt war nur für den Umschalter verdeckt
             } else {
                 // Nur nach echtem Hintergrund — das Face-ID-Blatt selbst macht die Szene ebenfalls
@@ -274,6 +277,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard biometryAvailable else { return }
         isAuthenticating = false
         guard appLockGrace() != nil else { return }
+        unlockedWhenBackgrounded = lockView == nil
         showLockScreen()
         promptOnActive = true
         backgroundAt = Date()

@@ -86,6 +86,8 @@ const BLOCK_USER_SELECT = {
   // `dashboardLayout`: die Zeile wird ohnehin geladen, eine zweite Abfrage dafür kostete
   // gemessene ~215 µs auf dem kritischen Pfad, die Spalte kostet nichts.
   photoAnalysisNoticeSeen: true,
+  // Frist des Box-Fotos — die Karte nennt sie, wenn das Vergehen scharf ist (`boxPhotoDeadlineAt`).
+  boxPhotoDeadlineHours: true,
   // Für die Foto-Aufnahme der Dashboard-Karten (`BoxPhotoDueCard`) — dieselbe Begründung.
   mobileDesktopUpload: true,
 } as const;

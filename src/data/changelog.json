@@ -1,8 +1,43 @@
 [
   {
-    "version": "6.5.8",
+    "version": "6.6.0",
     "date": "2026-11-09",
     "changes": [
+      {
+        "type": "feat",
+        "text": {
+          "de": "App-Sperre einstellbar: in der App lässt sie sich ausschalten oder erst nach einer Schonfrist von 1 bis 60 Minuten wieder abfragen (ab App-Update).",
+          "en": "App lock is now adjustable: in the app you can turn it off or let it ask again only after a grace period of 1 to 60 minutes (with the app update)."
+        }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "Box-Foto mit Frist: Kommt das Foto nach „Riegel zu“ nicht rechtzeitig, kann das als neues Vergehen „Box-Foto fehlt“ zählen – die Keyholderin schaltet es je Träger ein und legt die Frist fest.",
+          "en": "Box photo with a deadline: if the photo does not arrive in time after “bolt closed”, it can count as the new offense “Box photo missing” – the keyholder switches it on per wearer and sets the deadline."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Startseite ist ruhiger: Bei offener Kontrolle oder Einschliess-Anforderung tritt die Selbstmeldung zurück, und der Aufgabenstapel bleibt zu, solange nichts bald fällig ist.",
+          "en": "The home screen is calmer: with an open inspection or lock request the self-report steps back, and the task stack stays collapsed while nothing is due soon."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Die Legende des Tragekalenders nennt jetzt dieselben Bänder wie die Färbung (20, 40 und 80 %) statt der bisherigen 25, 40 und 65 %.",
+          "en": "The wear calendar legend now shows the same bands as the colouring (20, 40 and 80 %) instead of the previous 25, 40 and 65 %."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Eine laufende Sperrzeit oder Orgasmus-Anweisung zurückziehen, ein Urteil im Strafbuch zurücknehmen und Telegram entkoppeln fragen jetzt vorher nach; Strafe, Verwerfen und Ablehnen sagen dazu, was der Sub erfährt. Im Strafbuch steht seine Stellungnahme schon vor der Urteilswahl.",
+          "en": "Withdrawing a running lock period or orgasm directive, undoing a verdict in the penalty book and disconnecting Telegram now ask first; penalty, dismiss and reject say what the sub is told. In the penalty book their statement shows before you choose a verdict."
+        }
+      },
       {
         "type": "chore",
         "text": {

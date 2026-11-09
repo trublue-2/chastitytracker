@@ -622,6 +622,8 @@
     "editLayoutStartsClosed": "\"{name}\": starts Closed — tap so the block starts expanded",
     "boxPhotoDueTitle": "Add a box photo with the key visible",
     "boxPhotoDueText": "The bolt is closed. Photograph the box through the viewing window so the key is clearly visible.",
+    "boxPhotoDueDeadline": "Deadline {date} – after that it counts as an offense.",
+    "boxPhotoDueDeadlinePassed": "The deadline passed on {date} – the missing photo counts as an offense.",
     "boxPhotoDueSave": "Add photo",
     "keyPhotoBeforeBolt": "photo taken before bolt closed",
     "blockStatsMood": "Mood"
@@ -2056,6 +2058,7 @@
     "taskProofReminderMessage": "The task “{title}” is still missing the proof “{description}” — due at {until}.",
     "boxPhotoDuePushTitle": "Add the box photo",
     "boxPhotoDuePushBody": "The bolt is closed. Open the app and add a photo of the box with the key visible.",
+    "boxPhotoDuePushBodyDeadline": "The bolt is closed. Within {hours} h, add a photo of the box with the key visible.",
     "lockboxCodeSameSubjectKeyholder": "Key box code not changed?",
     "lockboxCodeSameMessageKeyholder": "{username} apparently sealed the same key box code for the new lock as for the last one. Both photos are in the comparison view.",
     "lockboxCodeUncertainSubjectKeyholder": "Please check the key box code",

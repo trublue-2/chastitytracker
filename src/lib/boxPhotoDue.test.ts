@@ -60,25 +60,25 @@ describe("boxPhotoMissedAt — Box-Foto nach „Riegel zu\" nicht in der Frist",
   const at = (min: number) => new Date(due.getTime() + min * 60_000);
 
   it("ohne Foto nach Fristende: Vergehen zum Fristende", () => {
-    expect(boxPhotoMissedAt(base, opts)).toEqual(deadline);
+    expect(boxPhotoMissedAt(base, opts)).toEqual({ dueAt: due, at: deadline });
   });
   it("vor Fristende noch keines", () => {
     expect(boxPhotoMissedAt(base, { ...opts, now: at(119) })).toBeNull();
   });
   it("Foto rechtzeitig: keines; zu spät: bleibt", () => {
     expect(boxPhotoMissedAt({ ...base, boxImageUrl: "/u/a.jpg", boxPhotoSubmittedAt: at(30) }, opts)).toBeNull();
-    expect(boxPhotoMissedAt({ ...base, boxImageUrl: "/u/a.jpg", boxPhotoSubmittedAt: at(121) }, opts)).toEqual(deadline);
+    expect(boxPhotoMissedAt({ ...base, boxImageUrl: "/u/a.jpg", boxPhotoSubmittedAt: at(121) }, opts)).toEqual({ dueAt: due, at: deadline });
   });
   it("Foto ohne Ankunftszeit (Altbestand) gilt als rechtzeitig", () => {
     expect(boxPhotoMissedAt({ ...base, boxImageUrl: "/u/a.jpg" }, opts)).toBeNull();
   });
   it("Erlass vor Fristende hebt auf, danach nicht", () => {
     expect(boxPhotoMissedAt({ ...base, boxPhotoWaivedAt: at(60) }, opts)).toBeNull();
-    expect(boxPhotoMissedAt({ ...base, boxPhotoWaivedAt: at(150) }, opts)).toEqual(deadline);
+    expect(boxPhotoMissedAt({ ...base, boxPhotoWaivedAt: at(150) }, opts)).toEqual({ dueAt: due, at: deadline });
   });
   it("vor Fristende geöffnet: keine Pflicht mehr", () => {
     expect(boxPhotoMissedAt(base, { ...opts, endedAt: at(90) })).toBeNull();
-    expect(boxPhotoMissedAt(base, { ...opts, endedAt: at(180) })).toEqual(deadline);
+    expect(boxPhotoMissedAt(base, { ...opts, endedAt: at(180) })).toEqual({ dueAt: due, at: deadline });
   });
   it("vor dem Stichtag fällig, Schlüssel nicht in der Box oder nie fällig: nichts", () => {
     expect(boxPhotoMissedAt(base, { ...opts, enforcedFrom: at(1) })).toBeNull();

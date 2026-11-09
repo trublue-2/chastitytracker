@@ -1,5 +1,4 @@
-import { BOX_PHOTO_DEADLINE_HOURS_RANGE } from "@/lib/constants";
-import { setBoxPhotoDeadlineHours } from "@/lib/boxPhotoDueService";
+import { clampBoxPhotoDeadline, setBoxPhotoDeadlineHours } from "@/lib/boxPhotoDueService";
 import { prisma } from "@/lib/prisma";
 import { INSPECTION_JOKER_USER_SELECT } from "@/lib/inspectionJoker";
 import { getUserDeviceOptions, getKeyholderLockPeriods, getKeyholderLockRequests, getIsLocked, openLockRequestWhere, isScheduledDirective, keyholderVisibleKontrolleWhere } from "@/lib/queries";
@@ -1350,17 +1349,15 @@ export async function mcpSetBox(username: string, args: SetBoxArgs) {
 
   // `loadBoxSettings` ist die Lese-Seite, die `get_context.box` ausgibt — dieselbe Antwort für die
   // Vorschau wie für das Nachschlagen, statt einer dritten Abschrift derselben zwei Abfragen.
-  const [user, box] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { lockRequiresBolt: true } }),
-    loadBoxSettings(userId),
-  ]);
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { lockRequiresBolt: true, boxPhotoDeadlineHours: true } });
+  const box = await loadBoxSettings(userId, user.boxPhotoDeadlineHours);
 
   if (args.dryRun) {
     const before = { requireBolt: user.lockRequiresBolt, photoDeadlineHours: box.photoDeadlineHours };
     // Bei einer LockMeBox bleibt der Wert, wie er ist: die Einstellung wirkt dort nicht (`boltAlways`).
     const after = {
       requireBolt: box.boltAlways ? before.requireBolt : args.requireBolt ?? before.requireBolt,
-      photoDeadlineHours: args.photoDeadlineHours !== undefined ? clamp(Number(args.photoDeadlineHours), BOX_PHOTO_DEADLINE_HOURS_RANGE) : before.photoDeadlineHours,
+      photoDeadlineHours: args.photoDeadlineHours !== undefined ? clampBoxPhotoDeadline(args.photoDeadlineHours) : before.photoDeadlineHours,
     };
     return dryRunPreview("set_box", undefined, {
       ...after,

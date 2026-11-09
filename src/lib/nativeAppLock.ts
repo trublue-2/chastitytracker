@@ -16,9 +16,9 @@ import { prefGet, prefSet } from "@/lib/capacitorPrefs";
 export const APP_LOCK_PREF_KEY = "appLock";
 export const APP_LOCK_OPTIONS = ["off", "0", "1", "5", "15", "60"] as const;
 export type AppLockOption = (typeof APP_LOCK_OPTIONS)[number];
-export const APP_LOCK_DEFAULT: AppLockOption = "0";
+const APP_LOCK_DEFAULT: AppLockOption = "0";
 
-export function parseAppLock(value: string | null): AppLockOption {
+function parseAppLock(value: string | null): AppLockOption {
   return (APP_LOCK_OPTIONS as readonly string[]).includes(value ?? "") ? (value as AppLockOption) : APP_LOCK_DEFAULT;
 }
 

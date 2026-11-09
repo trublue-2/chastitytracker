@@ -1,4 +1,4 @@
-import { getBoxFormContext } from "@/lib/queries";
+import { boxCouplingEnabled } from "@/lib/constants";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { titleCls } from "@/app/components/inputStyles";
@@ -69,7 +69,7 @@ export default async function RulesPage() {
     getTranslations("offenses"),
     getTranslations("release"),
     // Ohne gekoppelte Box wird nie ein Box-Foto fällig — die Regel dazu wäre eine Antwort ohne Frage.
-    getBoxFormContext(userId).then((b) => b.boxConfirm),
+    boxCouplingEnabled() ? prisma.boxStatus.count({ where: { userId } }).then((n) => n > 0) : false,
   ]);
 
   // Seine Einheit und seine Zeitzone: hier schaut der Träger auf sich selbst.

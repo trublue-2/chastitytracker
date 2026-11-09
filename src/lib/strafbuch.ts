@@ -600,21 +600,21 @@ const ENFORCED_FROM_KEY = "cleaningWindowEnforcedFrom";
  * oder Korrigieren. Ohne beides (Zeile fehlt, Migration nie gelaufen) gilt der SICHERE Weg: `now`,
  * also ab jetzt — lieber ein Vergehen zu wenig als eines, das es damals nicht gab.
  */
+export function cleaningWindowEnforcedFrom(now: Date): Promise<Date> {
+  return deployCutoff(now, {
+    key: ENFORCED_FROM_KEY,
+    envVar: "CLEANING_WINDOW_ENFORCED_FROM",
+    logPrefix: "[strafbuch]",
+    fallbackNote: "bewerte ab jetzt, keine rückwirkenden Vergehen",
+  });
+}
+
 /** Stichtag der Box-Foto-Frist — gleiche Mechanik wie {@link cleaningWindowEnforcedFrom}, geschrieben von
  *  der Migration `20261109220000_box_photo_deadline`. Nur Fotos, die ab da fällig wurden, können fehlen. */
 export function boxPhotoMissingEnforcedFrom(now: Date): Promise<Date> {
   return deployCutoff(now, {
     key: "boxPhotoMissingEnforcedFrom",
     envVar: "BOX_PHOTO_MISSING_ENFORCED_FROM",
-    logPrefix: "[strafbuch]",
-    fallbackNote: "bewerte ab jetzt, keine rückwirkenden Vergehen",
-  });
-}
-
-export function cleaningWindowEnforcedFrom(now: Date): Promise<Date> {
-  return deployCutoff(now, {
-    key: ENFORCED_FROM_KEY,
-    envVar: "CLEANING_WINDOW_ENFORCED_FROM",
     logPrefix: "[strafbuch]",
     fallbackNote: "bewerte ab jetzt, keine rückwirkenden Vergehen",
   });
@@ -1028,13 +1028,13 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
   const openingTimesAsc = openings.map((o) => o.startTime.getTime()).reverse();
   const boxPhotoMissing = verschluesse.flatMap((v) => {
     const next = openingTimesAsc.find((t) => t > v.startTime.getTime());
-    const at = boxPhotoMissedAt(v, {
+    const missed = boxPhotoMissedAt(v, {
       deadlineHours: user?.boxPhotoDeadlineHours ?? BOX_PHOTO_DEADLINE_HOURS_RANGE.fallback,
       enforcedFrom: boxPhotoEnforcedFrom,
       endedAt: next !== undefined ? new Date(next) : null,
       now,
     });
-    return at && v.boxPhotoDueAt ? [{ entryId: v.id, dueAt: v.boxPhotoDueAt, at }] : [];
+    return missed ? [{ entryId: v.id, ...missed }] : [];
   });
 
   // Abgelaufene Orgasmus-Anweisungen ohne Erfüllung.

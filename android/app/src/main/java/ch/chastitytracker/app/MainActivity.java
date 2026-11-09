@@ -81,6 +81,9 @@ public class MainActivity extends BridgeActivity {
     private boolean launchedForResult;
     /** Gesperrt beim Verlassen der App: bei der Rückkehr EINMAL von selbst abfragen (wie iOS). */
     private boolean promptOnResume;
+    /** War die App beim Verlassen ENTSPERRT? Nur dann gilt die Schonfrist — eine schon stehende Sperre
+     *  (abgebrochene Abfrage) darf sich nicht durch Verlassen und Zurückkommen auflösen. */
+    private boolean unlockedWhenStopped;
 
     private final OnBackPressedCallback lockedBack = new OnBackPressedCallback(false) {
         @Override
@@ -177,7 +180,7 @@ public class MainActivity extends BridgeActivity {
             showLockScreen();
             authenticate();
         } else if (prompt && lockView != null) {
-            if (SystemClock.elapsedRealtime() - stoppedAt < graceMs) {
+            if (unlockedWhenStopped && SystemClock.elapsedRealtime() - stoppedAt < graceMs) {
                 hideLockScreen(); // innerhalb der Schonfrist zurück: Inhalt war nur für den Umschalter verdeckt
             } else {
                 // Nicht nach der Rückkehr aus der Geräte-PIN (dort sperrt onStop nicht) — sonst Endlosschleife.
@@ -192,6 +195,7 @@ public class MainActivity extends BridgeActivity {
         stoppedAt = SystemClock.elapsedRealtime();
         if (!biometryAvailable || isAuthenticating || launchedForResult || isChangingConfigurations()) return;
         if (appLockGraceMs() < 0) return;
+        unlockedWhenStopped = lockView == null;
         showLockScreen();
         promptOnResume = true;
     }
