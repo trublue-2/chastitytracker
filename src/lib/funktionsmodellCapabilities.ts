@@ -401,7 +401,7 @@ export const FM_CAPABILITIES: FmCapability[] = [
   // ── Strafbuch ──────────────────────────────────────────────────────────────────────────────
   c({
     id: "offense-read", mechanic: "Strafbuch", title: "Vergehen einsehen",
-    what: "Die erkannten Vergehen mit Urteilsstand — dreizehn Arten, die meisten live aus den Einträgen abgeleitet.",
+    what: "Die erkannten Vergehen mit Urteilsstand — sechzehn Arten, die meisten live aus den Einträgen abgeleitet.",
     actors: ["admin", "mcp"], surfaces: ["admin-ui", "mcp"], tools: ["get_offenses"],
   }),
   c({
@@ -525,7 +525,7 @@ export const FM_CAPABILITIES: FmCapability[] = [
     id: "box-photo-due", mechanic: "Box", title: "Box-Foto nach „Riegel zu\" nachreichen",
     what: "Sobald die Box den Riegel als zu meldet, fordert das Dashboard ein Bild der Box mit sichtbarem Schlüssel an; es hängt am Verschluss.",
     actors: ["sub", "system"], surfaces: ["sub-ui", "automatik"], routes: ["/api/entries/[id]/box-photo"],
-    note: "Der Verschluss-Dialog fragt das Foto nicht mehr ab: bei offener Box belegt es nichts, der Schlüssel liesse sich danach wieder entnehmen. Die Aufforderung bleibt, bis das Bild da ist oder erlassen wird; der Verschluss gilt auch ohne. Fällig wird es einmal je Verschluss, für LockMeBox und Heimdall. Ein Foto mit Aufnahmezeit vor „Riegel zu\" wird angenommen, aber markiert. Kontrollen verlangen ihr Foto weiterhin.",
+    note: "Der Verschluss-Dialog fragt das Foto nicht mehr ab: bei offener Box belegt es nichts, der Schlüssel liesse sich danach wieder entnehmen. Die Aufforderung bleibt, bis das Bild da ist oder erlassen wird; der Verschluss gilt auch ohne. Fällig wird es einmal je Verschluss, für LockMeBox und Heimdall. Ein Foto mit Aufnahmezeit vor „Riegel zu\" wird angenommen, aber markiert. Kontrollen verlangen ihr Foto weiterhin. Seit 6.6.0 mit Frist (`User.boxPhotoDeadlineHours`, Vorgabe 2 h): kommt das Foto nicht rechtzeitig, zählt `box_photo_missing`, sofern die Regel scharf ist; ein Erlass oder eine Öffnung vor Fristende hebt es auf. Beim Anlegen des Verschlusses nimmt der Sub-Pfad kein Box-Foto mehr an.",
   }),
   c({
     id: "box-photo-waive", mechanic: "Box", title: "Fälliges Box-Foto erlassen",

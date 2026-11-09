@@ -10,7 +10,8 @@ import { loadStatementsOfUser } from "@/lib/offenseStatementService";
 import { passwordChangeViaLabel } from "@/lib/constants";
 import type { CleaningBlockReason } from "@/lib/queries";
 import { getLocale, getTranslations } from "next-intl/server";
-import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type CleaningLimitRow, type AufgabeRow, type NichtVerschlossenRow, type VerschlussVersaeumtRow, type OrgasmusVersaeumtRow, type OrgasmusFalscheArtRow, type FalschesGeraetRow, type AdminPasswortRow, type UnerlaubterOrgasmusRow, type ManuellesVergehenRow, type MissedWeightRow, type StatementView } from "./StrafbuchClient";
+import { boxPhotoMissingRef } from "@/lib/boxPhotoDue";
+import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type CleaningLimitRow, type AufgabeRow, type NichtVerschlossenRow, type VerschlussVersaeumtRow, type OrgasmusVersaeumtRow, type OrgasmusFalscheArtRow, type FalschesGeraetRow, type AdminPasswortRow, type UnerlaubterOrgasmusRow, type ManuellesVergehenRow, type MissedWeightRow, type BoxPhotoMissingRow, type StatementView } from "./StrafbuchClient";
 
 /** Warum eine als Reinigung erfasste Öffnung trotzdem im Strafbuch steht. */
 const CLEANING_BLOCK_STRAFBUCH_KEY = {
@@ -54,6 +55,12 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     refId: missedWeightRef(m.dayKey),
     dayStr: fmtDual(m.at),
     days: m.days,
+  }));
+
+  const boxPhotoMissing: BoxPhotoMissingRow[] = sb.boxPhotoMissing.map((b) => ({
+    refId: boxPhotoMissingRef(b.entryId),
+    dueStr: fmtDual(b.dueAt),
+    deadlineStr: fmtDual(b.at),
   }));
 
   const unerlaubteOeffnungen: UnerlaubteOeffnungRow[] = sb.unauthorizedOpenings.map((o) => ({
@@ -229,6 +236,8 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchReinigungLimit: t("strafbuchReinigungLimit"),
     strafbuchGewichtVersaeumt: t("strafbuchGewichtVersaeumt"),
     strafbuchGewichtVersaeumtTage: t("strafbuchGewichtVersaeumtTage"),
+    strafbuchBoxFotoFehlt: t("strafbuchBoxFotoFehlt"),
+    strafbuchBoxFotoFrist: t("strafbuchBoxFotoFrist"),
     strafbuchReinigungLimitDate: t("strafbuchReinigungLimitDate"),
     strafbuchVerwerfen: t("strafbuchVerwerfen"),
     strafbuchVergehenVerwerfen: t("strafbuchVergehenVerwerfen"),
@@ -287,6 +296,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
       autoEntfernt={autoEntfernt}
       cleaningLimitOffenses={cleaningLimitOffenses}
       missedWeightReports={missedWeightReports}
+      boxPhotoMissing={boxPhotoMissing}
       unfulfilledTasks={aufgaben}
       nichtVerschlossen={nichtVerschlossen}
       verschlussVersaeumt={verschlussVersaeumt}

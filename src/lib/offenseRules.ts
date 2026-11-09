@@ -40,6 +40,7 @@ export const OFFENSE_RULE_MODES = {
   unfulfilled_task: ["off", "on"],
   admin_password_change: ["off", "on"],
   missed_weight_report: ["off", "on"],
+  box_photo_missing: ["off", "on"],
   // Dreistufig: `lockedOnly` ahndet nur, was während einer laufenden Sperrzeit passiert ist,
   // `always` jeden Orgasmus ohne offenes Fenster.
   unauthorized_orgasm: ["off", "lockedOnly", "always"],
@@ -77,6 +78,9 @@ export const OFFENSE_RULE_DEFAULT: Record<SwitchableOffenseType, OffenseMode> = 
   // es einschaltet, hat damit noch keine Meldepflicht bestellt. Ein Update darf niemandem über
   // Nacht ein Vergehen anhängen — hier zusätzlich für Daten, die es vorher gar nicht gab.
   missed_weight_report: "off",
+  // AUS aus demselben Grund: die Frist gab es vorher nicht, ein Update hängt niemandem über Nacht ein
+  // Vergehen an. Die Keyholderin schaltet es je Träger ein; die Frist selbst steht in den Box-Einstellungen.
+  box_photo_missing: "off",
   unauthorized_orgasm: "off",
 };
 

@@ -53,3 +53,42 @@ export function boxPhotoTakenBeforeBolt(takenAt: Date | null, dueAt: Date): bool
 export function boxPhotoDueAtOf(e: BoxPhotoDueRow): Date | null {
   return isBoxPhotoDue(e) ? e.boxPhotoDueAt : null;
 }
+
+/** Was {@link boxPhotoMissedAt} von einem Verschluss braucht. */
+export type BoxPhotoMissedRow = Pick<BoxPhotoDueRow, "keyInBox" | "boxImageUrl" | "boxPhotoDueAt" | "boxPhotoWaivedAt"> & {
+  boxPhotoSubmittedAt: Date | null;
+};
+
+/**
+ * Wann wurde das Box-Foto dieses Verschlusses VERSÄUMT — `null`, wenn nicht (Vergehen `box_photo_missing`).
+ *
+ * Versäumt ist es, wenn die Frist (`deadlineHours` ab „Riegel zu" = `boxPhotoDueAt`) abgelaufen ist und bis
+ * dahin weder ein Foto kam noch die Keyholderin es erlassen hat. Der Zeitpunkt des Vergehens ist das
+ * Fristende. Kein Vergehen:
+ * - **vor dem Stichtag** (`enforcedFrom`, je Instanz aus der Migration): die Frist gab es damals nicht;
+ * - **wenn vor Fristende geöffnet wurde** (`endedAt`): das Foto hätte nichts mehr belegt;
+ * - für ein Foto ohne Ankunftszeit (`boxPhotoSubmittedAt` fehlt bei Fotos aus der Zeit vor dieser Regel):
+ *   es kam, wann genau, weiss niemand — im Zweifel rechtzeitig.
+ *
+ * Ein Erlass oder ein Foto NACH Fristende hebt das Vergehen nicht auf; die Keyholderin verwirft es dann im
+ * Strafbuch wie jedes andere.
+ */
+export function boxPhotoMissedAt(
+  e: BoxPhotoMissedRow,
+  opts: { deadlineHours: number; enforcedFrom: Date; endedAt: Date | null; now: Date },
+): Date | null {
+  if (e.keyInBox !== true || !e.boxPhotoDueAt) return null;
+  if (e.boxPhotoDueAt.getTime() < opts.enforcedFrom.getTime()) return null;
+  const deadline = new Date(e.boxPhotoDueAt.getTime() + opts.deadlineHours * 3_600_000);
+  if (opts.now.getTime() < deadline.getTime()) return null;
+  if (opts.endedAt && opts.endedAt.getTime() <= deadline.getTime()) return null;
+  if (e.boxPhotoWaivedAt && e.boxPhotoWaivedAt.getTime() <= deadline.getTime()) return null;
+  if (e.boxImageUrl && (!e.boxPhotoSubmittedAt || e.boxPhotoSubmittedAt.getTime() <= deadline.getTime())) return null;
+  return deadline;
+}
+
+/** refId des Vergehens: eigener Namensraum, weil die Verschluss-id schon `wrong_device` gehört und
+ *  `StrafeRecord.refId` global eindeutig ist (wie `relock:` bei `cleaning_not_relocked`). */
+export function boxPhotoMissingRef(entryId: string): string {
+  return `boxphoto:${entryId}`;
+}

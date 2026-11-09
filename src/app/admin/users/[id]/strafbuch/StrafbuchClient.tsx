@@ -79,6 +79,15 @@ export interface MissedWeightRow {
   days: number;
 }
 
+/** Ein Verschluss, dessen Box-Foto nach „Riegel zu" nicht in der Frist kam. */
+export interface BoxPhotoMissingRow {
+  refId: string;
+  /** „Riegel zu", formatiert. */
+  dueStr: string;
+  /** Fristende, formatiert. */
+  deadlineStr: string;
+}
+
 /** Eine nicht erfüllte Aufgabe. `state`, `started` und `hasRequirements` ergeben zusammen den
  *  Vorwurf — siehe `taskFailureKind`. */
 export interface AufgabeRow {
@@ -303,6 +312,8 @@ interface Labels {
   strafbuchZurueckziehen: string;
   strafbuchGewichtVersaeumt: string;
   strafbuchGewichtVersaeumtTage: string;
+  strafbuchBoxFotoFehlt: string;
+  strafbuchBoxFotoFrist: string;
   deviceLabel: string;
 }
 
@@ -322,6 +333,7 @@ interface Props {
   adminPasswort: AdminPasswortRow[];
   unerlaubteOrgasmen: UnerlaubterOrgasmusRow[];
   missedWeightReports: MissedWeightRow[];
+  boxPhotoMissing: BoxPhotoMissingRow[];
   manuelleVergehen: ManuellesVergehenRow[];
   strafeRecords: StrafeRecordData[];
   /** Die Stellungnahmen des Trägers, nach `refId` — leer, wo er nichts geschrieben hat. */
@@ -750,7 +762,7 @@ function JudgmentSlot({ ctx, refId, canonical, sectionRefs, anlass }: {
   );
 }
 
-export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, cleaningLimitOffenses, unfulfilledTasks, nichtVerschlossen, verschlussVersaeumt, orgasmusVersaeumt, orgasmusFalscheArt, falschesGeraet, adminPasswort, unerlaubteOrgasmen, missedWeightReports, manuelleVergehen, strafeRecords, statements, labels }: Props) {
+export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet, abgelehnt, autoEntfernt, cleaningLimitOffenses, unfulfilledTasks, nichtVerschlossen, verschlussVersaeumt, orgasmusVersaeumt, orgasmusFalscheArt, falschesGeraet, adminPasswort, unerlaubteOrgasmen, missedWeightReports, boxPhotoMissing, manuelleVergehen, strafeRecords, statements, labels }: Props) {
   const router = useRouter();
   // Beide Routen dieser Seite (`/api/admin/offense`, `/api/admin/strafe`) liefern stabile
   // Fehler-CODES — übersetzt wird hier.
@@ -1023,6 +1035,19 @@ export default function StrafbuchClient({ userId, unerlaubteOeffnungen, zuSpaet,
             {labels.strafbuchGewichtVersaeumt}
           </p>
           <p className={FACT_CLS}>{labels.strafbuchGewichtVersaeumtTage} · {m.dayStr}</p>
+        </>
+      ),
+    }))),
+
+    sec("box_photo_missing", labels.strafbuchBoxFotoFehlt, boxPhotoMissing.map((b) => ({
+      refId: b.refId,
+      anlass: b.deadlineStr,
+      body: (judged) => (
+        <>
+          <p className={`text-sm font-semibold text-foreground ${judged ? "line-through" : ""}`}>
+            {labels.strafbuchBoxFotoFehlt}
+          </p>
+          <p className={FACT_CLS}>{labels.strafbuchBoxFotoFrist} · {b.dueStr} → {b.deadlineStr}</p>
         </>
       ),
     }))),

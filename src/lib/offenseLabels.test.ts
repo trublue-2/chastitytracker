@@ -60,17 +60,17 @@ describe("Vergehens-Bezeichnungen sind in beiden Sprachen vollständig", () => {
 
 describe("welche Arten bei einem Sub überhaupt zur Auswahl stehen", () => {
   it("ohne Gewichtstracking fehlt die Meldepflicht — sonst ist die Liste vollständig", () => {
-    const ohne = switchableOffenseTypesFor({ weightTracking: false });
+    const ohne = switchableOffenseTypesFor({ weightTracking: false, box: true });
     expect(ohne).not.toContain("missed_weight_report");
     expect(ohne.length).toBe(SWITCHABLE_OFFENSE_TYPES_IN_ORDER.length - 1);
   });
 
   it("mit Gewichtstracking steht sie da, in unveränderter Reihenfolge", () => {
-    expect(switchableOffenseTypesFor({ weightTracking: true })).toEqual(SWITCHABLE_OFFENSE_TYPES_IN_ORDER);
+    expect(switchableOffenseTypesFor({ weightTracking: true, box: true })).toEqual(SWITCHABLE_OFFENSE_TYPES_IN_ORDER);
   });
 
   it("gefiltert wird nur diese eine Art — die Reihenfolge der übrigen bleibt", () => {
-    const ohne = switchableOffenseTypesFor({ weightTracking: false });
+    const ohne = switchableOffenseTypesFor({ weightTracking: false, box: true });
     expect(ohne).toEqual(SWITCHABLE_OFFENSE_TYPES_IN_ORDER.filter((t) => t !== "missed_weight_report"));
   });
 });

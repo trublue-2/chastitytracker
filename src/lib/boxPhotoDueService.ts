@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { CLIENT_CLOCK_SKEW_MS, isValidImageUrl, parseRotation } from "@/lib/constants";
+import { BOX_PHOTO_DEADLINE_HOURS_RANGE, CLIENT_CLOCK_SKEW_MS, isValidImageUrl, parseRotation } from "@/lib/constants";
+import { clamp } from "@/lib/utils";
 import { boxReportsFreshlyLocked } from "@/lib/boxStatus";
 import { getLatestKgEntry } from "@/lib/queries";
 import { detectKeyInBox } from "@/lib/verifyCode";
@@ -123,7 +124,7 @@ export async function submitBoxPhoto(userId: string, entryId: string, input: { b
   const { count } = await prisma.entry.updateMany({
     where: { id: entryId, userId, boxImageUrl: null },
     // `dueBoxPhotoLock` liefert nur Verschlüsse mit gesetztem `boxPhotoDueAt` (isBoxPhotoDue).
-    data: { boxImageUrl: url, boxImageBeforeBolt: boxPhotoTakenBeforeBolt(takenAt, lock.boxPhotoDueAt!) },
+    data: { boxImageUrl: url, boxPhotoSubmittedAt: new Date(), boxImageBeforeBolt: boxPhotoTakenBeforeBolt(takenAt, lock.boxPhotoDueAt!) },
   });
   if (count === 0) return serviceFail(409, "BOX_PHOTO_NOT_DUE");
   detectKeyInBoxInBackground(entryId, url, input.boxImageRotation);
@@ -137,4 +138,13 @@ export async function waiveBoxPhoto(userId: string, db: Db = prisma): Promise<Se
   if (!lock) return serviceFail(409, "BOX_PHOTO_NOT_DUE");
   await db.entry.update({ where: { id: lock.id }, data: { boxPhotoWaivedAt: new Date() } });
   return { ok: true, data: { entryId: lock.id } };
+}
+
+/** Die Frist der Keyholderin für das Box-Foto (Stunden ab „Riegel zu"), geklemmt. Geteilt von der
+ *  Admin-Route und `set_box` — beide schreiben denselben Wert über denselben Weg. Gibt den
+ *  gespeicherten Wert zurück. */
+export async function setBoxPhotoDeadlineHours(userId: string, hours: unknown): Promise<number> {
+  const value = clamp(Number(hours), BOX_PHOTO_DEADLINE_HOURS_RANGE);
+  await prisma.user.update({ where: { id: userId }, data: { boxPhotoDeadlineHours: value } });
+  return value;
 }

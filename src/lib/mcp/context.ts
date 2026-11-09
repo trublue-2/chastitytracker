@@ -1,3 +1,4 @@
+import { BOX_PHOTO_DEADLINE_HOURS_RANGE } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { INSPECTION_JOKER_USER_SELECT } from "@/lib/inspectionJoker";
 import { currentVisionConfig, visionSpec } from "@/lib/vision/config";
@@ -223,11 +224,16 @@ const contextUserSelect = {
 /** Box-Bestand und wartender Aufruf — die Lese-Seite zu `set_box` (docs/riegel-konzept.md).
  *  Der Schalter selbst kommt aus der ohnehin geladenen User-Zeile. */
 export async function loadBoxSettings(userId: string) {
-  const [boxes, waitingSince] = await Promise.all([
+  const [boxes, waitingSince, user] = await Promise.all([
     prisma.boxStatus.findMany({ where: { userId }, select: { kind: true } }),
     pendingLockCallAt(userId),
+    prisma.user.findUnique({ where: { id: userId }, select: { boxPhotoDeadlineHours: true } }),
   ]);
-  return { hasBox: boxes.length > 0, boltAlways: hasLockmebox(boxes), lockCallWaitingSince: waitingSince?.toISOString() ?? null };
+  return {
+    hasBox: boxes.length > 0, boltAlways: hasLockmebox(boxes), lockCallWaitingSince: waitingSince?.toISOString() ?? null,
+    // Stunden ab „Riegel zu" für das Box-Foto; zum Vergehen nur mit scharfer Regel `box_photo_missing`.
+    photoDeadlineHours: user?.boxPhotoDeadlineHours ?? BOX_PHOTO_DEADLINE_HOURS_RANGE.fallback,
+  };
 }
 
 /** Liefert HealthHold + Auto-Kontroll-Einstellungen + Reinigungs-Regeln + Wochen-Kontext + anstehende

@@ -1,3 +1,4 @@
+import { getBoxFormContext } from "@/lib/queries";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { titleCls } from "@/app/components/inputStyles";
@@ -46,7 +47,7 @@ export default async function RulesPage() {
   const userId = session?.user?.id;
   if (!userId) redirect("/login");
 
-  const [user, offenseRules, release, locale, t, ta, tc, tOffense, tRelease] = await Promise.all([
+  const [user, offenseRules, release, locale, t, ta, tc, tOffense, tRelease, hasBox] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -67,6 +68,8 @@ export default async function RulesPage() {
     getTranslations("common"),
     getTranslations("offenses"),
     getTranslations("release"),
+    // Ohne gekoppelte Box wird nie ein Box-Foto fällig — die Regel dazu wäre eine Antwort ohne Frage.
+    getBoxFormContext(userId).then((b) => b.boxConfirm),
   ]);
 
   // Seine Einheit und seine Zeitzone: hier schaut der Träger auf sich selbst.
@@ -266,6 +269,7 @@ export default async function RulesPage() {
                 eine Frage, die sich nie gestellt hat. */}
             {switchableOffenseTypesFor({
               weightTracking: !!user?.weightTrackingEnabled,
+              box: hasBox,
             }).map((type) => {
               const key = OFFENSE_TYPE_I18N_KEYS[type];
               const mode = offenseRules[type];

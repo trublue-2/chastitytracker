@@ -1402,6 +1402,8 @@
     "strafbuchReinigungLimit": "Cleaning limit exceeded",
     "strafbuchGewichtVersaeumt": "Weight report missed",
     "strafbuchGewichtVersaeumtTage": "Three days without an entry",
+    "strafbuchBoxFotoFehlt": "Box photo missing",
+    "strafbuchBoxFotoFrist": "Bolt closed to deadline",
     "strafbuchReinigungLimitDate": "Cleaning opening on",
     "sectionApp": "App",
     "sectionKeyholder": "AI keyholder rules (MCP)",
@@ -1617,7 +1619,10 @@
     "inspectionJokerDesc": "The sub can postpone a running inspection deadline before it expires, once per inspection. Each use costs one joker, and you are notified.",
     "inspectionJokerBalanceLabel": "Jokers available",
     "inspectionJokerMinutesLabel": "Postponement per joker",
-    "inspectionJokerUsedNote": "Joker used, original deadline: {date}"
+    "inspectionJokerUsedNote": "Joker used, original deadline: {date}",
+    "boxPhotoDeadlineLabel": "Box photo deadline",
+    "boxPhotoDeadlineDesc": "How long after “bolt closed” he has to send the photo of the box. It only becomes an offense if “Box photo missing” is switched on under offenses.",
+    "boxPhotoDeadlineHours": "Deadline"
   },
   "forgotPassword": {
     "pageTitle": "Reset password",
@@ -2314,6 +2319,10 @@
     "missedWeightReport": {
       "name": "Weight report missed",
       "desc": "Three days in a row without a weight entry."
+    },
+    "boxPhotoMissing": {
+      "name": "Box photo missing",
+      "desc": "After “bolt closed”, the photo of the box did not arrive within the deadline."
     },
     "unfulfilledTask": {
       "name": "Task not completed",

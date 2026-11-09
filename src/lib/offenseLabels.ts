@@ -26,6 +26,7 @@ export const OFFENSE_TYPE_I18N_KEYS: Record<OffenseCanonicalType, string> = {
   admin_password_change: "adminPasswordChange",
   unauthorized_orgasm: "unauthorizedOrgasm",
   missed_weight_report: "missedWeightReport",
+  box_photo_missing: "boxPhotoMissing",
   manual_offense: "manualOffense",
 };
 
@@ -121,6 +122,7 @@ export const OFFENSE_TYPE_ORDER = [
   "missed_orgasm",
   "wrong_orgasm_type",
   "wrong_device",
+  "box_photo_missing",
   "unfulfilled_task",
   "missed_weight_report",
   "unauthorized_orgasm",
@@ -158,8 +160,9 @@ export const SWITCHABLE_OFFENSE_TYPES_IN_ORDER: readonly SwitchableOffenseType[]
  * sie es. Hier verschwindet nur die Zeile, die sonst über einen Zustand redet, den es nicht gibt.
  */
 export function switchableOffenseTypesFor(
-  features: { weightTracking: boolean },
+  features: { weightTracking: boolean; box: boolean },
 ): readonly SwitchableOffenseType[] {
-  if (features.weightTracking) return SWITCHABLE_OFFENSE_TYPES_IN_ORDER;
-  return SWITCHABLE_OFFENSE_TYPES_IN_ORDER.filter((type) => type !== "missed_weight_report");
+  // `box_photo_missing` aus demselben Grund: ohne gekoppelte Box wird nie ein Box-Foto fällig.
+  return SWITCHABLE_OFFENSE_TYPES_IN_ORDER.filter((type) =>
+    (features.weightTracking || type !== "missed_weight_report") && (features.box || type !== "box_photo_missing"));
 }

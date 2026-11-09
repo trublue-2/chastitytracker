@@ -1,3 +1,5 @@
+import { BOX_PHOTO_DEADLINE_HOURS_RANGE } from "@/lib/constants";
+import { setBoxPhotoDeadlineHours } from "@/lib/boxPhotoDueService";
 import { prisma } from "@/lib/prisma";
 import { INSPECTION_JOKER_USER_SELECT } from "@/lib/inspectionJoker";
 import { getUserDeviceOptions, getKeyholderLockPeriods, getKeyholderLockRequests, getIsLocked, openLockRequestWhere, isScheduledDirective, keyholderVisibleKontrolleWhere } from "@/lib/queries";
@@ -1323,11 +1325,12 @@ export async function mcpSetWeightTracking(username: string, args: SetWeightTrac
 
 export interface SetBoxArgs {
   requireBolt?: boolean;
+  photoDeadlineHours?: number;
   dryRun?: boolean;
 }
 
 /**
- * Die Box-Einstellungen der Keyholderin — heute genau eine: **gilt der Verschluss erst mit dem
+ * Die Box-Einstellungen der Keyholderin: **gilt der Verschluss erst mit dem
  * Riegel?** (docs/riegel-konzept.md)
  *
  * Ein Werkzeug je Einstellungs-FAMILIE, nicht je Feld (`CLAUDE.md`, „MCP-Vollständigkeit") —
@@ -1343,7 +1346,7 @@ export async function mcpSetBox(username: string, args: SetBoxArgs) {
     throw new Error("The key box is not available on this instance (neither HEIMDALL_SYNC_SECRET nor BLE_BRIDGE_KEY is set).");
   }
   const userId = await resolveTargetUserId(username);
-  requireAnyOf(args, ["requireBolt"]);
+  requireAnyOf(args, ["requireBolt", "photoDeadlineHours"]);
 
   // `loadBoxSettings` ist die Lese-Seite, die `get_context.box` ausgibt — dieselbe Antwort für die
   // Vorschau wie für das Nachschlagen, statt einer dritten Abschrift derselben zwei Abfragen.
@@ -1353,9 +1356,12 @@ export async function mcpSetBox(username: string, args: SetBoxArgs) {
   ]);
 
   if (args.dryRun) {
-    const before = { requireBolt: user.lockRequiresBolt };
+    const before = { requireBolt: user.lockRequiresBolt, photoDeadlineHours: box.photoDeadlineHours };
     // Bei einer LockMeBox bleibt der Wert, wie er ist: die Einstellung wirkt dort nicht (`boltAlways`).
-    const after = { requireBolt: box.boltAlways ? before.requireBolt : args.requireBolt ?? before.requireBolt };
+    const after = {
+      requireBolt: box.boltAlways ? before.requireBolt : args.requireBolt ?? before.requireBolt,
+      photoDeadlineHours: args.photoDeadlineHours !== undefined ? clamp(Number(args.photoDeadlineHours), BOX_PHOTO_DEADLINE_HOURS_RANGE) : before.photoDeadlineHours,
+    };
     return dryRunPreview("set_box", undefined, {
       ...after,
       ...box,
@@ -1365,6 +1371,7 @@ export async function mcpSetBox(username: string, args: SetBoxArgs) {
   }
 
   const applied = args.requireBolt !== undefined && await setLockRequiresBolt(userId, args.requireBolt);
+  const deadline = args.photoDeadlineHours !== undefined ? await setBoxPhotoDeadlineHours(userId, args.photoDeadlineHours) : null;
 
   const parts = [
     args.requireBolt === undefined ? ""
@@ -1381,6 +1388,9 @@ export async function mcpSetBox(username: string, args: SetBoxArgs) {
     // Ohne Box läuft die Einstellung leer — sie ist gesetzt, wirkt aber erst, wenn eine Box meldet.
     applied && args.requireBolt === true && !box.hasBox
       ? " NOTE: no box has reported for this wearer yet, so nothing waits for a bolt until one does."
+      : "",
+    deadline !== null
+      ? ` Box photo deadline is now ${deadline} h after the bolt closes. It only becomes an offense if the rule \`box_photo_missing\` is on (set_offense_rules).`
       : "",
   ];
   return { ok: true, message: `Box settings updated.${parts.join("")}` };

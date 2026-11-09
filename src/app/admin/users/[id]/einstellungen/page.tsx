@@ -16,6 +16,7 @@ import WeightToggle from "@/app/admin/WeightToggle";
 import HealthHoldToggle from "@/app/admin/HealthHoldToggle";
 import { activeHealthHold } from "@/lib/healthHold";
 import BoxLockToggle from "@/app/admin/BoxLockToggle";
+import BoxPhotoDeadlineInput from "@/app/admin/BoxPhotoDeadlineInput";
 import BoxIdentityInfo from "@/app/admin/BoxIdentityInfo";
 import type { UnitSystem } from "@/lib/weight";
 import { parseReasonConfig, resolveOrgasmusOptions, ART_SEP } from "@/lib/reasonsService";
@@ -291,6 +292,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
              darüber entscheidet darüber mit, und sein Speichern lädt diese Seite neu. */
           types={switchableOffenseTypesFor({
             weightTracking: user.weightTrackingEnabled,
+            box: box.boxConfirm,
           })}
           initialRules={offenseRules}
         />
@@ -303,6 +305,7 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
           <div className="flex flex-col gap-4">
             <BoxIdentityInfo boxes={box.boxes} />
             {box.boxConfirm && <BoxLockToggle userId={user.id} initialEnabled={user.lockRequiresBolt} alwaysOn={box.boltAlways} />}
+            {box.boxConfirm && <BoxPhotoDeadlineInput userId={user.id} initialHours={user.boxPhotoDeadlineHours} />}
           </div>
         </SettingsSection>
       )}

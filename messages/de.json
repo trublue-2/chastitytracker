@@ -1402,6 +1402,8 @@
     "strafbuchReinigungLimit": "Reinigungslimit überschritten",
     "strafbuchGewichtVersaeumt": "Gewichts-Meldung versäumt",
     "strafbuchGewichtVersaeumtTage": "Drei Tage ohne Angabe",
+    "strafbuchBoxFotoFehlt": "Box-Foto fehlt",
+    "strafbuchBoxFotoFrist": "Riegel zu bis Fristende",
     "strafbuchReinigungLimitDate": "Reinigungsöffnung am",
     "sectionApp": "App",
     "mobileUploadAdminTitle": "Dateiauswahl auf Mobile",
@@ -1617,7 +1619,10 @@
     "inspectionJokerDesc": "Der Sub kann eine laufende Kontrollfrist vor ihrem Ablauf selbst verschieben, einmal je Kontrolle. Jeder Einsatz kostet einen Joker, du wirst benachrichtigt.",
     "inspectionJokerBalanceLabel": "Verfügbare Joker",
     "inspectionJokerMinutesLabel": "Aufschub je Joker",
-    "inspectionJokerUsedNote": "Joker eingesetzt, ursprüngliche Frist: {date}"
+    "inspectionJokerUsedNote": "Joker eingesetzt, ursprüngliche Frist: {date}",
+    "boxPhotoDeadlineLabel": "Frist für das Box-Foto",
+    "boxPhotoDeadlineDesc": "So lange nach „Riegel zu“ hat er Zeit für das Foto der Box. Zum Vergehen wird es nur, wenn „Box-Foto fehlt“ unter Vergehen eingeschaltet ist.",
+    "boxPhotoDeadlineHours": "Frist"
   },
   "forgotPassword": {
     "pageTitle": "Passwort zurücksetzen",
@@ -2314,6 +2319,10 @@
     "missedWeightReport": {
       "name": "Gewichts-Meldung versäumt",
       "desc": "Drei Tage in Folge ohne Gewichts-Angabe."
+    },
+    "boxPhotoMissing": {
+      "name": "Box-Foto fehlt",
+      "desc": "Nach „Riegel zu“ kam das Foto der Box nicht innerhalb der Frist."
     },
     "unfulfilledTask": {
       "name": "Aufgabe nicht erfüllt",

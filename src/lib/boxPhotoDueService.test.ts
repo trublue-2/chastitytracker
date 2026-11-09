@@ -111,7 +111,7 @@ describe("submitBoxPhoto", () => {
     expect(await submitBoxPhoto("u1", "e1", { boxImageUrl: URL_OK, boxImageExifTime: taken })).toMatchObject({ ok: true });
     expect(db.entry.updateMany).toHaveBeenCalledWith({
       where: { id: "e1", userId: "u1", boxImageUrl: null },
-      data: { boxImageUrl: URL_OK, boxImageBeforeBolt: true },
+      data: { boxImageUrl: URL_OK, boxPhotoSubmittedAt: expect.any(Date), boxImageBeforeBolt: true },
     });
   });
 
@@ -138,7 +138,7 @@ describe("submitBoxPhoto", () => {
     expect(await submitBoxPhoto("u1", "e1", { boxImageUrl: URL_OK, boxImageRotation: 90 })).toEqual({ ok: true, data: { entryId: "e1" } });
     expect(db.entry.updateMany).toHaveBeenCalledWith({
       where: { id: "e1", userId: "u1", boxImageUrl: null },
-      data: { boxImageUrl: URL_OK, boxImageBeforeBolt: false },
+      data: { boxImageUrl: URL_OK, boxPhotoSubmittedAt: expect.any(Date), boxImageBeforeBolt: false },
     });
     await vi.waitFor(() => expect(detectKeyInBox).toHaveBeenCalledWith(URL_OK, 90));
   });

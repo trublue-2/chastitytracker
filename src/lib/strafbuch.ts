@@ -10,6 +10,8 @@ import { isTaskOffense, type TaskOffenseState } from "@/lib/tasks";
 import { triggeredWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { CONFIRMED_LOCK_FILTER } from "@/lib/lockPending";
 import { missedWeightBlocks, missedWeightRef } from "@/lib/weightObligation";
+import { boxPhotoMissedAt, boxPhotoMissingRef } from "@/lib/boxPhotoDue";
+import { BOX_PHOTO_DEADLINE_HOURS_RANGE } from "@/lib/constants";
 import { isPausedAt, toHealthHoldSpans, type HealthHoldSpan } from "@/lib/healthHold";
 import { addWeightDays, endOfWeightDay, weightDayKey } from "@/lib/weight";
 import { isSwitchableOffenseType, offenseRuleResolver, validOffenseRuleChanges, type OffenseRuleResolver } from "@/lib/offenseRules";
@@ -162,6 +164,14 @@ export interface StrafbuchData {
     at: Date;
     days: number;
   }[];
+  /** Verschlüsse, deren Box-Foto nach „Riegel zu" nicht innerhalb der Frist kam (`boxPhotoMissedAt`). */
+  boxPhotoMissing: {
+    entryId: string;
+    /** „Riegel zu" — ab da war das Foto fällig. */
+    dueAt: Date;
+    /** Fristende = Zeitpunkt des Vergehens. */
+    at: Date;
+  }[];
   /** Von Hand notierte Vergehen (`ManualOffense`) — als einzige nicht abgeleitet. */
   manualOffenses: {
     id: string;
@@ -235,6 +245,15 @@ const KG_ENTRY_SELECT = {
   oeffnenGrund: true,
   note: true,
   source: true,
+} as const;
+
+/** Was die Box-Foto-Frist zusätzlich braucht — NUR für die Verschlüsse, nicht für die Öffnungen. */
+const BOX_PHOTO_SELECT = {
+  keyInBox: true,
+  boxImageUrl: true,
+  boxPhotoDueAt: true,
+  boxPhotoWaivedAt: true,
+  boxPhotoSubmittedAt: true,
 } as const;
 
 /** Nur die drei Felder, die `offenseRuleResolver` liest. Bewusst dieselben wie `CHANGE_SELECT` in
@@ -315,6 +334,7 @@ export const OFFENSE_LISTS = {
   // refId aus dem Tagesschlüssel: das Versäumnis hat keine eigene Zeile, aus der eine id käme —
   // der Tag, an dem der Block voll wurde, IST seine Kennung.
   missed_weight_report: spec("missedWeightReports", (m) => missedWeightRef(m.dayKey), (m) => m.at),
+  box_photo_missing: spec("boxPhotoMissing", (b) => boxPhotoMissingRef(b.entryId), (b) => b.at),
   manual_offense: spec("manualOffenses", (m) => m.id, (m) => m.occurredAt,
     (m) => ({ title: m.title, description: m.description, recordedBy: m.createdBy })),
 } satisfies Record<OffenseCanonicalType, {
@@ -580,6 +600,17 @@ const ENFORCED_FROM_KEY = "cleaningWindowEnforcedFrom";
  * oder Korrigieren. Ohne beides (Zeile fehlt, Migration nie gelaufen) gilt der SICHERE Weg: `now`,
  * also ab jetzt — lieber ein Vergehen zu wenig als eines, das es damals nicht gab.
  */
+/** Stichtag der Box-Foto-Frist — gleiche Mechanik wie {@link cleaningWindowEnforcedFrom}, geschrieben von
+ *  der Migration `20261109220000_box_photo_deadline`. Nur Fotos, die ab da fällig wurden, können fehlen. */
+export function boxPhotoMissingEnforcedFrom(now: Date): Promise<Date> {
+  return deployCutoff(now, {
+    key: "boxPhotoMissingEnforcedFrom",
+    envVar: "BOX_PHOTO_MISSING_ENFORCED_FROM",
+    logPrefix: "[strafbuch]",
+    fallbackNote: "bewerte ab jetzt, keine rückwirkenden Vergehen",
+  });
+}
+
 export function cleaningWindowEnforcedFrom(now: Date): Promise<Date> {
   return deployCutoff(now, {
     key: ENFORCED_FROM_KEY,
@@ -682,14 +713,14 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
 
   // Der Stichtag hängt im selben Promise.all wie alles andere — einmal je Strafbuch, nicht je
   // Öffnung, und ohne zusätzlichen Roundtrip.
-  const [enforcedFrom, cleaningRuleChanges, timezoneChanges, user, openings, verschluesse, lockPeriods, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks, adminPasswordChangesRaw, orgasmusEintraege, manualOffensesRaw, weightRows, healthHolds] = await Promise.all([
+  const [enforcedFrom, cleaningRuleChanges, timezoneChanges, user, openings, verschluesse, lockPeriods, lockRequests, kontrollAnforderungen, strafeRecordsRaw, orgasmusAnforderungen, tasks, adminPasswordChangesRaw, orgasmusEintraege, manualOffensesRaw, weightRows, healthHolds, boxPhotoEnforcedFrom] = await Promise.all([
     cleaningWindowEnforcedFrom(now),
     prisma.cleaningRuleChange.findMany({ where: { userId }, select: CLEANING_RULE_CHANGE_SELECT }),
     prisma.timezoneChange.findMany({ where: { userId }, select: TIMEZONE_CHANGE_SELECT }),
-    prisma.user.findUnique({ where: { id: userId }, select: { ...CLEANING_USER_SELECT, timezone: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { ...CLEANING_USER_SELECT, timezone: true, boxPhotoDeadlineHours: true } }),
     // Eine wartende Öffnung (LockMeBox) ist noch nicht passiert — beurteilt wird sie erst vollzogen.
     prisma.entry.findMany({ where: { userId, type: "OEFFNEN", openAwaitsBolt: false }, orderBy: { startTime: "desc" }, select: KG_ENTRY_SELECT }),
-    prisma.entry.findMany({ where: { userId, type: "VERSCHLUSS", ...CONFIRMED_LOCK_FILTER }, orderBy: { startTime: "asc" }, select: KG_ENTRY_SELECT }),
+    prisma.entry.findMany({ where: { userId, type: "VERSCHLUSS", ...CONFIRMED_LOCK_FILTER }, orderBy: { startTime: "asc" }, select: { ...KG_ENTRY_SELECT, ...BOX_PHOTO_SELECT } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "SPERRZEIT", ...triggeredWhere(now) } }),
     prisma.verschlussAnforderung.findMany({ where: { userId, art: "ANFORDERUNG", withdrawnAt: null, ...triggeredWhere(now) } }),
     prisma.kontrollAnforderung.findMany({
@@ -727,6 +758,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     // Meldepflicht. Unter der alten Bedingung fiele die Pause für einen Träger ohne Gewichtstracking
     // lautlos aus — und ausgerechnet für ihn wäre sie folgenlos.
     prisma.healthHold.findMany({ where: { userId }, select: { createdAt: true, resolvedAt: true } }),
+    boxPhotoMissingEnforcedFrom(now),
   ]);
 
   // Öffnungen, Verschlüsse und die Reinigungs-Regeln liegen aus demselben Promise.all vor —
@@ -991,6 +1023,20 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
       })
     : [];
 
+  // Box-Foto nach „Riegel zu" nicht in der Frist. Die nächste Öffnung beendet die Pflicht: wer vor
+  // Fristende öffnet, schuldet kein Foto mehr (`boxPhotoMissedAt`). `openings` kommt absteigend.
+  const openingTimesAsc = openings.map((o) => o.startTime.getTime()).reverse();
+  const boxPhotoMissing = verschluesse.flatMap((v) => {
+    const next = openingTimesAsc.find((t) => t > v.startTime.getTime());
+    const at = boxPhotoMissedAt(v, {
+      deadlineHours: user?.boxPhotoDeadlineHours ?? BOX_PHOTO_DEADLINE_HOURS_RANGE.fallback,
+      enforcedFrom: boxPhotoEnforcedFrom,
+      endedAt: next !== undefined ? new Date(next) : null,
+      now,
+    });
+    return at && v.boxPhotoDueAt ? [{ entryId: v.id, dueAt: v.boxPhotoDueAt, at }] : [];
+  });
+
   // Abgelaufene Orgasmus-Anweisungen ohne Erfüllung.
   //
   // `!isHiddenFromSub`: eine terminierte Anweisung, die nie zugestellt wurde, ist kein Versäumnis
@@ -1054,6 +1100,7 @@ export async function buildStrafbuch(userId: string, now: Date = new Date()): Pr
     })),
     unauthorizedOrgasms,
     missedWeightReports,
+    boxPhotoMissing,
     manualOffenses: manualOffensesRaw.map((m) => ({
       id: m.id,
       occurredAt: m.occurredAt,

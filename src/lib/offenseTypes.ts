@@ -47,6 +47,8 @@ export const STORED_TYPE = {
   // Tagen (`weightObligation.ts`) — es gibt keine Zeile, die das Versäumnis festhielte, weil es
   // gerade das Fehlen einer Zeile IST.
   missed_weight_report: "WEIGHT_REPORT_MISSED",
+  // Nach „Riegel zu" kam das Box-Foto nicht innerhalb der Frist (`boxPhotoMissedAt` in boxPhotoDue.ts).
+  box_photo_missing: "BOX_PHOTO_MISSING",
   // Von Hand notiert (`ManualOffense`), nicht abgeleitet. Die einzige Art ohne Regel-Schalter:
   // ein ausdrücklich notiertes Vergehen abzuschalten hiesse, die Notiz zu ignorieren.
   manual_offense: "MANUAL_OFFENSE",

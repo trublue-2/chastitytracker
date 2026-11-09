@@ -1,3 +1,4 @@
+import { setBoxPhotoDeadlineHours } from "@/lib/boxPhotoDueService";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -203,6 +204,13 @@ export async function PATCH(
     if (!boxCouplingEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
     // Über den Dienst, nicht per `update`: das Abschalten vollzieht einen wartenden Aufruf.
     await setLockRequiresBolt(id, Boolean(body.lockRequiresBolt));
+    return NextResponse.json({ ok: true });
+  }
+
+  // Frist für das Box-Foto — wie der Riegel-Schalter nur, wo die Instanz eine Box führt.
+  if (body.boxPhotoDeadlineHours !== undefined) {
+    if (!boxCouplingEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    await setBoxPhotoDeadlineHours(id, body.boxPhotoDeadlineHours);
     return NextResponse.json({ ok: true });
   }
 

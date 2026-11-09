@@ -1,3 +1,4 @@
+import { BOX_PHOTO_DEADLINE_HOURS_RANGE } from "@/lib/constants";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import type { ContentBlock } from "@modelcontextprotocol/server";
 import { timingSafeEqual, createHash } from "crypto";
@@ -2059,7 +2060,7 @@ function registerTools(server: McpServer) {
       {
         title: "Set key-box settings",
         description:
-          "Sets what you can decide about his key box. Today that is one rule: `requireBolt`. With it ON his " +
+          "Sets what you can decide about his key box: `requireBolt` and `photoDeadlineHours`. With `requireBolt` ON his " +
           "„locked\" entry is only the CALL to the box — he counts as locked when the box reports the bolt shut, " +
           "and until then NOTHING starts: no lock period, no lock request fulfilled, no wearing time, and the " +
           "re-lock deadline after a cleaning break keeps running. Read the current state in `get_context.box` " +
@@ -2070,6 +2071,9 @@ function registerTools(server: McpServer) {
         inputSchema: {
           requireBolt: z.boolean().optional().describe(
             "Does his lock take effect only once the box reports the bolt shut? Off = it takes effect the moment he records it.",
+          ),
+          photoDeadlineHours: z.number().int().min(BOX_PHOTO_DEADLINE_HOURS_RANGE.min).max(BOX_PHOTO_DEADLINE_HOURS_RANGE.max).optional().describe(
+            "Hours after the bolt closes within which he must send the box photo. Missing it is the offense `box_photo_missing` — only if that rule is on (set_offense_rules; default off).",
           ),
           reason: reasonField,
           dryRun: dryRunFieldV1,

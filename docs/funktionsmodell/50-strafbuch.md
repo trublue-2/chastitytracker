@@ -29,10 +29,12 @@ der Reihe.
 | `unauthorized_orgasm` | Orgasmus ohne deckende Direktive |
 | `late_lock` | Einschliess-Anforderung zu spät erfüllt |
 | `unfulfilled_task` | Aufgabe nicht erfüllt |
+| `missed_weight_report` | drei Tage ohne Gewichts-Meldung (Vorgabe aus) |
+| `box_photo_missing` | Box-Foto nach „Riegel zu“ nicht in der Frist (Vorgabe aus, Stichtag je Instanz) |
 | `admin_password_change` | Passwort eines Admin-Kontos während laufender Sperrzeit geändert |
 | `manual_offense` | vom Keyholder von Hand notiert |
 
-Diese dreizehn sind im Code die **einzige** Quelle der Taxonomie, und die Oberfläche leitet ihre
+Diese sechzehn sind im Code die **einzige** Quelle der Taxonomie, und die Oberfläche leitet ihre
 Liste daraus ab statt sie abzuschreiben. Eine weitere Art bricht dort den Build, statt still
 unsichtbar zu bleiben — genau diese Lücke gab es einmal: fünf Arten waren über den MCP beurteilbar
 und erschienen in keiner Oberfläche. Sie fiel nur auf, weil jemand die Liste von Hand nachzählte.

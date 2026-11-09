@@ -296,6 +296,10 @@ CLEANING_WINDOW_ENFORCED_FROM=<iso-date>   # optional
 # AUSGENOMMEN sind von Hand notierte Vergehen: die schreibt die Keyholderin fast immer über etwas
 # Vergangenes und würden sonst nie ankommen. Nur zum bewussten Rückdatieren.
 OFFENSE_ANNOUNCE_FROM=<iso-date>           # optional
+# OVERRIDE des Stichtags der Box-Foto-Frist (Vergehen `box_photo_missing`, ISO-8601). Gleiche Mechanik und
+# Warnung wie oben: die Migration `20261109220000_box_photo_deadline` schreibt ihn beim ersten Boot selbst.
+# Nur Fotos, die ab dann nach „Riegel zu" fällig wurden, können als versäumt zählen.
+BOX_PHOTO_MISSING_ENFORCED_FROM=<iso-date> # optional
 # Aufbewahrung des Posteingangs: gelesene Meldungen jenseits dieser Frist werden einmal täglich
 # gelöscht (Vorgabe 365). `0` schaltet das Beschneiden ab. UNGELESENE bleiben immer liegen — eine
 # Zustellung, die nie jemand gesehen hat, darf nicht folgenlos verschwinden.
