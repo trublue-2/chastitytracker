@@ -41,7 +41,7 @@
 - **My rules** — a read-only page showing what the wearer is judged by: cleaning permissions and limits, automatic inspections, and which kinds of offense count for them at all
 - **Password self-service** (change and reset via email)
 - **Per-account timezone** — timestamps and day boundaries follow the timezone stored on the account, not the server's
-- **Push notifications** (PWA web-push + native iOS app) for every notification (see Inbox); tapping a native push opens the relevant in-app page
+- **Push notifications** (PWA web-push + native iOS/Android apps) for every notification (see Inbox); tapping a native push opens the relevant in-app page
 - **Passkey login** (Face ID, Touch ID, Fingerprint, Windows Hello) alongside password
 - **View Transitions** for smooth navigation between dashboard pages
 - **Per-account language** (German and English) — the chosen locale is stored on the account (not just the browser) and drives the full UI **and every recipient-facing notification** (mail, push and Telegram, plus the password-reset email). A keyholder can set a sub's language from the sub-management page
@@ -106,7 +106,7 @@ environment variables. Everything above is on by default.
   rule show up anywhere, including in the wearer's own rule list. Concept:
   `docs/gewicht-konzept.md`, release condition: `docs/gewicht-freigabe-konzept.md`.
 - **LockMeBox over Bluetooth** — pairs a LockMeBox running its factory firmware
-  and locks/unlocks it from the phone (app, or Chrome/Edge on Android and desktop).
+  and locks/unlocks it from the phone (iOS app, or Chrome on Android, Chrome/Edge on desktop).
   Needs `BLE_BRIDGE_KEY`. **This is not a secret you generate yourself.** It is the
   AES-128 key the box firmware uses to decrypt commands, the same one the
   manufacturer's app uses. A random key (for example from `openssl rand -hex 16`)
@@ -131,10 +131,10 @@ environment variables. Everything above is on by default.
 | AI | Anthropic Claude SDK (inspection photo verification + seal detection) |
 | Images | Sharp (processing) + Exifr (EXIF extraction) |
 | Email | Nodemailer (SMTP) |
-| Push | web-push (VAPID) + native APNs (Capacitor iOS) |
+| Push | web-push (VAPID) + native APNs (Capacitor iOS) + FCM HTTP v1 (Capacitor Android) |
 | Telegram | Bot API (webhook-based, optional third notification channel) |
 | i18n | next-intl v4 |
-| Mobile | Capacitor wrappers (iOS via TestFlight, Android via direct APK) |
+| Mobile | Capacitor wrappers (iOS via TestFlight, Android via signed APK, see `ANDROID.md`) |
 | Icons | Lucide React |
 | Testing | Vitest (unit) |
 | Runtime | Node.js 24 Alpine (Docker) |
@@ -422,7 +422,7 @@ VAPID_PUBLIC_KEY=<generated-public-key>
 VAPID_PRIVATE_KEY=<generated-private-key>
 VAPID_SUBJECT=mailto:admin@example.com
 
-# Native push for the Capacitor iOS app (optional — only for the native app builds; the
+# Native push for the Capacitor iOS and Android apps (optional — only for the native app builds; the
 # PWA uses VAPID above). Without these the app falls back to no native push (web push still works).
 # iOS (APNs):
 # APNS_KEY_CONTENT=<.p8 key file content>   # or APNS_KEY_PATH=/app/data/apns.p8
@@ -430,6 +430,12 @@ VAPID_SUBJECT=mailto:admin@example.com
 # APNS_TEAM_ID=<team id>
 # APNS_BUNDLE_ID=ch.chastitytracker.app
 # APNS_SANDBOX=true                          # Xcode/dev builds → sandbox; unset for TestFlight/App Store
+# Android (FCM HTTP v1) — only for an APK you build yourself against your own Firebase project
+# (the official APK's push project is not shared), see ANDROID.md:
+# FCM_SERVICE_ACCOUNT_PATH=/app/data/fcm.json  # or FCM_SERVICE_ACCOUNT_JSON=<file content>
+# Android passkeys (/.well-known/assetlinks.json) — fingerprint(s) of the APK's signing cert:
+# ANDROID_CERT_SHA256=AA:BB:...                # comma-separated; empty list without it
+# ANDROID_PACKAGE=ch.chastitytracker.app      # only for a different package name
 
 # Telegram (optional third notification channel, alongside email + push). One bot per instance;
 # skipped silently when unset. Setup: create a bot via @BotFather, then register the webhook once:
@@ -759,10 +765,11 @@ The keyholder inbox mirrors these under `/api/admin/messages` (`GET`, `[id]`, `[
 | `POST` | `/api/feedback` | Submit in-app feedback (forwarded unless `DISABLE_FEEDBACK`) |
 | `GET` | `/api/push/vapid-public-key` | VAPID public key for web-push subscription |
 | `POST/DELETE` | `/api/push/subscribe` | Register / remove web-push subscription |
-| `POST/DELETE` | `/api/push/native-subscribe` | Register / remove native iOS push token (Capacitor) |
+| `POST/DELETE` | `/api/push/native-subscribe` | Register / remove native iOS/Android push token (Capacitor) |
 | `POST` | `/api/telegram/webhook` | Telegram bot webhook — connects a chat via `/start <token>` and disconnects a user who blocks the bot (requires `TELEGRAM_WEBHOOK_SECRET`) |
 | `GET` | `/api/portal-login` | JWT-based portal login via `?token=` (requires `PORTAL_SHARED_SECRET`) |
 | `GET` | `/api/apple-app-site-association` | iOS Universal Links manifest |
+| `GET` | `/api/assetlinks` | Android App Links manifest (`/.well-known/assetlinks.json`, requires `ANDROID_CERT_SHA256`) |
 
 ## Database Schema
 
@@ -788,7 +795,7 @@ The keyholder inbox mirrors these under `/api/admin/messages` (`GET`, `[id]`, `[
 | `AdminPasswordChange` | Password changes on admin accounts (an offense while a lock period is running) |
 | `Message` / `MessageRead` | In-app inbox entries and their per-user read state |
 | `NotificationPreference` | The one remaining per-event switch: mail/push/Telegram for the weigh-in reminder. The general levels live on the account (`User.notifyMail` / `notifyPush` / `notifyTelegram`) |
-| `PushSubscription` / `NativePushToken` | Web Push endpoints and native iOS tokens |
+| `PushSubscription` / `NativePushToken` | Web Push endpoints and native iOS/Android tokens |
 | `Passkey` | WebAuthn credentials for biometric login |
 | `AdminUserRelationship` | Many-to-many admin-user supervision mapping |
 | `PortalTokenUsed` | Replay protection for portal-login JWTs |
