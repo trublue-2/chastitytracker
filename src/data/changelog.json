@@ -25,6 +25,13 @@
         }
       },
       {
+        "type": "ui",
+        "text": {
+          "de": "„Kein eigener Tracker“ fragt beim Einschalten nach, damit „Meine Sicht“ nicht versehentlich verschwindet.",
+          "en": "“No own tracker” now asks before switching on, so “My view” doesn’t disappear by accident."
+        }
+      },
+      {
         "type": "fix",
         "text": {
           "de": "Die Legende des Tragekalenders nennt jetzt dieselben Bänder wie die Färbung (20, 40 und 80 %) statt der bisherigen 25, 40 und 65 %.",

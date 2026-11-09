@@ -31,6 +31,7 @@ import TelegramSettings from "./TelegramSettings";
 import PushAllowRow from "./PushAllowRow";
 import AndroidAppRow from "./AndroidAppRow";
 import AppLockRow from "./AppLockRow";
+import ConfirmDialog from "@/app/components/ConfirmDialog";
 import type { SettingsFormProps } from "./getSettingsProps";
 import { formColCls } from "@/app/components/inputStyles";
 
@@ -189,6 +190,9 @@ export default function SettingsForm({ username, email, locale, timezone, startP
   }
 
   const [hideOwnValue, setHideOwnValue] = useState(hideOwnTracker);
+  // Einschalten fragt nach: ein Tipp auf die breite Zeile genügte, und die Folge (Meine Sicht weg)
+  // zeigt sich erst später im Keyholder-Bereich — zu spät, um sie dem Tipp zuzuordnen. Ausschalten nicht.
+  const [confirmingHideOwn, setConfirmingHideOwn] = useState(false);
   const [hideOwnError, setHideOwnError] = useState<string | null>(null);
 
   // Eine STUFE je Kanal statt eines Schalters je Ereignis: „Alles", „Nur Wichtiges", „Aus". Die
@@ -576,9 +580,17 @@ export default function SettingsForm({ username, email, locale, timezone, startP
                 label={t("hideOwnTracker")}
                 description={t("hideOwnTrackerHint")}
                 checked={hideOwnValue}
-                onChange={handleHideOwn}
+                onChange={(checked) => (checked ? setConfirmingHideOwn(true) : void handleHideOwn(false))}
               />
               <FormError message={hideOwnError} />
+              <ConfirmDialog
+                open={confirmingHideOwn}
+                title={t("hideOwnTracker")}
+                message={t("hideOwnTrackerConfirm")}
+                confirmLabel={t("hideOwnTrackerConfirmButton")}
+                onConfirm={() => { setConfirmingHideOwn(false); void handleHideOwn(true); }}
+                onCancel={() => setConfirmingHideOwn(false)}
+              />
             </div>
           )}
 

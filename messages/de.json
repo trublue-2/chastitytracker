@@ -868,6 +868,8 @@
     "startPageDashboard": "Eigener Tracker",
     "hideOwnTracker": "Kein eigener Tracker",
     "hideOwnTrackerHint": "Für Keyholder ohne eigenen Tracker: blendet die eigene Karte in der Übersicht, die Navigation Meine Sicht und den grünen Tracker-Bereich aus. Es werden keine Daten gelöscht — schaltest du es wieder aus, ist alles zurück.",
+    "hideOwnTrackerConfirm": "„Meine Sicht“ und dein grüner Tracker werden ausgeblendet, du siehst nur noch den Keyholder-Bereich. Es werden keine Daten gelöscht; ausschalten bringt alles zurück.",
+    "hideOwnTrackerConfirmButton": "Ausblenden",
     "minutes": "Minuten",
     "saved": "Gespeichert",
     "account": "Konto",
