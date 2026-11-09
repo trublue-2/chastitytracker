@@ -29,6 +29,9 @@ import { DISMISSAL_BODY_KEY, OFFENSE_REF_TYPE } from "@/lib/messageService";
  * `connection_limit=1` ist das die teuerste Form, die es gibt. So sind es immer zwei.
  *
  * @returns wie viele Urteile entfernt wurden — 0 heisst „da war keines".
+ *
+ * Benachrichtigt den Sub NICHT: die Meldungen verschwinden still. Die Rückfrage vor „Rückgängig“
+ * (`strafbuchRueckgaengigConfirm`) sagt genau das — ändert sich das, ändert sich der Text mit.
  */
 export async function dropJudgments(
   tx: Prisma.TransactionClient,

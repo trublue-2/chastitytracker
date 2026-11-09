@@ -5,6 +5,8 @@
  * stay in sync. Level 0 = not worn; level 4 (darkest) starts at 80% of the day (≈19.2 h).
  */
 
+import { ratioPct } from "@/lib/percent";
+
 /** Upper bounds (fraction of a 24 h day) for levels 1/2/3; level 4 = ≥ last value. */
 export const WEAR_LEVEL_UPPER = [0.2, 0.4, 0.8] as const;
 
@@ -21,6 +23,16 @@ export const WEAR_LEVEL_UPPER = [0.2, 0.4, 0.8] as const;
 export const WEAR_LEVEL_BG = [
   "bg-[var(--wear-0)]", "bg-[var(--wear-1)]", "bg-[var(--wear-2)]", "bg-[var(--wear-3)]", "bg-[var(--wear-4)]",
 ] as const;
+
+/** Legende zur Skala: Fläche und Prozent-Band je Stufe, aus denselben Schwellen abgeleitet, die
+ *  `wearIntensityLevel` benutzt. Monatskalender und Jahres-Heatmap zeigen DIESELBE Legende — die
+ *  Kalender-Legende hatte ihre Bänder von Hand (25/40/65 %) und sagte damit etwas anderes als die
+ *  Färbung (20/40/80 %). */
+const LEGEND_BOUNDS = [0, ...WEAR_LEVEL_UPPER.map(ratioPct), 100];
+export const WEAR_LEGEND = WEAR_LEVEL_BG.map((cls, level) => ({
+  cls,
+  label: level === 0 ? "0 %" : `${LEGEND_BOUNDS[level - 1]}–${LEGEND_BOUNDS[level]} %`,
+}));
 
 /** Textfarbe je Intensitätsstufe. Steht neben der Fläche, weil beide nur zusammen stimmen. */
 export const WEAR_LEVEL_TEXT = [

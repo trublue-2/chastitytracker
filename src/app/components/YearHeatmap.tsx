@@ -3,25 +3,13 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Section from "@/app/components/Section";
-import { WEAR_LEVEL_UPPER, WEAR_LEVEL_BG } from "@/lib/wearIntensity";
-import { ratioPct } from "@/lib/percent";
+import { WEAR_LEVEL_BG, WEAR_LEGEND } from "@/lib/wearIntensity";
 import type { HeatmapDay, YearHeatmapData } from "@/lib/statsTypes";
-
-// Blau-Skala aus wearIntensity.ts — dieselbe Quelle wie der Monatskalender (via WEAR_LEVEL_BG).
-const LEVEL_CLASS = WEAR_LEVEL_BG;
-
-// Legend rows: swatch + the day-share (%) band each level represents, derived from the shared
-// thresholds so the legend never drifts from the actual colouring. [0, 20, 40, 80, 100].
-const LEGEND_BOUNDS = [0, ...WEAR_LEVEL_UPPER.map(ratioPct), 100];
-const LEGEND = LEVEL_CLASS.map((cls, i) => ({
-  cls,
-  label: i === 0 ? "0 %" : `${LEGEND_BOUNDS[i - 1]}–${LEGEND_BOUNDS[i]} %`,
-}));
 
 /** A single coloured day square. `size`/`dot` classes let both layouts pick their own cell scale. */
 function DayCell({ day, size, dot }: { day: HeatmapDay; size: string; dot: string }) {
   return (
-    <div title={day.title} className={`${size} rounded-[3px] ${LEVEL_CLASS[day.level]} relative`}>
+    <div title={day.title} className={`${size} rounded-[3px] ${WEAR_LEVEL_BG[day.level]} relative`}>
       {day.hasOrgasm && <span className={`absolute -top-px -right-px ${dot} bg-[var(--color-orgasm)] rounded-full`} />}
       {/* Regelverstoss: eigene Farbe (warn) + Form (Quadrat) in der unteren Ecke — konsistent zum
           Monatskalender (#46). */}
@@ -47,8 +35,8 @@ function NumericLegend() {
     <div className="flex flex-col gap-1">
       <span className="text-[10px] text-foreground-faint">{t("heatmapLegendCaption")}</span>
       <div className="flex flex-col gap-1">
-        {LEGEND.map((e, i) => (
-          <div key={i} className="flex items-center gap-1.5">
+        {WEAR_LEGEND.map((e) => (
+          <div key={e.label} className="flex items-center gap-1.5">
             <span className={`w-[13px] h-[13px] rounded-[3px] ${e.cls} shrink-0`} />
             <span className="text-[10px] text-foreground-faint tabular-nums">{e.label}</span>
           </div>

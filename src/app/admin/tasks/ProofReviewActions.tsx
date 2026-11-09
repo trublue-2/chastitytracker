@@ -170,6 +170,7 @@ function ProofReviewRow({
           {t("proofReject")}
         </Button>
       </div>
+      <p className="text-neben text-foreground-muted">{t("proofRejectHint")}</p>
       <FormError message={error} variant="compact" />
     </div>
   );
