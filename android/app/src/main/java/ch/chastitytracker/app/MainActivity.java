@@ -1,5 +1,6 @@
 package ch.chastitytracker.app;
 
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
@@ -164,13 +165,24 @@ public class MainActivity extends BridgeActivity {
         if (!biometryAvailable) return;
         boolean prompt = promptOnResume;
         promptOnResume = false;
+        long graceMs = appLockGraceMs();
+        if (graceMs < 0) {
+            // App-Sperre aus — auch eine Sperre, die vor dem Umschalten noch stand, fällt weg.
+            initialLockShown = true;
+            hideLockScreen();
+            return;
+        }
         if (!initialLockShown || longAway) {
             initialLockShown = true;
             showLockScreen();
             authenticate();
         } else if (prompt && lockView != null) {
-            // Nicht nach der Rückkehr aus der Geräte-PIN (dort sperrt onStop nicht) — sonst Endlosschleife.
-            authenticate();
+            if (SystemClock.elapsedRealtime() - stoppedAt < graceMs) {
+                hideLockScreen(); // innerhalb der Schonfrist zurück: Inhalt war nur für den Umschalter verdeckt
+            } else {
+                // Nicht nach der Rückkehr aus der Geräte-PIN (dort sperrt onStop nicht) — sonst Endlosschleife.
+                authenticate();
+            }
         }
     }
 
@@ -179,8 +191,24 @@ public class MainActivity extends BridgeActivity {
         super.onStop();
         stoppedAt = SystemClock.elapsedRealtime();
         if (!biometryAvailable || isAuthenticating || launchedForResult || isChangingConfigurations()) return;
+        if (appLockGraceMs() < 0) return;
         showLockScreen();
         promptOnResume = true;
+    }
+
+    /**
+     * App-Sperre aus den Einstellungen der Web-App (`src/lib/nativeAppLock.ts`, Capacitor Preferences →
+     * SharedPreferences `CapacitorStorage`, Schlüssel `appLock`): -1 = aus, sonst Schonfrist in ms.
+     * Fehlt der Wert oder ist er unbekannt, sofort sperren — wie vor V3. Bei jedem Wechsel neu gelesen,
+     * damit eine Umstellung ohne Neustart gilt.
+     */
+    private long appLockGraceMs() {
+        String v = getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE).getString("appLock", "0");
+        if ("off".equals(v)) return -1;
+        switch (v != null ? v : "0") {
+            case "1": case "5": case "15": case "60": return Long.parseLong(v) * 60_000L;
+            default: return 0;
+        }
     }
 
     /** Jede Activity-for-Result (Kamera, Dateiauswahl, Geräte-PIN) läuft hier durch. */

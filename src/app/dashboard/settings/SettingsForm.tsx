@@ -30,6 +30,7 @@ import BoxRemoveButton from "./BoxRemoveButton";
 import TelegramSettings from "./TelegramSettings";
 import PushAllowRow from "./PushAllowRow";
 import AndroidAppRow from "./AndroidAppRow";
+import AppLockRow from "./AppLockRow";
 import type { SettingsFormProps } from "./getSettingsProps";
 import { formColCls } from "@/app/components/inputStyles";
 
@@ -598,6 +599,7 @@ export default function SettingsForm({ username, email, locale, timezone, startP
       {/* App section */}
       <Section title={t("app")}>
         <div className="divide-y divide-border-subtle">
+          <AppLockRow />
           <PasskeyManager timezone={timezone} />
           <InfoRow label={t("version")} value={version} mono />
           <InfoRow label={t("buildDate")} value={buildDate ?? t("buildDateLocal")} />

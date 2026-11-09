@@ -918,7 +918,12 @@
     "weightReminderHint": "When a weighing window opens and nothing has been logged that day.",
     "targetUnderweightWarning": "This target is in the underweight range (BMI below 18.5). You can still set it.",
     "androidAppTitle": "Android app",
-    "androidAppHint": "Install as an app – with fingerprint lock and notifications"
+    "androidAppHint": "Install as an app – with fingerprint lock and notifications",
+    "appLockTitle": "App lock",
+    "appLockHint": "Asks for face or fingerprint when you return to the app. Applies to this device only.",
+    "appLockOff": "Off",
+    "appLockImmediate": "Immediately",
+    "appLockAfter": "After {minutes} min"
   },
   "changelog": {
     "title": "Changelog",

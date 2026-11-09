@@ -232,6 +232,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     private var initialLockShown = false
     /// Gesperrt beim Verlassen der App: bei der Rückkehr EINMAL von selbst abfragen.
     private var promptOnActive = false
+    private var backgroundAt = Date.distantPast
 
     // MARK: - Lifecycle
 
@@ -248,22 +249,45 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Show on first launch — window is guaranteed ready here
         let prompt = promptOnActive
         promptOnActive = false
+        guard let grace = appLockGrace() else {
+            // App-Sperre aus — auch eine Sperre, die vor dem Umschalten noch stand, fällt weg.
+            initialLockShown = true
+            hideLockScreen()
+            return
+        }
         if !initialLockShown {
             initialLockShown = true
             showLockScreen()
             authenticate()
         } else if prompt && lockView != nil {
-            // Nur nach echtem Hintergrund — das Face-ID-Blatt selbst macht die Szene ebenfalls
-            // inaktiv/aktiv; ohne den Merker startete ein Abbruch die Abfrage endlos neu.
-            authenticate()
+            if Date().timeIntervalSince(backgroundAt) < grace {
+                hideLockScreen() // innerhalb der Schonfrist zurück: Inhalt war nur für den Umschalter verdeckt
+            } else {
+                // Nur nach echtem Hintergrund — das Face-ID-Blatt selbst macht die Szene ebenfalls
+                // inaktiv/aktiv; ohne den Merker startete ein Abbruch die Abfrage endlos neu.
+                authenticate()
+            }
         }
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {
         guard biometryAvailable else { return }
         isAuthenticating = false
+        guard appLockGrace() != nil else { return }
         showLockScreen()
         promptOnActive = true
+        backgroundAt = Date()
+    }
+
+    /// App-Sperre aus den Einstellungen der Web-App (`src/lib/nativeAppLock.ts`, Capacitor Preferences →
+    /// `UserDefaults` unter `CapacitorStorage.appLock`): `nil` = aus, sonst Schonfrist in Sekunden.
+    /// Fehlt der Wert oder ist er unbekannt, sofort sperren — wie vor V3. Bei jedem Wechsel neu gelesen.
+    private func appLockGrace() -> TimeInterval? {
+        switch UserDefaults.standard.string(forKey: "CapacitorStorage.appLock") {
+        case "off": return nil
+        case let v? where ["1", "5", "15", "60"].contains(v): return TimeInterval(Int(v)! * 60)
+        default: return 0
+        }
     }
 
     // MARK: - URLs & Universal Links (an Capacitor weitergereicht)

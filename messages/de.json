@@ -918,7 +918,12 @@
     "weightReminderHint": "Zum Beginn eines Wiege-Fensters, wenn an dem Tag noch kein Wert steht.",
     "targetUnderweightWarning": "Dieses Ziel liegt im Untergewicht (BMI unter 18,5). Du kannst es trotzdem setzen.",
     "androidAppTitle": "Android-App",
-    "androidAppHint": "Als App installieren – mit Sperre per Fingerabdruck und Mitteilungen"
+    "androidAppHint": "Als App installieren – mit Sperre per Fingerabdruck und Mitteilungen",
+    "appLockTitle": "App-Sperre",
+    "appLockHint": "Fragt nach Gesicht oder Fingerabdruck, wenn du in die App zurückkommst. Gilt nur für dieses Gerät.",
+    "appLockOff": "Aus",
+    "appLockImmediate": "Sofort",
+    "appLockAfter": "Nach {minutes} Min."
   },
   "changelog": {
     "title": "Changelog",

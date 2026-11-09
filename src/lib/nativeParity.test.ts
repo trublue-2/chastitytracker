@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import { WORLDS } from "@/lib/theme";
+import { APP_LOCK_OPTIONS, APP_LOCK_PREF_KEY } from "@/lib/nativeAppLock";
 import { listFiles, readStripped } from "@/test/sourceScan";
 import { themeToken } from "@/test/themeCss";
 
@@ -185,6 +186,18 @@ describe("Sperrbildschirm", () => {
   it("beide lesen die Welt unter demselben Preferences-Schlüssel", () => {
     expect(SWIFT).toContain('"CapacitorStorage.world"');
     expect(JAVA_PALETTE).toMatch(/getSharedPreferences\("CapacitorStorage"[\s\S]*getString\("world"/);
+  });
+
+  it("beide lesen die App-Sperre unter demselben Schlüssel und kennen dieselben Werte", () => {
+    expect(SWIFT).toContain(`"CapacitorStorage.${APP_LOCK_PREF_KEY}"`);
+    expect(JAVA_ACTIVITY).toMatch(new RegExp(`getSharedPreferences\\("CapacitorStorage"[\\s\\S]*getString\\("${APP_LOCK_PREF_KEY}"`));
+    const minutes = APP_LOCK_OPTIONS.filter((o) => o !== "off" && o !== "0");
+    for (const m of minutes) {
+      expect(SWIFT, `iOS kennt die Schonfrist ${m} nicht`).toContain(`"${m}"`);
+      expect(JAVA_ACTIVITY, `Android kennt die Schonfrist ${m} nicht`).toContain(`case "${m}":`);
+    }
+    expect(SWIFT).toContain('case "off": return nil');
+    expect(JAVA_ACTIVITY).toContain('"off".equals(v)');
   });
 
   it("dieselben Texte", () => {
