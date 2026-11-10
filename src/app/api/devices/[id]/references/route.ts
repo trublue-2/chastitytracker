@@ -1,3 +1,4 @@
+import { uploadsLinkable } from "@/lib/uploadOwnership";
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
 import { manageableDeviceOwner } from "@/lib/deviceAccess";
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (typeof body.entryId === "string" && body.entryId) {
     result = await importEntryAsReference(id, body.entryId, ownerId);
   } else if (typeof body.imageUrl === "string" && isValidImageUrl(body.imageUrl)) {
+    if (!(await uploadsLinkable([body.imageUrl], [session.user.id, ownerId]))) return errorResponse(400, "INVALID_IMAGE_URL");
     result = await addReferenceFromUpload(id, body.imageUrl, body.note);
   } else {
     return errorResponse(400, "REFERENCE_SOURCE_REQUIRED");

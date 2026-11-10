@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from "next/server";
  * AKTUELLEN Verschluss — sonst hinge das Code-Foto an einer beendeten Session und wäre über das
  * Anti-Lockout-Ventil sofort freigegeben). Dazu: nur EINMAL pro Verschluss (Issue #111).
  */
+// Besitz der Datei ist hier nicht das Thema (eigene Tests: `uploadOwnership.test.ts`) — jede gilt als eigene.
+vi.mock("@/lib/uploadOwnership", () => ({ uploadsLinkable: vi.fn(async () => true) }));
 vi.mock("@/lib/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };

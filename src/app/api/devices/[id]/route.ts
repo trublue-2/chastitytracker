@@ -1,3 +1,4 @@
+import { uploadsLinkable } from "@/lib/uploadOwnership";
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
 import { entryManageAccess } from "@/lib/keyholder";
@@ -69,7 +70,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     currency: (currency !== undefined ? currency : device.currency) || undefined,
   });
   if (invalid) return errorResponse(400, invalid);
-  if (imageUrl !== undefined && !isValidImageUrl(imageUrl)) {
+  if (imageUrl !== undefined && (!isValidImageUrl(imageUrl) || !(await uploadsLinkable([imageUrl], [session.user.id, device.userId])))) {
     return errorResponse(400, "INVALID_IMAGE_URL");
   }
 

@@ -1,3 +1,4 @@
+import { uploadsLinkable } from "@/lib/uploadOwnership";
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
 import { entryManageAccess } from "@/lib/keyholder";
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
   // übersprungen — beim ANLEGEN ist ein fehlender Name aber genau der Fehler.
   const invalid = validateDeviceInput({ name: name ?? null, description, purchasePrice, currency: currency || undefined });
   if (invalid) return errorResponse(400, invalid);
-  if (!isValidImageUrl(imageUrl)) {
+  if (!isValidImageUrl(imageUrl) || !(await uploadsLinkable([imageUrl], [session.user.id, userId]))) {
     return errorResponse(400, "INVALID_IMAGE_URL");
   }
   // Die Kontroll-Code-Pflicht ist KEIN Selbst-Feld — dieselbe Schranke wie beim Bearbeiten

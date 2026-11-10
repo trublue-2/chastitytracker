@@ -1,3 +1,4 @@
+import { uploadAnalyzableBy } from "@/lib/uploadOwnership";
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
 import { verifyKontrolleCodeDeduped } from "@/lib/verifyCache";
@@ -25,8 +26,9 @@ export async function POST(req: NextRequest) {
     log("route:missing_params", { user: session.user.id, hasImage: !!imageUrl, hasCode: !!expectedCode });
     return NextResponse.json({ error: "imageUrl and expectedCode required" }, { status: 400 });
   }
-  if (!isValidImageUrl(imageUrl)) {
-    log("route:invalid_image_url", { user: session.user.id, imageUrl });
+  // Format UND Besitz: die Prüfung liest das Bild und meldet zurück, was sie darin erkennt.
+  if (!isValidImageUrl(imageUrl) || !(await uploadAnalyzableBy(imageUrl, session.user))) {
+    log("route:invalid_image_url", { user: session.user.id });
     return NextResponse.json({ error: "Invalid imageUrl" }, { status: 400 });
   }
 

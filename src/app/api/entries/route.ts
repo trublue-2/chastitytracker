@@ -1,3 +1,4 @@
+import { uploadsLinkable } from "@/lib/uploadOwnership";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireApi } from "@/lib/authGuards";
@@ -60,6 +61,10 @@ export async function POST(req: NextRequest) {
     openingCodes: validOeffnenCodes(reasonUser?.oeffnenGruendeConfig),
   });
   if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
+  // Jedes mitgeschickte Bild muss dem Träger selbst gehören (`uploadOwnership.ts`).
+  if (!(await uploadsLinkable([imageUrl, codeImageUrl, boxImageUrl], [session.user.id]))) {
+    return NextResponse.json({ error: "INVALID_IMAGE_URL" }, { status: 400 });
+  }
 
   // EINE Normalisierung für Persistenz UND Box-Kommando — sonst könnte die Box einem Wert folgen, den
   // der Eintrag nicht dokumentiert. Nicht-Boolean ist oben ausgeschlossen; bleibt: fehlt = null.

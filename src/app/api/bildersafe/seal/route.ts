@@ -1,3 +1,4 @@
+import { uploadsLinkable } from "@/lib/uploadOwnership";
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
 
   const userId = session.user.id;
   const { codeImageUrl, codeReadable } = await req.json();
-  if (!codeImageUrl || !isValidImageUrl(codeImageUrl)) {
+  if (!codeImageUrl || !isValidImageUrl(codeImageUrl) || !(await uploadsLinkable([codeImageUrl], [userId]))) {
     return NextResponse.json({ error: "Ungültiges Code-Foto" }, { status: 400 });
   }
 

@@ -1,3 +1,4 @@
+import { uploadsLinkable } from "@/lib/uploadOwnership";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { BOX_PHOTO_DEADLINE_HOURS_RANGE, CLIENT_CLOCK_SKEW_MS, isValidImageUrl, parseRotation } from "@/lib/constants";
@@ -112,7 +113,7 @@ function parseTakenAt(v: unknown): Date | null {
 export async function submitBoxPhoto(userId: string, entryId: string, input: { boxImageUrl: unknown; boxImageRotation?: unknown; boxImageExifTime?: unknown }): Promise<ServiceResult<{ entryId: string }>> {
   const url = typeof input.boxImageUrl === "string" ? input.boxImageUrl : "";
   // Derselbe Pfad-Guard wie überall: das Bild geht an die Vision, eine fremde URL wäre ein SSRF-Hebel.
-  if (!url || !isValidImageUrl(url)) return serviceFail(400, "INVALID_IMAGE_URL");
+  if (!url || !isValidImageUrl(url) || !(await uploadsLinkable([url], [userId]))) return serviceFail(400, "INVALID_IMAGE_URL");
   if (!(await prisma.entry.findFirst({ where: { id: entryId, userId }, select: { id: true } }))) return serviceFail(404, "NOT_FOUND");
   const lock = await dueBoxPhotoLock(userId, entryId);
   if (!lock) return serviceFail(409, "BOX_PHOTO_NOT_DUE");

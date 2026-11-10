@@ -18,6 +18,13 @@
         }
       },
       {
+        "type": "security",
+        "text": {
+          "de": "Hochgeladene Bilder sind jetzt an ihren Besitzer gebunden statt nur an den Dateinamen, und beim Abmelden verschwinden sie aus dem Zwischenspeicher des Geräts.",
+          "en": "Uploaded images are now bound to their owner instead of only to the file name, and signing out removes them from the device cache."
+        }
+      },
+      {
         "type": "ui",
         "text": {
           "de": "Die Startseite ist ruhiger: Nur die dringendste Pflicht steht gross, die übrigen darunter kompakt, und im offenen Zustand gibt es „Jetzt einschliessen“ direkt unter der Zeit.",

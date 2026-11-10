@@ -50,11 +50,9 @@ beforeEach(() => {
   vi.mocked(isKeyholderOf).mockResolvedValue(false);
   vi.mocked(isCodePhotoRevealed).mockResolvedValue(false);
   vi.mocked(readFile).mockResolvedValue(Buffer.from("jpeg-bytes"));
-  // Die Route sucht den Eigentümer über mehrere Quellen; hier ist die Datei ein Code-Foto.
-  db.entry.findFirst.mockImplementation(async (args: unknown) => {
-    const where = (args as { where: Record<string, unknown> }).where;
-    return where.codeImageUrl ? CODE_PHOTO : null;
-  });
+  // Besitzer sind der Hochlader und jeder, dessen Zeile auf die Datei verweist (`uploadOwnership.ts`);
+  // hier ist die Datei ein Code-Foto des Owners, ohne `Upload`-Zeile (Bestand).
+  db.entry.findMany.mockResolvedValue([{ ...CODE_PHOTO, codeImageUrl: "/api/uploads/code-123.jpg" }]);
 });
 
 describe("GET /api/uploads/[...path] — Bildersafe-Auslieferung", () => {
@@ -65,7 +63,7 @@ describe("GET /api/uploads/[...path] — Bildersafe-Auslieferung", () => {
 
   it("Path-Traversal (..): 403, bevor irgendetwas gelesen wird", async () => {
     expect((await get(["..", "secrets.jpg"])).status).toBe(403);
-    expect(db.entry.findFirst).not.toHaveBeenCalled();
+    expect(db.entry.findMany).not.toHaveBeenCalled();
     expect(readFile).not.toHaveBeenCalled();
   });
 
@@ -114,15 +112,15 @@ describe("GET /api/uploads/[...path] — Bildersafe-Auslieferung", () => {
     expect(isCodePhotoRevealed).not.toHaveBeenCalled();
   });
 
-  it("normales Entry-Foto (kein Code-Foto): kein Reveal-Check, Langzeit-Cache bleibt", async () => {
-    db.entry.findFirst.mockImplementation(async (args: unknown) => {
-      const where = (args as { where: Record<string, unknown> }).where;
-      return where.imageUrl ? { userId: OWNER } : null;
-    });
+  it("normales Entry-Foto (kein Code-Foto): kein Reveal-Check, Browser-Cache nur mit Rückfrage", async () => {
+    db.entry.findMany.mockResolvedValue([{ userId: OWNER, codeImageUrl: null, startTime: CODE_PHOTO.startTime }]);
     const res = await get(["photo.jpg"]);
     expect(res.status).toBe(200);
     expect(isCodePhotoRevealed).not.toHaveBeenCalled();
-    expect(res.headers.get("Cache-Control")).toBe("private, max-age=31536000, immutable");
+    // Kein Jahres-Cache mehr: der Browser fragt vor jeder Verwendung nach, das Bild selbst kommt
+    // dank ETag nur einmal über die Leitung.
+    expect(res.headers.get("Cache-Control")).toBe("private, no-cache");
+    expect(res.headers.get("ETag")).toBe('"photo.jpg"');
   });
 
   /**
@@ -133,18 +131,38 @@ describe("GET /api/uploads/[...path] — Bildersafe-Auslieferung", () => {
    * Oberfläche es je abrief.
    */
   it("Waagen-Foto: der Träger bekommt sein eigenes Bild", async () => {
-    db.entry.findFirst.mockResolvedValue(null);
-    db.weightEntry.findFirst.mockResolvedValue({ userId: OWNER });
+    db.entry.findMany.mockResolvedValue([]);
+    db.weightEntry.findMany.mockResolvedValue([{ userId: OWNER }]);
     const res = await get(["scale.jpg"]);
     expect(res.status).toBe(200);
   });
 
   it("Waagen-Foto: ein Fremder bekommt es nicht", async () => {
-    db.entry.findFirst.mockResolvedValue(null);
-    db.weightEntry.findFirst.mockResolvedValue({ userId: OWNER });
+    db.entry.findMany.mockResolvedValue([]);
+    db.weightEntry.findMany.mockResolvedValue([{ userId: OWNER }]);
     authMock.mockResolvedValue(session("someone-else"));
     const res = await get(["scale.jpg"]);
     expect(res.status).toBe(403);
     expect(readFile).not.toHaveBeenCalled();
+  });
+
+  it("frisch hochgeladen, noch nirgends verknüpft: nur der Hochlader sieht es", async () => {
+    db.entry.findMany.mockResolvedValue([]);
+    db.upload.findUnique.mockResolvedValue({ uploaderId: OWNER });
+    expect((await get(["fresh.jpg"])).status).toBe(200);
+    authMock.mockResolvedValue(session("someone-else"));
+    expect((await get(["fresh.jpg"])).status).toBe(403);
+  });
+
+  it("Rückfrage mit passendem ETag: 304 ohne Datei — aber erst NACH der Rechte-Prüfung", async () => {
+    db.entry.findMany.mockResolvedValue([{ userId: OWNER, codeImageUrl: null, startTime: CODE_PHOTO.startTime }]);
+    const req = (who: string) => {
+      authMock.mockResolvedValue(session(who));
+      return GET(new NextRequest("http://x/api/uploads/photo.jpg", { headers: { "if-none-match": '"photo.jpg"' } }),
+        { params: Promise.resolve({ path: ["photo.jpg"] }) });
+    };
+    expect((await req(OWNER)).status).toBe(304);
+    expect(readFile).not.toHaveBeenCalled();
+    expect((await req("someone-else")).status).toBe(403);
   });
 });

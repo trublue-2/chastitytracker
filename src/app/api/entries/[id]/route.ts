@@ -1,3 +1,4 @@
+import { uploadsLinkable } from "@/lib/uploadOwnership";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { requireApi } from "@/lib/authGuards";
@@ -31,7 +32,9 @@ export async function PATCH(
   const body = await req.json();
   const { startTime, imageUrl, imageExifTime, note, oeffnenGrund, orgasmusArt, kontrollCode, verifikationStatus, deviceId } = body;
 
-  if (!isValidImageUrl(imageUrl)) {
+  // Format, und bei einem NEUEN Bild der Besitz (`uploadOwnership.ts`): es muss dem Handelnden oder
+  // dem Träger des Eintrags gehören. Das unveränderte Bestandsbild gehört dem Träger ohnehin.
+  if (!isValidImageUrl(imageUrl) || !(await uploadsLinkable([imageUrl], [session.user.id, existing.userId]))) {
     return NextResponse.json({ error: "INVALID_IMAGE_URL" }, { status: 400 });
   }
   // Reason-Codes gegen die Listen DES ENTRY-EIGENTÜMERS validieren (Admin darf einen fremden Eintrag

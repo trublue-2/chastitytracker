@@ -1,6 +1,7 @@
+import { recordUpload } from "@/lib/uploadOwnership";
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
-import { writeFile, mkdir } from "fs/promises";
+import { writeFile, mkdir, unlink } from "fs/promises";
 import { join } from "path";
 import exifr from "exifr";
 import sharp from "sharp";
@@ -117,6 +118,16 @@ export async function POST(req: NextRequest) {
       { error: "Bild mit Standortdaten konnte nicht bereinigt werden — bitte als JPEG hochladen." },
       { status: 422 }
     );
+  }
+
+  // Besitz festhalten, BEVOR der Name die Route verlässt: nur der Hochlader (oder wer für ihn erfasst)
+  // kann die Datei danach in eine Zeile hängen (`uploadOwnership.ts`).
+  try {
+    await recordUpload(filename, session.user.id);
+  } catch (e) {
+    // Ohne Besitz-Zeile wäre die Datei für niemanden verwendbar und bliebe für immer liegen.
+    await unlink(filepath).catch(() => {});
+    throw e;
   }
 
   markLastAction();

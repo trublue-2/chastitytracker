@@ -1,3 +1,4 @@
+import { uploadAnalyzableBy } from "@/lib/uploadOwnership";
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
 import { bildersafeEnabled, isValidImageUrl } from "@/lib/constants";
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const imageUrl = body?.imageUrl;
   if (typeof imageUrl !== "string" || !isValidImageUrl(imageUrl)) return errorResponse(400, "INVALID_IMAGE_URL");
+  if (!(await uploadAnalyzableBy(imageUrl, session.user))) return errorResponse(400, "INVALID_IMAGE_URL");
 
   return NextResponse.json({ result: await checkCodeChange(session.user.id, imageUrl) });
 }

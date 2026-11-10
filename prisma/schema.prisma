@@ -946,6 +946,18 @@ model AdminUserRelationship {
   @@index([userId])
 }
 
+/// Wer eine Datei hochgeladen hat (`src/lib/uploadOwnership.ts`). Ohne diese Zeile war eine Datei nur
+/// durch ihren zufälligen Namen geschützt: jeder Nutzer der Instanz konnte einen FREMDEN Dateinamen in
+/// eine eigene Zeile hängen und das Bild so lesen oder löschen. Kein Fremdschlüssel und bewusst
+/// `uploaderId` statt `userId`: die Zeile ist Buchhaltung über eine Datei, kein Zustand eines Subs.
+model Upload {
+  filename   String   @id
+  uploaderId String
+  createdAt  DateTime @default(now())
+
+  @@index([uploaderId])
+}
+
 // Tracks consumed portal-login JTIs to prevent replay attacks.
 // Rows older than 1h are pruned automatically by the portal-login endpoint.
 model PortalTokenUsed {

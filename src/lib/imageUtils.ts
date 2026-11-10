@@ -1,3 +1,4 @@
+import { forgetUpload, uploadReferenced } from "@/lib/uploadOwnership";
 import { readFile, unlink } from "fs/promises";
 import { join, basename, sep } from "path";
 import { randomBytes } from "crypto";
@@ -40,8 +41,8 @@ export function entryImageUrls(e: { imageUrl?: string | null; codeImageUrl?: str
 /**
  * H5 (Recht auf Vergessenwerden): Löscht hochgeladene Foto-Dateien sicher von der Platte.
  * Gleicher Pfad-Guard wie beim Laden (nur innerhalb data/uploads). Dedupliziert, ignoriert
- * null/leer und bereits fehlende Dateien (ENOENT). Wirft NIE — ein fehlgeschlagenes Löschen darf
- * den auslösenden Request (Entry/Device/User-Löschung) nicht scheitern lassen.
+ * null/leer und bereits fehlende Dateien (ENOENT). Lässt liegen, worauf noch eine Zeile verweist.
+ * Wirft NIE — ein fehlgeschlagenes Löschen darf den auslösenden Request (Entry/Device/User-Löschung) nicht scheitern lassen.
  */
 export async function deleteUploadedFiles(imageUrls: Array<string | null | undefined>): Promise<void> {
   const uploadsDir = uploadsDirPath();
@@ -56,6 +57,16 @@ export async function deleteUploadedFiles(imageUrls: Array<string | null | undef
       if (!fullPath.startsWith(uploadsDir + sep)) {
         structuredLog("imageUtils", "deleteUploadedFiles:path_traversal", { fullPath, uploadsDir });
         return;
+      }
+      // Nur, wenn keine Zeile mehr auf die Datei verweist: dieselbe Datei kann an mehreren hängen
+      // (übernommenes Foto), und bis 6.6.0 liess sich so eine FREMDE Datei über eine eigene Zeile
+      // löschen. Die Aufrufer rufen erst NACH ihrem Schreiben — die eigene Zeile zählt also nicht mehr.
+      try {
+        if (await uploadReferenced(`/api/uploads/${filename}`)) return;
+        await forgetUpload(filename);
+      } catch (e) {
+        structuredLog("imageUtils", "deleteUploadedFiles:reference_check_failed", { filename, error: (e as Error).message });
+        return; // im Zweifel liegen lassen
       }
       try {
         await unlink(fullPath);

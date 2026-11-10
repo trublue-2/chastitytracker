@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { isCodePhotoRevealed } from "@/lib/queries";
-import { isKeyholderOf } from "@/lib/keyholder";
+import { uploadViewableBy } from "@/lib/uploadOwnership";
 import { readFile } from "fs/promises";
 import { join, extname, resolve, sep } from "path";
 
@@ -16,7 +15,7 @@ const MIME: Record<string, string> = {
 };
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const session = await auth();
@@ -32,36 +31,11 @@ export async function GET(
     return new NextResponse("Forbidden", { status: 403 });
   }
 
-  // Zugriff: Datei-Eigentümer, globaler Admin ODER Keyholder des Eigentümers. Den Eigentümer über alle
-  // Quellen ermitteln (NICHT auf den Abrufer eingeschränkt) → sonst sieht ein Keyholder das Bild nicht.
-  const imageUrlInDb = `/api/uploads/${filename}`;
+  // Zugriff: Besitzer der Datei, globaler Admin ODER Keyholder eines Besitzers. Wer Besitzer ist,
+  // sagt `uploadOwnership.ts` — der Hochlader und jeder, dessen Zeile auf die Datei verweist.
   const actorId = session.user.id;
-  const isAdmin = session.user.role === "admin";
-  const [entryOwner, deviceOwner, codePhoto, refOwner, boxPhotoOwner, proofOwner, weightOwner] = await Promise.all([
-    prisma.entry.findFirst({ where: { imageUrl: imageUrlInDb }, select: { userId: true } }),
-    prisma.device.findFirst({ where: { imageUrl: imageUrlInDb }, select: { userId: true } }),
-    prisma.entry.findFirst({ where: { codeImageUrl: imageUrlInDb }, select: { userId: true, startTime: true } }),
-    // Kuratiertes Geräte-Referenzfoto (DeviceReferenceImage)
-    prisma.deviceReferenceImage.findFirst({ where: { imageUrl: imageUrlInDb }, select: { device: { select: { userId: true } } } }),
-    // Box-Foto (Schlüssel im Sichtfenster). Ohne diese Quelle bliebe `ownerId` null und die Datei
-    // wäre für JEDEN ausser einem globalen Admin 403 — auch für den Sub selbst und die
-    // Keyholderin, für die der Nachweis überhaupt existiert.
-    prisma.entry.findFirst({ where: { boxImageUrl: imageUrlInDb }, select: { userId: true } }),
-    // Nachweis-Foto einer Aufgabe (Issue #39). Der Besitz hängt an der Aufgabe, nicht am Nachweis.
-    // Ohne diese Quelle gilt exakt das oben Gesagte: 403 für alle ausser einem globalen Admin — und
-    // damit sähe ausgerechnet die Keyholderin das Bild nicht, über das sie urteilen soll.
-    prisma.taskProof.findFirst({ where: { imageUrl: imageUrlInDb }, select: { task: { select: { userId: true } } } }),
-    // Foto der Waage (WeightEntry). Ohne diese Quelle gilt dasselbe wie zweimal darüber: 403 für
-    // alle ausser einem globalen Admin — also auch für den Träger, der das Bild selbst hochgeladen
-    // hat, und für die Keyholderin, für die es der Beleg ist. Es fiel bis zur Wiege-Liste nur
-    // deshalb nicht auf, weil keine Oberfläche das Foto je angezeigt hat.
-    prisma.weightEntry.findFirst({ where: { imageUrl: imageUrlInDb }, select: { userId: true } }),
-  ]);
-  const ownerId = entryOwner?.userId ?? deviceOwner?.userId ?? codePhoto?.userId ?? refOwner?.device?.userId ?? boxPhotoOwner?.userId ?? proofOwner?.task?.userId ?? weightOwner?.userId ?? null;
-  const isOwner = ownerId != null && ownerId === actorId;
-  // Keyholder-Zugriff ist strikt auf die EIGENEN Subs gescopt (isKeyholderOf prüft die konkrete Beziehung).
-  const isKeyholder = !isOwner && !isAdmin && ownerId != null && (await isKeyholderOf(actorId, ownerId));
-  if (!isOwner && !isAdmin && !isKeyholder) {
+  const { allowed, codePhoto } = await uploadViewableBy(`/api/uploads/${filename}`, session.user);
+  if (!allowed) {
     return new NextResponse("Forbidden", { status: 403 });
   }
 
@@ -73,16 +47,23 @@ export async function GET(
     return new NextResponse("Sealed", { status: 403 });
   }
 
+  // M9: intime Fotos sind auth-gated → niemals in geteilte Caches (`private`). Der Browser darf sie
+  // behalten, muss aber vor JEDER Verwendung nachfragen (`no-cache`): bis 6.6.0 galten sie ein Jahr
+  // lang ohne Rückfrage, auch nach dem Abmelden und nach dem Ende einer Keyholder-Beziehung. Der
+  // Dateiname ist zufällig und der Inhalt ändert sich nie — er IST das ETag; die Rückfrage kostet
+  // dann nur diese Prüfung, nicht das Bild. Versiegelte Code-Fotos gar nicht cachen (`no-store`).
+  const etag = `"${filename}"`;
+  const cacheControl = codePhoto ? "private, no-store" : "private, no-cache";
+  if (!codePhoto && req.headers.get("if-none-match") === etag) {
+    return new NextResponse(null, { status: 304, headers: { ETag: etag, "Cache-Control": cacheControl } });
+  }
+
   try {
     const buffer = await readFile(filepath);
     const ext = extname(filename).toLowerCase();
     const contentType = MIME[ext] ?? "application/octet-stream";
-    // M9: intime Fotos sind auth-gated → niemals in geteilte Caches (Proxies/CDNs). `private`
-    // erlaubt nur den Browser-Cache. Versiegelte Code-Fotos gar nicht cachen (no-store), damit ein
-    // einmal freigegebenes Foto nach erneutem Versiegeln nicht weiter aus dem Cache kommt.
-    const cacheControl = codePhoto ? "private, no-store" : "private, max-age=31536000, immutable";
     return new NextResponse(buffer, {
-      headers: { "Content-Type": contentType, "Cache-Control": cacheControl },
+      headers: { "Content-Type": contentType, "Cache-Control": cacheControl, ...(codePhoto ? {} : { ETag: etag }) },
     });
   } catch {
     return new NextResponse("Not Found", { status: 404 });

@@ -1,3 +1,4 @@
+import { uploadAnalyzableBy } from "@/lib/uploadOwnership";
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { imageUrl } = body as { imageUrl?: unknown };
-  if (!imageUrl || typeof imageUrl !== "string" || !isValidImageUrl(imageUrl)) {
+  if (!imageUrl || typeof imageUrl !== "string" || !isValidImageUrl(imageUrl) || !(await uploadAnalyzableBy(imageUrl, session.user))) {
     return NextResponse.json({ error: "Invalid imageUrl" }, { status: 400 });
   }
 
