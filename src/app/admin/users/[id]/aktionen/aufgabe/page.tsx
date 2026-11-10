@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { deviceCategoriesEnabled } from "@/lib/constants";
 import { getUserTimezone } from "@/lib/queries";
 import { formatDateTime, nowDatetimeLocal, toDateLocale, toDatetimeLocal } from "@/lib/utils";
-import { strafbuchCached } from "@/lib/dashboardData";
+import { requestNowMs, strafbuchCached } from "@/lib/dashboardData";
 import { openOffensesOf, selectSubOffenses } from "@/lib/subOffenses";
 import { STORED_TYPE } from "@/lib/offenseTypes";
 import { offenseNameKey } from "@/lib/offenseLabels";
@@ -28,7 +28,7 @@ function minutesToDuration(min: number): { hours: string; holdUnit: "h" | "min" 
  */
 async function punishmentOffenseOptions(userId: string, tz: string): Promise<PunishmentOffenseOption[]> {
   const [sb, tOffenses, locale] = await Promise.all([
-    strafbuchCached(userId, Date.now()),
+    strafbuchCached(userId, requestNowMs()),
     getTranslations("offenses"),
     getLocale(),
   ]);

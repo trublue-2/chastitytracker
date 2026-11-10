@@ -30,7 +30,6 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
   // demselben Strafbuch (`strafbuchCached`), und die Ableitung läuft nur einmal, wenn beide denselben
   // Zeitpunkt nennen.
   const nowMs = requestNowMs();
-  const now = new Date(nowMs);
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) return <div className="p-8 text-foreground-faint">{t("userNotFound")}</div>;

@@ -305,7 +305,8 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
             orgasmusVorgabeLabel ? t("orgasmRequiredArt", { art: orgasmusVorgabeLabel }) : null,
             offeneOrgasmusAnf.message,
           ),
-          windowLabel: t("orgasmWindowFromUntil", { from: formatDateTime(offeneOrgasmusAnf.beginsAt, dl, tz), until: formatDateTime(offeneOrgasmusAnf.endsAt, dl, tz) }),        } : null,
+          windowLabel: t("orgasmWindowFromUntil", { from: formatDateTime(offeneOrgasmusAnf.beginsAt, dl, tz), until: formatDateTime(offeneOrgasmusAnf.endsAt, dl, tz) }),
+        } : null,
       };
 
       return <DashboardAlerts {...alertProps} />;
