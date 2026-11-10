@@ -28,6 +28,7 @@ import { toDateLocale, formatDurationBetween, formatDateTimeDual, groupByUser, n
 import { getKeyholderLockPeriods, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveLockPeriods, isScheduledDirective, LOCK_REQUEST_ORDER, openLockRequestWhere } from "@/lib/queries";
 import { orgasmusAnforderungArtLabel, boxCouplingEnabled } from "@/lib/constants";
 import { isHiddenFromSub } from "@/lib/delayedTrigger";
+import { pendingProofReviewWhere } from "@/lib/taskProofService";
 import { QUICK_SETTING_SELECT, quickSettingOnCard, parseQuickSettings, quickSettingValue } from "@/lib/quickSettings";
 import Section from "@/app/components/Section";
 import Badge from "@/app/components/Badge";
@@ -128,14 +129,10 @@ export default async function AdminPage() {
           select: { userId: true, kind: true, locked: true, reportedLocked: true, pendingCommand: true },
         })
       : [],
-    // Wartende Aufgaben-Nachweise (#8): eingereicht (`submittedAt`), Aufgabe nicht zurückgezogen —
-    // also sichtbar für `proofReviewBlockedReason` (= null) — UND noch nicht gesichtet
-    // (`reviewedAt: null`). Das `reviewedAt: null` ist der Zusatz: eine Sichtung ist bewusst
-    // wiederholbar, `proofReviewBlockedReason` bliebe auch für längst gesichtete Nachweise null.
-    // Sie warten auf eine Entscheidung der Keyholderin und zählen deshalb in „braucht dich" mit,
-    // statt still im Aufgaben-Reiter zu liegen.
+    // Wartende Aufgaben-Nachweise (#8): sie warten auf eine Entscheidung der Keyholderin und zählen
+    // deshalb in „braucht dich" mit, statt still im Aufgaben-Reiter zu liegen.
     prisma.taskProof.findMany({
-      where: { submittedAt: { not: null }, reviewedAt: null, task: { userId: { in: userIds }, withdrawnAt: null } },
+      where: pendingProofReviewWhere(userIds),
       select: { task: { select: { userId: true } } },
     }),
   ]);

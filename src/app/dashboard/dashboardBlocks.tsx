@@ -216,6 +216,16 @@ function cleaningAllowedNote(windows: unknown, now: Date, tz: string, dl: string
 const taskCardsOf = (ctx: SubDashboardCtx) =>
   taskCardsCached(ctx.userId, ctx.nowMs, ctx.tTasks("requirementKgLocked"), "sub");
 
+/** Steht eine Kontrolle oder Einschliess-Anforderung offen, trägt sie den EINEN gefüllten Knopf des
+ *  Bildschirms (`DashboardAlerts`). Alles andere, das sonst gefüllt wäre — die Selbstmeldung einer
+ *  Aufgabe, „Einschliessen" im offenen Helden —, tritt dann zurück. Beide Abfragen sind je Anfrage
+ *  gecacht und werden von `alerts` ohnehin gestellt. Gleichbedeutend mit „`leadAlertKind` ist
+ *  Kontrolle oder Einschliessen": das Orgasmus-Fenster führt nur allein und trägt keinen Knopf. */
+const hasPrimaryRequest = async ({ userId, nowMs }: SubDashboardCtx) => {
+  const [inspections, lockRequest] = await Promise.all([subVisibleInspectionsNow(userId), lockRequestCached(userId, nowMs)]);
+  return openInspections(inspections).length > 0 || !!lockRequest;
+};
+
 export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<SubDashboardCtx>> = {
   // Anforderungen mit Frist vor allem anderen — auch vor der Box-Karte.
   alerts: block({
@@ -279,6 +289,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
             offeneVerschlussAnf.message,
           ),
           deadlineLabel: offeneVerschlussAnf.endsAt ? t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endsAt, dl, tz) }) : null,
+          endsAt: offeneVerschlussAnf.endsAt?.toISOString() ?? null,
           // Verstrichen heisst: es läuft bereits ein Vergehen (`late_lock`). Das Banner sah bisher
           // aus wie am ersten Tag — der einzige Unterschied war ein Datum, das er selbst mit der
           // Uhr vergleichen musste.
@@ -294,8 +305,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
             orgasmusVorgabeLabel ? t("orgasmRequiredArt", { art: orgasmusVorgabeLabel }) : null,
             offeneOrgasmusAnf.message,
           ),
-          windowLabel: t("orgasmWindowFromUntil", { from: formatDateTime(offeneOrgasmusAnf.beginsAt, dl, tz), until: formatDateTime(offeneOrgasmusAnf.endsAt, dl, tz) }),
-        } : null,
+          windowLabel: t("orgasmWindowFromUntil", { from: formatDateTime(offeneOrgasmusAnf.beginsAt, dl, tz), until: formatDateTime(offeneOrgasmusAnf.endsAt, dl, tz) }),        } : null,
       };
 
       return <DashboardAlerts {...alertProps} />;
@@ -327,12 +337,10 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
 
   openTasks: block({
     load: async (ctx) => {
-      const [{ open }, inspections, lockRequest] = await Promise.all([
-        taskCardsOf(ctx), subVisibleInspectionsNow(ctx.userId), lockRequestCached(ctx.userId, ctx.nowMs),
-      ]);
-      // Eine offene Kontrolle oder Einschliess-Anforderung trägt darüber den einen gefüllten Knopf
-      // des Bildschirms; die Selbstmeldung tritt dann zurück (`OpenTasks`, `yieldPrimary`).
-      return { tasks: open, yieldPrimary: openInspections(inspections).length > 0 || !!lockRequest };
+      const [{ open }, yieldPrimary] = await Promise.all([taskCardsOf(ctx), hasPrimaryRequest(ctx)]);
+      // Die Selbstmeldung tritt zurück (`OpenTasks`, `yieldPrimary`), solange eine Anforderung den
+      // einen gefüllten Knopf des Bildschirms trägt.
+      return { tasks: open, yieldPrimary };
     },
     render: ({ tasks, yieldPrimary }, { tz, now, collapseDefault }) => (
       <OpenTasks
@@ -427,8 +435,8 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       // jeder künftige Block, der sich auf diesen bezieht, bekäme „ist sichtbar" für einen leeren
       // Platz gemeldet.
       if (!running) {
-        const open = await openStateData(ctx);
-        return open && ({ open } as const);
+        const [open, yieldPrimary] = await Promise.all([openStateData(ctx), hasPrimaryRequest(ctx)]);
+        return open && ({ open, yieldPrimary } as const);
       }
       const [activeLockPeriod, user, activeVorgabe, hours, deviceCount, offenseRules, kgVorgaben, kgPairs, pendingOpen] = await Promise.all([
         subLockPeriodCached(userId), userRowCached(userId), activeVorgabeCached(userId, nowMs),
@@ -465,6 +473,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
             cleaningRelockWarnTime={data.open.cleaningRelockWarnUntil ? formatTime(data.open.cleaningRelockWarnUntil, dl, tz) : null}
             cleaningRelockWarnPassed={!!data.open.cleaningRelockWarnUntil && data.open.cleaningRelockWarnUntil < now}
             lockCall={data.open.lockCall && { id: data.open.lockCall.id, at: data.open.lockCall.at.toISOString() }}
+            yieldPrimary={data.yieldPrimary}
           />
         </DashboardBlock>
       ) : (

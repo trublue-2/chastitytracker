@@ -20,8 +20,15 @@
       {
         "type": "ui",
         "text": {
-          "de": "Die Startseite ist ruhiger: Bei offener Kontrolle oder Einschliess-Anforderung tritt die Selbstmeldung zurück, und der Aufgabenstapel bleibt zu, solange nichts bald fällig ist.",
-          "en": "The home screen is calmer: with an open inspection or lock request the self-report steps back, and the task stack stays collapsed while nothing is due soon."
+          "de": "Die Startseite ist ruhiger: Nur die dringendste Pflicht steht gross, die übrigen darunter kompakt, und im offenen Zustand gibt es „Jetzt einschliessen“ direkt unter der Zeit.",
+          "en": "The home screen is calmer: only the most urgent obligation is shown large, the others compactly below, and when open there is a “Lock now” button right under the timer."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Die Reiter Strafbuch und Aufgaben zeigen, wie viel auf deine Entscheidung wartet, und im Posteingang erscheinen Kategorie- und Absenderfilter erst auf Wunsch.",
+          "en": "The Penalty book and Tasks tabs show how much is waiting for your decision, and the inbox shows category and sender filters only on request."
         }
       },
       {

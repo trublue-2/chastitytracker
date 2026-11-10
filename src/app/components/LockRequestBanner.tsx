@@ -34,9 +34,12 @@ interface CompactProps {
   label: string;
   overdue?: boolean;
   endsAt?: Date | null;
-  /** Wort vor dem Datum („bis"/„until"), i18n beim Aufrufer wie `label` — `label` trägt es nicht. */
-  untilLabel: string;
-  locale: string;
+  /** Wort vor dem Datum („bis"/„until"), i18n beim Aufrufer wie `label` — `label` trägt es nicht.
+   *  Zusammen mit `locale` nötig, sobald `endsAt` gesetzt ist. */
+  untilLabel?: string;
+  locale?: string;
+  /** Fertig formulierte Frist statt `endsAt` (Dashboard: „Bitte bis … einschliessen"). */
+  deadlineLabel?: string | null;
   /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
   tz?: string;
   /** Betrachter-Zeitzone (Keyholder). Weicht sie von `tz` ab, wird die Sub-Lokalzeit als Zusatz
@@ -77,7 +80,7 @@ type Props = CompactProps | LargeProps;
 
 export default function LockRequestBanner(props: Props) {
   if (props.variant === "compact") {
-    const { colorScheme, label, overdue, endsAt, untilLabel, locale, tz = APP_TZ, viewerTz, subTimePrefix, withdrawAction, showRemaining, cleaningNote } = props;
+    const { colorScheme, label, overdue, endsAt, untilLabel, locale, deadlineLabel, tz = APP_TZ, viewerTz, subTimePrefix, withdrawAction, showRemaining, cleaningNote } = props;
     const c = overdue ? WARN : COLORS[colorScheme];
     const Icon = SCHEME_ICON[colorScheme];
 
@@ -89,13 +92,14 @@ export default function LockRequestBanner(props: Props) {
         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
           <Icon size={11} className={`flex-shrink-0 ${c.accent}`} />
           <span className={`text-xs font-medium truncate ${c.text}`}>{label}</span>
-          {endsAt && (
+          {endsAt && untilLabel && locale && (
             <span className={`text-xs opacity-70 flex-shrink-0 ${c.accent}`}>
               {/* viewerTz wirkt nur mit Label — verhindert ein „· <leer> HH:mm", falls ein Aufrufer
                   viewerTz ohne subTimePrefix übergibt (ohne Label → reine Sub-Zeit). */}
               {untilLabel} {formatDayTimeDual(endsAt, locale, subTimePrefix ? viewerTz : undefined, tz, subTimePrefix ?? "")}
             </span>
           )}
+          {deadlineLabel && <span className={`text-xs opacity-70 ${c.accent}`}>{deadlineLabel}</span>}
           {showRemaining && endsAt && (
             <LockPeriodRemaining endsAt={new Date(endsAt).toISOString()} className={`text-xs opacity-70 ${c.accent}`} />
           )}

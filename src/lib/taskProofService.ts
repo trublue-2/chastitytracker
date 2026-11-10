@@ -106,6 +106,21 @@ export function ownProofWhere(proofId: string, userId: string): Prisma.TaskProof
   return { id: proofId, task: { userId, ...SUB_VISIBLE_WHERE } };
 }
 
+/**
+ * Die Nachweise, die auf die Sichtung der Keyholderin warten: eingereicht, Aufgabe nicht
+ * zurückgezogen — also für `proofReviewBlockedReason` sichtbar — UND noch nicht gesichtet
+ * (`reviewedAt: null`). Das Letzte ist der Zusatz: eine Sichtung ist bewusst wiederholbar, und
+ * `proofReviewBlockedReason` bliebe auch für längst gesichtete Nachweise null. Übersicht und
+ * Reiterzähler zählen dasselbe; eine zweite Fassung der Bedingung liefe der ersten davon.
+ */
+export function pendingProofReviewWhere(userIds: string | string[]): Prisma.TaskProofWhereInput {
+  return {
+    submittedAt: { not: null },
+    reviewedAt: null,
+    task: { userId: Array.isArray(userIds) ? { in: userIds } : userIds, withdrawnAt: null },
+  };
+}
+
 export async function submitTaskProof(
   proofId: string,
   userId: string,

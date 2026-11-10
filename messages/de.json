@@ -428,6 +428,7 @@
     "tasks_tab": "Aufgaben",
     "mainNavLabel": "Hauptnavigation",
     "userTabsLabel": "Bereiche dieses Benutzers",
+    "tabNeedsYou": "wartet auf dich:",
     "journal_tab": "Geteilte Einträge"
   },
   "nav": {
@@ -1864,6 +1865,7 @@
     "filterCategoryLabel": "Nach Kategorie filtern",
     "filterSenderLabel": "Nach Absender filtern",
     "filterAllCategories": "Alle Kategorien",
+    "filterMore": "Weitere Filter",
     "filterAllSenders": "Alle Absender",
     "emptyFilteredTitle": "Nichts in dieser Auswahl",
     "emptyFilteredText": "Mit diesem Filter gibt es keine Nachrichten.",
