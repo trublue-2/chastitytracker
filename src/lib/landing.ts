@@ -13,7 +13,8 @@ interface LandingSession {
  * - "dashboard" → own tracker (always allowed).
  * - "overview"  → keyholder overview (falls back to own tracker for non-keyholders).
  * - "auto" (default) → keyholder/admin: exactly one controlled sub → straight into it, else the
- *   overview; a normal sub → own tracker.
+ *   overview; a normal sub → own tracker. A brand-new instance (the admin is the only account and
+ *   has no entry yet) starts on the own tracker — see `isFreshSoloInstance`.
  */
 export async function resolveLandingPath(session: LandingSession): Promise<string> {
   const { id, role } = session.user;
@@ -47,5 +48,24 @@ export async function resolveLandingPath(session: LandingSession): Promise<strin
   const subs = role === "admin"
     ? await prisma.user.findMany({ where: { role: { not: "admin" } }, select: { id: true }, take: 2 })
     : await getControlledSubs(id);
-  return subs.length === 1 ? `/admin/users/${subs[0].id}` : "/admin";
+  if (subs.length === 1) return `/admin/users/${subs[0].id}`;
+  if (role === "admin" && subs.length === 0 && !user?.hideOwnTracker && (await isFreshSoloInstance(id))) return "/dashboard";
+  return "/admin";
+}
+
+/**
+ * A brand-new instance: this account is the only one and has not recorded anything yet.
+ *
+ * Whoever sets up an instance gets exactly one account, the admin. The keyholder overview then lists
+ * that admin as their own only "sub", with keyholder actions and no way to start — a tester had to
+ * search for where the first lockup goes (feedback 2026-11-10). The own tracker greets with the
+ * welcome block and its "Lock up" button instead. With the first entry or a second account the
+ * usual landing applies again; nobody's habit changes.
+ */
+async function isFreshSoloInstance(userId: string): Promise<boolean> {
+  const [otherAccounts, firstEntry] = await Promise.all([
+    prisma.user.count({ where: { id: { not: userId } } }),
+    prisma.entry.findFirst({ where: { userId }, select: { id: true } }),
+  ]);
+  return otherAccounts === 0 && !firstEntry;
 }

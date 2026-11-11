@@ -76,6 +76,8 @@ const BLOCK_USER_SELECT = {
   ...CLEANING_USER_SELECT,
   dashboardLayout: true,
   username: true,
+  // Für den Willkommen-Block: nur der Instanz-Admin bekommt den Weg zur Benutzerverwaltung.
+  role: true,
   orgasmusArtenConfig: true,
   oeffnenGruendeConfig: true,
   inspectionAutoMarkEnabled: true,

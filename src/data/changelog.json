@@ -65,6 +65,13 @@
           "de": "Das Docker-Image läuft jetzt auf Node.js 26.",
           "en": "The Docker image now runs on Node.js 26."
         }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Eine frisch eingerichtete Instanz startet auf dem eigenen Tracker mit „Einschliessen“ statt in der Keyholder-Übersicht.",
+          "en": "A freshly set-up instance now starts on your own tracker with “Lock up” instead of the keyholder overview."
+        }
       }
     ]
   },

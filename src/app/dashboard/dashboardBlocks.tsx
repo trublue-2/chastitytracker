@@ -628,11 +628,11 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
 
   statusAndStats: block({
     load: async ({ userId, nowMs, tz }) => {
-      const [entries, latest, hours] = await Promise.all([
-        entriesCached(userId), latestKgEntryCached(userId), wearingHoursCached(userId, nowMs, tz),
+      const [entries, latest, hours, user] = await Promise.all([
+        entriesCached(userId), latestKgEntryCached(userId), wearingHoursCached(userId, nowMs, tz), userRowCached(userId),
       ]);
 
-      return { hasEntries: entries.length > 0, latest, hours };
+      return { hasEntries: entries.length > 0, canAddUsers: user?.role === "admin", latest, hours };
     },
     render: (data, { now, tz }) => {
       const clientProps: DashboardProps = {
@@ -640,6 +640,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
           ? { type: data.latest.type as "VERSCHLUSS" | "OEFFNEN", since: data.latest.startTime.toISOString() }
           : null,
         hasEntries: data.hasEntries,
+        canAddUsers: data.canAddUsers,
 
         tagH: data.hours.tagH,
         wocheH: data.hours.wocheH,
