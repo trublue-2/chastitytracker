@@ -1,3 +1,4 @@
+import { uploadAnalyzableBy } from "@/lib/uploadOwnership";
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi, weightTrackingGate } from "@/lib/authGuards";
 import { detectScaleReading } from "@/lib/verifyCode";
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
 
   const { imageUrl, rotation, unit } = await req.json();
   if (!imageUrl || !isValidImageUrl(imageUrl)) return NextResponse.json({ error: "Invalid imageUrl" }, { status: 400 });
+  if (!(await uploadAnalyzableBy(imageUrl, session.user))) return NextResponse.json({ error: "Invalid imageUrl" }, { status: 400 });
   const safeRotation: Rotation = VALID_ROTATIONS.includes(rotation) ? rotation : 0;
 
   const reading = await detectScaleReading(imageUrl, safeRotation);

@@ -428,6 +428,7 @@
     "tasks_tab": "Tasks",
     "mainNavLabel": "Main navigation",
     "userTabsLabel": "Sections for this user",
+    "tabNeedsYou": "waiting for you:",
     "journal_tab": "Shared entries"
   },
   "nav": {
@@ -582,6 +583,7 @@
     "welcomeTitle": "Welcome!",
     "welcomeDesc": "Create your first entry to start tracking.",
     "welcomeCta": "Lock up",
+    "welcomeAddUsers": "Looking after someone else? Create an account",
     "lockedSince": "Locked since",
     "openSince": "Open since",
     "wearToday": "Today",
@@ -622,6 +624,8 @@
     "editLayoutStartsClosed": "\"{name}\": starts Closed — tap so the block starts expanded",
     "boxPhotoDueTitle": "Add a box photo with the key visible",
     "boxPhotoDueText": "The bolt is closed. Photograph the box through the viewing window so the key is clearly visible.",
+    "boxPhotoDueDeadline": "Deadline {date} – after that it counts as an offense.",
+    "boxPhotoDueDeadlinePassed": "The deadline passed on {date} – the missing photo counts as an offense.",
     "boxPhotoDueSave": "Add photo",
     "keyPhotoBeforeBolt": "photo taken before bolt closed",
     "blockStatsMood": "Mood"
@@ -866,6 +870,8 @@
     "startPageDashboard": "Own tracker",
     "hideOwnTracker": "No own tracker",
     "hideOwnTrackerHint": "For keyholders without their own chastity tracker: hides your own card in the overview, the My view navigation and the green tracker area. No data is deleted — turn it back off and everything returns.",
+    "hideOwnTrackerConfirm": "“My view” and your green tracker will be hidden; you will only see the keyholder area. No data is deleted; switching it off brings everything back.",
+    "hideOwnTrackerConfirmButton": "Hide",
     "minutes": "minutes",
     "saved": "Saved",
     "account": "Account",
@@ -903,6 +909,7 @@
     "notifyStatusTelegramOff": "not connected",
     "telegramConnect": "Connect with Telegram",
     "telegramDisconnect": "Disconnect Telegram",
+    "telegramDisconnectConfirm": "After this you will no longer receive notifications through Telegram. You can connect the chat again at any time.",
     "telegramConnected": "Telegram is connected.",
     "telegramAwaiting": "Press “Start” in the Telegram chat that just opened. Once done, the connection shows up here.",
     "weightSection": "Weight",
@@ -917,7 +924,12 @@
     "weightReminderHint": "When a weighing window opens and nothing has been logged that day.",
     "targetUnderweightWarning": "This target is in the underweight range (BMI below 18.5). You can still set it.",
     "androidAppTitle": "Android app",
-    "androidAppHint": "Install as an app – with fingerprint lock and notifications"
+    "androidAppHint": "Install as an app – with fingerprint lock and notifications",
+    "appLockTitle": "App lock",
+    "appLockHint": "Asks for face or fingerprint when you return to the app. Applies to this device only.",
+    "appLockOff": "Off",
+    "appLockImmediate": "Immediately",
+    "appLockAfter": "After {minutes} min"
   },
   "changelog": {
     "title": "Changelog",
@@ -1133,6 +1145,8 @@
     "orgasmAnforderungExpired": "expired",
     "orgasmAnforderungScheduled": "scheduled for {time}",
     "withdrawOrgasmTitle": "Withdraw orgasm directive",
+    "withdrawOrgasmConfirm": "The open directive or opportunity ends immediately and cannot be undone.",
+    "withdrawNotifiesSub": "The sub receives a notification.",
     "setLockDuration": "Set lock duration",
     "minDurationLabel": "Keep locked after locking up",
     "minDurationHint": "A lock duration is automatically created after locking up.",
@@ -1170,6 +1184,9 @@
     "strafbuchOffeneAnzeigen": "Show open offenses only",
     "strafbuchAbbrechen": "Cancel",
     "strafbuchRueckgaengig": "Undo",
+    "strafbuchRueckgaengigConfirm": "The verdict is removed, along with the notification to the sub and any penalty task created from it. The sub is not notified about this.",
+    "strafbuchFolgeStrafe": "The sub receives a notification: “Penalty imposed” with your description.",
+    "strafbuchFolgeVerworfen": "The sub receives a notification that the offense was dropped.",
     "strafbuchStellungnahme": "Their statement",
     "offenseStatementsLabel": "Allow statements",
     "offenseStatementsDesc": "The wearer may write a statement on a detected offense — one per offense, editable until you judge it. It then appears above your judgment field. Off: no field and no hint for him; anything already written stays readable.",
@@ -1296,6 +1313,7 @@
     "scheduleDelayHint": "Request is sent after this delay; hidden from the sub until then.",
     "scheduleFutureRequired": "Send time must be in the future",
     "withdrawLockTitle": "Lift lock",
+    "withdrawLockPeriodConfirm": "The lock period ends immediately and cannot be undone. To lock again, set a new lock period.",
     "editLockRequestTitle": "Edit lock request",
     "withdrawKontrolleTitle": "Withdraw inspection request",
     "sending": "Sending…",
@@ -1391,6 +1409,8 @@
     "strafbuchReinigungLimit": "Cleaning limit exceeded",
     "strafbuchGewichtVersaeumt": "Weight report missed",
     "strafbuchGewichtVersaeumtTage": "Three days without an entry",
+    "strafbuchBoxFotoFehlt": "Box photo missing",
+    "strafbuchBoxFotoFrist": "Bolt closed to deadline",
     "strafbuchReinigungLimitDate": "Cleaning opening on",
     "sectionApp": "App",
     "sectionKeyholder": "AI keyholder rules (MCP)",
@@ -1606,7 +1626,10 @@
     "inspectionJokerDesc": "The sub can postpone a running inspection deadline before it expires, once per inspection. Each use costs one joker, and you are notified.",
     "inspectionJokerBalanceLabel": "Jokers available",
     "inspectionJokerMinutesLabel": "Postponement per joker",
-    "inspectionJokerUsedNote": "Joker used, original deadline: {date}"
+    "inspectionJokerUsedNote": "Joker used, original deadline: {date}",
+    "boxPhotoDeadlineLabel": "Box photo deadline",
+    "boxPhotoDeadlineDesc": "How long after “bolt closed” he has to send the photo of the box. It only becomes an offense if “Box photo missing” is switched on under offenses.",
+    "boxPhotoDeadlineHours": "Deadline"
   },
   "forgotPassword": {
     "pageTitle": "Reset password",
@@ -1844,6 +1867,7 @@
     "filterCategoryLabel": "Filter by category",
     "filterSenderLabel": "Filter by sender",
     "filterAllCategories": "All categories",
+    "filterMore": "More filters",
     "filterAllSenders": "All senders",
     "emptyFilteredTitle": "Nothing in this selection",
     "emptyFilteredText": "No messages match this filter.",
@@ -2040,6 +2064,7 @@
     "taskProofReminderMessage": "The task “{title}” is still missing the proof “{description}” — due at {until}.",
     "boxPhotoDuePushTitle": "Add the box photo",
     "boxPhotoDuePushBody": "The bolt is closed. Open the app and add a photo of the box with the key visible.",
+    "boxPhotoDuePushBodyDeadline": "The bolt is closed. Within {hours} h, add a photo of the box with the key visible.",
     "lockboxCodeSameSubjectKeyholder": "Key box code not changed?",
     "lockboxCodeSameMessageKeyholder": "{username} apparently sealed the same key box code for the new lock as for the last one. Both photos are in the comparison view.",
     "lockboxCodeUncertainSubjectKeyholder": "Please check the key box code",
@@ -2196,6 +2221,7 @@
     "emptyHint": "No task set yet.",
     "proofAccept": "Accept",
     "proofReject": "Reject",
+    "proofRejectHint": "If you reject, the sub can submit again while the task is running; after that it counts as missed. They receive a notification. You can change the verdict later.",
     "proofReviewedAccepted": "Accepted on {at}",
     "proofReviewedRejected": "Rejected on {at}",
     "proofCodeConfirmed": "Confirmed by code",
@@ -2302,6 +2328,10 @@
     "missedWeightReport": {
       "name": "Weight report missed",
       "desc": "Three days in a row without a weight entry."
+    },
+    "boxPhotoMissing": {
+      "name": "Box photo missing",
+      "desc": "After “bolt closed”, the photo of the box did not arrive within the deadline."
     },
     "unfulfilledTask": {
       "name": "Task not completed",

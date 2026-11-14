@@ -5,6 +5,7 @@ import { collectDetectedOffenses, cleaningNotRelockedRef, STORED_TYPE, type Offe
 import { offenseState, offenseNeedsAttention, type OffenseState } from "@/lib/offenseTypes";
 import { taskFailureKind, type TaskFailureKind } from "@/lib/tasks";
 import { missedWeightRef } from "@/lib/weightObligation";
+import { boxPhotoMissingRef } from "@/lib/boxPhotoDue";
 import { loadStatements } from "@/lib/offenseStatementService";
 import type { CleaningBlockReason } from "@/lib/queries";
 
@@ -104,6 +105,9 @@ export interface StrafbuchOverview {
    *  Regel `missed_weight_report` bei diesem Sub scharf ist (Default: aus). `day` ist der Tag, mit
    *  dem der Block voll wurde. */
   missedWeightReports: ({ time: string; day: string; days: number } & OffenseJudgment)[];
+  /** Verschlüsse, deren Box-Foto nach „Riegel zu" (`boltClosedAt`) nicht bis zum Fristende (`time`) kam.
+   *  Erscheinen nur, wenn die Regel `box_photo_missing` scharf ist (Default: aus). Additiv seit 6.6.0. */
+  boxPhotoMissing: ({ time: string; boltClosedAt: string; entryId: string } & OffenseJudgment)[];
   /** Von Hand notierte Vergehen — die einzigen, die nicht aus Einträgen abgeleitet sind. Entstehen
    *  über `record_offense` bzw. die Admin-Oberfläche. */
   manualOffenses: ({ time: string; title: string; description: string | null; recordedBy: string } & OffenseJudgment)[];
@@ -245,6 +249,12 @@ async function mcpStrafbuch(userId: string, timezone: string, now: Date): Promis
       day: m.dayKey,
       days: m.days,
       ...judge("missed_weight_report", missedWeightRef(m.dayKey)),
+    })),
+    boxPhotoMissing: sb.boxPhotoMissing.map((b) => ({
+      time: fmt(b.at),
+      boltClosedAt: fmt(b.dueAt),
+      entryId: b.entryId,
+      ...judge("box_photo_missing", boxPhotoMissingRef(b.entryId)),
     })),
     manualOffenses: sb.manualOffenses.map((m) => ({
       time: fmt(m.occurredAt),
@@ -404,6 +414,7 @@ export function buildOffenseRows(
     ...sb.adminPasswordChanges.map((p) => toRow(p.time, p, { adminUsername: p.adminUsername, via: p.via, lockPeriodEndedAt: p.lockPeriodEndedAt })),
     ...sb.unauthorizedOrgasms.map((o) => toRow(o.time, o, { note: o.note, orgasmType: o.orgasmType, lockPeriodEndedAt: o.lockPeriodEndedAt, lockPeriodIndefinite: o.lockPeriodIndefinite })),
     ...sb.missedWeightReports.map((m) => toRow(m.time, m, { day: m.day, days: m.days })),
+    ...sb.boxPhotoMissing.map((b) => toRow(b.time, b, { boltClosedAt: b.boltClosedAt, entryId: b.entryId })),
     ...sb.manualOffenses.map((m) => toRow(m.time, m, { title: m.title, description: m.description, recordedBy: m.recordedBy })),
   ];
 }

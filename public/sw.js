@@ -3,7 +3,7 @@
 // Versioned caches, fetch routing, push notifications, offline support
 // ---------------------------------------------------------------------------
 
-const CACHE_VERSION = 2; // bumped: clears potentially user-contaminated api-v1 cache
+const CACHE_VERSION = 3; // bumped: räumt Bild-Caches, die bis 6.6.0 Abmelden und Nutzerwechsel überlebten
 const OFFLINE_URL = '/offline.html';
 
 /**
@@ -54,12 +54,16 @@ self.addEventListener('message', (e) => {
   if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
 
   // Sent by the app on login and logout.
-  // Clears the user-specific API response cache and the entries IndexedDB store
-  // so a newly logged-in user never sees stale data that belonged to a previous user.
+  // Clears the user-specific API response cache, the IMAGE cache and the entries IndexedDB store
+  // so a newly logged-in user never sees data or photos that belonged to a previous user. Der
+  // Bild-Cache fehlte hier bis 6.6.0: die Fotos des Vorgängers blieben am Gerät abrufbar.
+  // Die Offline-Warteschlange bleibt bewusst stehen — sie hält noch nicht gesendete Einträge, und
+  // dieselbe Nachricht kommt auch beim ANMELDEN (abgelaufene Sitzung, derselbe Nutzer).
   if (e.data?.type === 'CLEAR_USER_CACHE') {
     e.waitUntil(
       Promise.all([
         caches.delete(CACHE_API),
+        caches.delete(CACHE_IMAGES),
         openIDB()
           .then((db) => {
             const tx = db.transaction('entries', 'readwrite');
@@ -164,7 +168,8 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // 2. Uploaded images (/api/uploads/) → cache-first (immutable, 1yr headers)
+  // 2. Uploaded images (/api/uploads/) → cache-first: der Dateiname ist zufällig, der Inhalt ändert
+  //    sich nie, und so bleiben Bilder offline sichtbar. Geleert beim An- und Abmelden (siehe oben).
   if (url.pathname.startsWith('/api/uploads/')) {
     e.respondWith(cacheFirst(request, CACHE_IMAGES));
     return;
@@ -194,7 +199,10 @@ async function cacheFirst(request, cacheName) {
 
   try {
     const response = await fetch(request);
-    if (response.ok) {
+    // `no-store` respektieren: `cache.put` täte es von sich aus nicht, und ein freigegebenes
+    // Bildersafe-Foto bliebe sonst auch nach erneutem Versiegeln im Cache.
+    const noStore = /no-store/i.test(response.headers.get('Cache-Control') || '');
+    if (response.ok && !noStore) {
       const cache = await caches.open(cacheName);
       cache.put(request, response.clone());
     }

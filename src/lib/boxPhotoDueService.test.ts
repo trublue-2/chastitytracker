@@ -4,6 +4,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * Das Box-Foto kommt NACH „Riegel zu": wann es fällig wird (einmal je Verschluss, nie nachträglich für
  * einen alten), wie es nachgereicht und wie es erlassen wird.
  */
+// Besitz der Datei ist hier nicht das Thema (eigene Tests: `uploadOwnership.test.ts`) — jede gilt als eigene.
+vi.mock("@/lib/uploadOwnership", () => ({ uploadsLinkable: vi.fn(async () => true) }));
 vi.mock("@/lib/prisma", async () => {
   const { createPrismaMock } = await import("@/test/prismaMock");
   return { prisma: createPrismaMock() };
@@ -111,7 +113,7 @@ describe("submitBoxPhoto", () => {
     expect(await submitBoxPhoto("u1", "e1", { boxImageUrl: URL_OK, boxImageExifTime: taken })).toMatchObject({ ok: true });
     expect(db.entry.updateMany).toHaveBeenCalledWith({
       where: { id: "e1", userId: "u1", boxImageUrl: null },
-      data: { boxImageUrl: URL_OK, boxImageBeforeBolt: true },
+      data: { boxImageUrl: URL_OK, boxPhotoSubmittedAt: expect.any(Date), boxImageBeforeBolt: true },
     });
   });
 
@@ -138,7 +140,7 @@ describe("submitBoxPhoto", () => {
     expect(await submitBoxPhoto("u1", "e1", { boxImageUrl: URL_OK, boxImageRotation: 90 })).toEqual({ ok: true, data: { entryId: "e1" } });
     expect(db.entry.updateMany).toHaveBeenCalledWith({
       where: { id: "e1", userId: "u1", boxImageUrl: null },
-      data: { boxImageUrl: URL_OK, boxImageBeforeBolt: false },
+      data: { boxImageUrl: URL_OK, boxPhotoSubmittedAt: expect.any(Date), boxImageBeforeBolt: false },
     });
     await vi.waitFor(() => expect(detectKeyInBox).toHaveBeenCalledWith(URL_OK, 90));
   });

@@ -99,6 +99,9 @@ model User {
   // Die Regel steht in inspectionJoker.ts.
   inspectionJokerBalance         Int                      @default(0)
   inspectionJokerMinutes         Int                      @default(60)
+  /// Frist in Stunden ab „Riegel zu", in der das Box-Foto kommen muss — danach zählt das Vergehen
+  /// `box_photo_missing` (src/lib/boxPhotoDue.ts, `boxPhotoMissedAt`). Gesetzt von der Keyholderin (Box-Einstellungen, MCP `set_box`).
+  boxPhotoDeadlineHours          Int                      @default(2)
   mobileDesktopUpload            Boolean                  @default(false)
   // IANA-Zeitzone des Nutzers (z.B. "America/New_York"). Governiert Anzeige, Eingabe-Defaults und
   // die Wanduhr-Fenster (Reinigung/Schlaf) für DIESEN Nutzer. Default "Europe/Zurich" = bisheriges
@@ -943,6 +946,18 @@ model AdminUserRelationship {
   @@index([userId])
 }
 
+/// Wer eine Datei hochgeladen hat (`src/lib/uploadOwnership.ts`). Ohne diese Zeile war eine Datei nur
+/// durch ihren zufälligen Namen geschützt: jeder Nutzer der Instanz konnte einen FREMDEN Dateinamen in
+/// eine eigene Zeile hängen und das Bild so lesen oder löschen. Kein Fremdschlüssel und bewusst
+/// `uploaderId` statt `userId`: die Zeile ist Buchhaltung über eine Datei, kein Zustand eines Subs.
+model Upload {
+  filename   String   @id
+  uploaderId String
+  createdAt  DateTime @default(now())
+
+  @@index([uploaderId])
+}
+
 // Tracks consumed portal-login JTIs to prevent replay attacks.
 // Rows older than 1h are pruned automatically by the portal-login endpoint.
 model PortalTokenUsed {
@@ -1306,6 +1321,9 @@ model Entry {
   /// Eigenes Feld statt `boxPhotoDueAt = null`, weil der nächste „Riegel zu"-Sync es sonst neu fällig
   /// stellte.
   boxPhotoWaivedAt              DateTime?
+  /// Wann das nachgereichte Box-Foto ankam (`submitBoxPhoto`). Eigenes Feld, weil das Vergehen
+  /// `box_photo_missing` sonst mit einem verspäteten Foto rückwirkend verschwände.
+  boxPhotoSubmittedAt           DateTime?
   /// Das nachgereichte Box-Foto trägt eine Aufnahmezeit (EXIF, sonst Dateizeit des Geräts) VOR „Riegel
   /// zu" (`boxPhotoTakenBeforeBolt`): es zeigt dann womöglich die noch offene Box. Angenommen, aber
   /// markiert; die Keyholderin sieht den Hinweis. Das Urteil steht fest, die Zeit selbst wird nicht

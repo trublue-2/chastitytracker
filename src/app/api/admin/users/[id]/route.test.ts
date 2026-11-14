@@ -15,6 +15,9 @@ const db = vi.hoisted(() => ({
   entry: { findMany: vi.fn(async () => []) },
   device: { findMany: vi.fn(async () => []) },
   deviceReferenceImage: { findMany: vi.fn(async () => []) },
+  taskProof: { findMany: vi.fn(async () => []) },
+  weightEntry: { findMany: vi.fn(async () => []) },
+  upload: { findMany: vi.fn(async () => []) },
   $transaction: vi.fn(),
 }));
 

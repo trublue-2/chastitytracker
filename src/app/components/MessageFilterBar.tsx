@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import SegmentedControl from "@/app/components/SegmentedControl";
 import Select from "@/app/components/Select";
@@ -56,6 +57,8 @@ export default function MessageFilterBar({
   keyholderName: string | null;
 }) {
   const t = useTranslations("messages");
+  const [expanded, setExpanded] = useState(false);
+  const showMore = expanded || filter.category !== undefined || filter.senderKind !== undefined;
 
   // Im Keyholder-Posteingang gibt es NICHTS zu filtern: dort ist heute jede Zeile `senderKind:
   // "system"` (sie entsteht ausschliesslich aus `notifyControllers`). „Keyholder" und
@@ -94,6 +97,19 @@ export default function MessageFilterBar({
       />
       </div>
 
+      {/* Kategorie und Absender sind Sortierhilfen für einen vollen Posteingang — beim Öffnen steht
+          nur der Umschalter da. Ein WIRKSAMER Filter bleibt sichtbar: ein versteckter hielte die Liste
+          gefiltert, ohne dass man es sieht. */}
+      {!showMore && (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="self-start sm:self-auto text-neben font-medium text-foreground-muted hover:text-foreground transition px-2 min-h-8"
+        >
+          {t("filterMore")}
+        </button>
+      )}
+      {showMore && (
       <div className="flex gap-2 flex-1 min-w-0">
       <div className="flex-1 min-w-0">
       {/* Die Felder bleiben während eines Ladevorgangs BEDIENBAR.
@@ -142,6 +158,7 @@ export default function MessageFilterBar({
       </div>
       )}
       </div>
+      )}
     </div>
   );
 }

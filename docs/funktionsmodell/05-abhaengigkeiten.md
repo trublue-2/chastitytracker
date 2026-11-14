@@ -14,7 +14,7 @@ Zwei Arten von Kanten, und der Unterschied ist wichtig:
 - ***feste Regel*** — dahinter steht **kein** Schalter. Diese Kanten sind die, die im Betrieb
   überraschen: man sucht die Einstellung, die das verursacht hat, und es gibt keine.
 
-Insgesamt 159 Kanten über 19 Mechaniken, davon 20 fest verdrahtet.
+Insgesamt 160 Kanten über 19 Mechaniken, davon 20 fest verdrahtet.
 
 ## Einträge
 
@@ -386,6 +386,7 @@ flowchart LR
 | Kontrollen | `User.autoKontrolleAktiv` | Hauptschalter der Automatik. Aus schaltet BEIDES ab: den gewürfelten Tagesplan und die Kontrolle nach dem Wiederverschluss. | `autoKontrolleService.ts` |
 | Kontrollen | `User.inspectionAutoMarkEnabled` | Stufe 2: bucht die unbeantwortete Kontrolle selbst als Öffnung bzw. Ablegen. Hebt dabei bewusst KEINE Sperrzeit auf. | `queries.ts:releaseLockPeriodsOnOpen` |
 | Box | `User.lockRequiresBolt` | Sein „Verschlossen" ist dann erst der AUFRUF an die Box; verschlossen ist er, wenn sie den Riegel meldet. Bis dahin läuft nichts an — keine Sperrzeit, keine erfüllte Anforderung, keine Tragezeit. Das Abschalten vollzieht einen wartenden Aufruf sofort. | `lockCommit.ts:lockAwaitsBolt` |
+| Box | `User.boxPhotoDeadlineHours` | Frist in Stunden ab „Riegel zu", in der das Box-Foto kommen muss. Danach zählt das Vergehen `box_photo_missing` — nur, wenn dessen Regel scharf ist (Vorgabe aus). | `boxPhotoDue.ts` |
 | Geräte | `Device.lookalikeClusterId` | Gleiche Optik = gleicher Cluster. Ein Bild-Konflikt INNERHALB eines Clusters ist nie ein Vergehen. | `mcp/devices.ts:set_device_meta` |
 | Sperrzeit | `VerschlussAnforderung.endsAt` | Bei einer SPERRZEIT das Ende (leer = unbefristet), bei einer ANFORDERUNG die Frist zum Einschliessen. | `queries.ts:foldActiveLockPeriods` |
 | Sperrzeit | `VerschlussAnforderung.deviceId` | Verlangt ein bestimmtes Gerät. Nur hieraus entsteht das Vergehen „falsches Gerät“ — der Bild-Abgleich allein tut es nie. | — |
@@ -513,6 +514,7 @@ flowchart LR
 | Sperrzeit | `User.lockRequiresBolt` | Sein „Verschlossen" ist dann erst der AUFRUF an die Box; verschlossen ist er, wenn sie den Riegel meldet. Bis dahin läuft nichts an — keine Sperrzeit, keine erfüllte Anforderung, keine Tragezeit. Das Abschalten vollzieht einen wartenden Aufruf sofort. | `lockCommit.ts:lockAwaitsBolt` |
 | Sessions/Statistik | `User.lockRequiresBolt` | Sein „Verschlossen" ist dann erst der AUFRUF an die Box; verschlossen ist er, wenn sie den Riegel meldet. Bis dahin läuft nichts an — keine Sperrzeit, keine erfüllte Anforderung, keine Tragezeit. Das Abschalten vollzieht einen wartenden Aufruf sofort. | `lockCommit.ts:lockAwaitsBolt` |
 | Strafbuch | `User.lockRequiresBolt` | Sein „Verschlossen" ist dann erst der AUFRUF an die Box; verschlossen ist er, wenn sie den Riegel meldet. Bis dahin läuft nichts an — keine Sperrzeit, keine erfüllte Anforderung, keine Tragezeit. Das Abschalten vollzieht einen wartenden Aufruf sofort. | `lockCommit.ts:lockAwaitsBolt` |
+| Strafbuch | `User.boxPhotoDeadlineHours` | Frist in Stunden ab „Riegel zu", in der das Box-Foto kommen muss. Danach zählt das Vergehen `box_photo_missing` — nur, wenn dessen Regel scharf ist (Vorgabe aus). | `boxPhotoDue.ts` |
 | Sperrzeit | *feste Regel* | Die Failsafes (leerer Akku, zu lange offline, absolutes Hard-Cap) öffnen physisch auch gegen eine laufende Sperrzeit und gegen den Keyholder. Der Tracker-Zustand ändert sich dabei NICHT — beide laufen dann auseinander. | `boxOpenOutlook.ts` |
 
 ## Nachrichten

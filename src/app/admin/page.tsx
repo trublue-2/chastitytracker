@@ -27,6 +27,8 @@ import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale, formatDurationBetween, formatDateTimeDual, groupByUser, nowDatetimeLocal, APP_TZ } from "@/lib/utils";
 import { getKeyholderLockPeriods, getKeyholderOrgasmusAnforderungen, keyholderVisibleKontrolleWhere, foldActiveLockPeriods, isScheduledDirective, LOCK_REQUEST_ORDER, openLockRequestWhere } from "@/lib/queries";
 import { orgasmusAnforderungArtLabel, boxCouplingEnabled } from "@/lib/constants";
+import { isHiddenFromSub } from "@/lib/delayedTrigger";
+import { pendingProofReviewWhere } from "@/lib/taskProofService";
 import { QUICK_SETTING_SELECT, quickSettingOnCard, parseQuickSettings, quickSettingValue } from "@/lib/quickSettings";
 import Section from "@/app/components/Section";
 import Badge from "@/app/components/Badge";
@@ -127,14 +129,10 @@ export default async function AdminPage() {
           select: { userId: true, kind: true, locked: true, reportedLocked: true, pendingCommand: true },
         })
       : [],
-    // Wartende Aufgaben-Nachweise (#8): eingereicht (`submittedAt`), Aufgabe nicht zurückgezogen —
-    // also sichtbar für `proofReviewBlockedReason` (= null) — UND noch nicht gesichtet
-    // (`reviewedAt: null`). Das `reviewedAt: null` ist der Zusatz: eine Sichtung ist bewusst
-    // wiederholbar, `proofReviewBlockedReason` bliebe auch für längst gesichtete Nachweise null.
-    // Sie warten auf eine Entscheidung der Keyholderin und zählen deshalb in „braucht dich" mit,
-    // statt still im Aufgaben-Reiter zu liegen.
+    // Wartende Aufgaben-Nachweise (#8): sie warten auf eine Entscheidung der Keyholderin und zählen
+    // deshalb in „braucht dich" mit, statt still im Aufgaben-Reiter zu liegen.
     prisma.taskProof.findMany({
-      where: { submittedAt: { not: null }, reviewedAt: null, task: { userId: { in: userIds }, withdrawnAt: null } },
+      where: pendingProofReviewWhere(userIds),
       select: { task: { select: { userId: true } } },
     }),
   ]);
@@ -262,10 +260,10 @@ export default async function AdminPage() {
       })),
       activeLockPeriod: activeLockPeriod
         // Ohne `message`: der kompakte Banner hat keinen Textslot, das Feld wurde nur mitgeschleppt.
-        ? { id: activeLockPeriod.id, endsAt: activeLockPeriod.endsAt, cleaningAllowed: activeLockPeriod.cleaningAllowed }
+        ? { id: activeLockPeriod.id, endsAt: activeLockPeriod.endsAt, cleaningAllowed: activeLockPeriod.cleaningAllowed, hiddenFromSub: isHiddenFromSub(activeLockPeriod) }
         : null,
       offeneOrgasmusAnforderung: offeneOrgasmusAnforderung
-        ? { id: offeneOrgasmusAnforderung.id, art: offeneOrgasmusAnforderung.art as "ANWEISUNG" | "GELEGENHEIT", endsAt: offeneOrgasmusAnforderung.endsAt, expired: offeneOrgasmusAnforderung.endsAt < now }
+        ? { id: offeneOrgasmusAnforderung.id, art: offeneOrgasmusAnforderung.art as "ANWEISUNG" | "GELEGENHEIT", endsAt: offeneOrgasmusAnforderung.endsAt, expired: offeneOrgasmusAnforderung.endsAt < now, hiddenFromSub: isHiddenFromSub(offeneOrgasmusAnforderung) }
         : null,
       pendingTaskReviews: pendingReviewByUser.get(userId) ?? 0,
       openOffenses: openOffenseByUser.get(userId) ?? 0,
@@ -551,7 +549,7 @@ export default async function AdminPage() {
                             withdrawAction={
                               <span className="flex items-center gap-1">
                                 <EditLockPeriodButton id={u.stats.activeLockPeriod.id} endsAt={u.stats.activeLockPeriod.endsAt} tz={rowTz} minNow={rowMinNow} />
-                                <WithdrawButton id={u.stats.activeLockPeriod.id} apiPath="/api/admin/verschluss-anforderung" title={t("withdrawLockTitle")} colorToken="sperrzeit" />
+                                <WithdrawButton id={u.stats.activeLockPeriod.id} apiPath="/api/admin/verschluss-anforderung" title={t("withdrawLockTitle")} colorToken="sperrzeit" confirmMessage={t("withdrawLockPeriodConfirm")} hiddenFromSub={u.stats.activeLockPeriod.hiddenFromSub} />
                               </span>
                             }
                           />
@@ -571,7 +569,7 @@ export default async function AdminPage() {
                             tz={rowTz}
                             viewerTz={viewerTz}
                             subTimePrefix={subLabel}
-                            withdrawAction={<WithdrawButton id={u.stats.offeneOrgasmusAnforderung.id} apiPath="/api/admin/orgasmus-anforderung" title={t("withdrawOrgasmTitle")} colorToken="orgasm" />}
+                            withdrawAction={<WithdrawButton id={u.stats.offeneOrgasmusAnforderung.id} apiPath="/api/admin/orgasmus-anforderung" title={t("withdrawOrgasmTitle")} colorToken="orgasm" confirmMessage={t("withdrawOrgasmConfirm")} hiddenFromSub={u.stats.offeneOrgasmusAnforderung.hiddenFromSub} />}
                           />
                         )}
                         {/* Wartende Aufgaben-Nachweise (#8): eigener klickbarer Hinweis, weil es dafür

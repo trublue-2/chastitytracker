@@ -160,7 +160,7 @@ Sperre `cleaningAllowed` hat. Freie Wechsel erlauben ⇒ `cleaningAllowed` setze
   **Vorlage für dein Urteil, keine automatische Konsequenz.**
 - Kanonische Typen (`get_offenses`): `unauthorized_opening`, `cleaning_limit`, `late_control`,
   `rejected_control`, `auto_removed_control`, `wrong_device`, `missed_orgasm`, `wrong_orgasm_type`, `late_lock`,
-  `cleaning_not_relocked`, `unfulfilled_task`, `missed_weight_report`,
+  `cleaning_not_relocked`, `unfulfilled_task`, `missed_weight_report`, `box_photo_missing`,
   `admin_password_change`, `unauthorized_orgasm`, `manual_offense`.
 - `admin_password_change` fällt aus der Reihe: Das Passwort eines ADMIN-Kontos wurde geändert,
   während eine Sperrzeit lief. `via` nennt den Weg — `reset_token` (über das Postfach neuen
@@ -200,6 +200,10 @@ Sperre `cleaningAllowed` hat. Freie Wechsel erlauben ⇒ `cleaningAllowed` setze
   zwischen den erfassten Tagen. Ein Vergehen je angebrochenem Drei-Tage-Block, jede Meldung setzt den
   Zähler zurück. Zählt nur, wenn die Regel scharf ist (Vorgabe: aus), und ruht, solange ein
   Gesundheits-Halt läuft.
+- `box_photo_missing` = nach „Riegel zu" kam das Box-Foto nicht innerhalb der Frist
+  (`get_context.box.photoDeadlineHours`, setzbar mit `set_box`). Kein Vergehen, wenn du das Foto vor
+  Fristende erlassen hast oder er vor Fristende geöffnet hat. Zählt nur, wenn die Regel scharf ist
+  (Vorgabe: aus).
 - **Ein Gesundheits-Halt setzt JEDE dieser Arten aus**, nicht nur die Gewichts-Meldung: was in eine
   Pause fällt, wird gar nicht erst abgeleitet (Abschnitt 6b). Ausgenommen ist `manual_offense` — deine
   eigene Notiz überstimmt die Pause nicht, sie entsteht ja im Wissen um sie.

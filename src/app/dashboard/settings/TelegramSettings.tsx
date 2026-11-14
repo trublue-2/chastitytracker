@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import Button from "@/app/components/Button";
+import ConfirmDialog from "@/app/components/ConfirmDialog";
 import FormError from "@/app/components/FormError";
 import { useApiError } from "@/app/hooks/useApiError";
 import { parseApiErrorCode } from "@/lib/apiClient";
@@ -28,6 +29,7 @@ export default function TelegramSettings({ linked, onLinkedChange }: TelegramSet
   const [connecting, setConnecting] = useState(false);
   const [awaiting, setAwaiting] = useState(false); // Deep-Link geöffnet, warten auf /start im Chat
   const [error, setError] = useState<string | null>(null);
+  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
 
   // Der Webhook setzt die Verknüpfung, während der Nutzer im Telegram-Client ist. Kehrt er zurück
   // (Fenster-Fokus), den Status einmal nachschlagen — dann erscheint die Verbindung ohne Reload.
@@ -83,6 +85,7 @@ export default function TelegramSettings({ linked, onLinkedChange }: TelegramSet
       setError(tc("error"));
     } finally {
       setConnecting(false);
+      setConfirmingDisconnect(false);
     }
   }
 
@@ -93,9 +96,18 @@ export default function TelegramSettings({ linked, onLinkedChange }: TelegramSet
       {linked ? (
         <>
           <p className="text-sm text-ok-text">{t("telegramConnected")}</p>
-          <Button variant="secondary" onClick={handleDisconnect} loading={connecting}>
+          <Button variant="secondary" onClick={() => setConfirmingDisconnect(true)} loading={connecting}>
             {t("telegramDisconnect")}
           </Button>
+          <ConfirmDialog
+            open={confirmingDisconnect}
+            title={t("telegramDisconnect")}
+            message={t("telegramDisconnectConfirm")}
+            confirmLabel={t("telegramDisconnect")}
+            loading={connecting}
+            onConfirm={() => void handleDisconnect()}
+            onCancel={() => setConfirmingDisconnect(false)}
+          />
         </>
       ) : (
         <>

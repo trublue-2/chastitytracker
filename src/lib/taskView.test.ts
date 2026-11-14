@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { nextTaskStep, proofIsSubmitted, taskDeadlineLine, taskFailureLabelKey, toTaskCard, visibleStartDeadline } from "./taskView";
+import { isTaskDueSoon, nextTaskStep, proofIsSubmitted, taskDeadlineLine, taskFailureLabelKey, toTaskCard, visibleStartDeadline } from "./taskView";
 import { safeInternalPath } from "./utils";
 import type { EvaluatedTask, TaskProofView } from "./taskIntervals";
 import type { TaskEvaluation } from "./tasks";
@@ -467,5 +467,44 @@ describe("taskFailureLabelKey — dieselbe Entscheidung wie im Strafbuch", () =>
   it("ohne Bedingungen gibt es nichts zu beginnen — und deshalb auch keinen solchen Vorwurf", () => {
     const card = toTaskCard(evaluated([], { state: "missed", startedAt: null }), false);
     expect(taskFailureLabelKey({ ...card, state: "missed" })).toBe("stateMissedNotFulfilled");
+  });
+});
+
+describe("isTaskDueSoon", () => {
+  const NOW = new Date("2026-07-25T08:00:00Z");
+  const base = {
+    isPunishment: false,
+    holdUntil: "2026-07-26T08:00:00.000Z",
+    startDeadline: null,
+    startedAt: null,
+    state: "partial" as const,
+    proofs: [],
+    proofsDue: null,
+  };
+
+  it("keine Frist in den nächsten zwölf Stunden: nicht bald", () => {
+    expect(isTaskDueSoon(base, NOW)).toBe(false);
+  });
+
+  it("ein Ende innerhalb des Fensters oder schon überschritten: bald", () => {
+    expect(isTaskDueSoon({ ...base, holdUntil: "2026-07-25T19:59:00.000Z" }, NOW)).toBe(true);
+    expect(isTaskDueSoon({ ...base, holdUntil: "2026-07-24T08:00:00.000Z" }, NOW)).toBe(true);
+  });
+
+  it("eine Strafaufgabe ist immer dringend", () => {
+    expect(isTaskDueSoon({ ...base, isPunishment: true }, NOW)).toBe(true);
+  });
+
+  it("die Beginn-Frist zählt, solange der Beginn aussteht, danach nicht mehr", () => {
+    const early = { ...base, startDeadline: "2026-07-25T09:00:00.000Z" };
+    expect(isTaskDueSoon(early, NOW)).toBe(true);
+    expect(isTaskDueSoon({ ...early, startedAt: "2026-07-25T07:00:00.000Z" }, NOW)).toBe(false);
+  });
+
+  it("ein offener Nachweis mit naher Fälligkeit macht die Aufgabe dringend, ein eingereichter nicht", () => {
+    const proof = (submitted: boolean) =>
+      ({ submitted, dueAt: "2026-07-25T09:00:00.000Z" }) as unknown as (typeof base)["proofs"][number];
+    expect(isTaskDueSoon({ ...base, proofs: [proof(false)] }, NOW)).toBe(true);
+    expect(isTaskDueSoon({ ...base, proofs: [proof(true)] }, NOW)).toBe(false);
   });
 });

@@ -3,14 +3,16 @@ import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { logAccess } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import { toDateLocale, formatDateTimeDual, formatDate, APP_TZ } from "@/lib/utils";
-import { buildStrafbuch, type StrafbuchControlOffense } from "@/lib/strafbuch";
+import { type StrafbuchControlOffense } from "@/lib/strafbuch";
+import { requestNowMs, strafbuchCached } from "@/lib/dashboardData";
 import { cleaningNotRelockedRef } from "@/lib/strafurteilService";
 import { missedWeightRef } from "@/lib/weightObligation";
 import { loadStatementsOfUser } from "@/lib/offenseStatementService";
 import { passwordChangeViaLabel } from "@/lib/constants";
 import type { CleaningBlockReason } from "@/lib/queries";
 import { getLocale, getTranslations } from "next-intl/server";
-import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type CleaningLimitRow, type AufgabeRow, type NichtVerschlossenRow, type VerschlussVersaeumtRow, type OrgasmusVersaeumtRow, type OrgasmusFalscheArtRow, type FalschesGeraetRow, type AdminPasswortRow, type UnerlaubterOrgasmusRow, type ManuellesVergehenRow, type MissedWeightRow, type StatementView } from "./StrafbuchClient";
+import { boxPhotoMissingRef } from "@/lib/boxPhotoDue";
+import StrafbuchClient, { type KontrollRow, type UnerlaubteOeffnungRow, type StrafeRecordData, type CleaningLimitRow, type AufgabeRow, type NichtVerschlossenRow, type VerschlussVersaeumtRow, type OrgasmusVersaeumtRow, type OrgasmusFalscheArtRow, type FalschesGeraetRow, type AdminPasswortRow, type UnerlaubterOrgasmusRow, type ManuellesVergehenRow, type MissedWeightRow, type BoxPhotoMissingRow, type StatementView } from "./StrafbuchClient";
 
 /** Warum eine als Reinigung erfasste Öffnung trotzdem im Strafbuch steht. */
 const CLEANING_BLOCK_STRAFBUCH_KEY = {
@@ -24,7 +26,10 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
   const { id } = await params;
   await assertKeyholderOrAdmin(id);
   const [t, tCommon, dl] = [await getTranslations("admin"), await getTranslations("common"), toDateLocale(await getLocale())];
-  const now = new Date();
+  // Die Anfrage-Uhr, nicht `new Date()`: das Layout zählt die offenen Vergehen für den Reiter aus
+  // demselben Strafbuch (`strafbuchCached`), und die Ableitung läuft nur einmal, wenn beide denselben
+  // Zeitpunkt nennen.
+  const nowMs = requestNowMs();
 
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) return <div className="p-8 text-foreground-faint">{t("userNotFound")}</div>;
@@ -42,7 +47,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
   //
   // NEBEN der Ableitung, nicht dahinter: sie hängt an nichts, was `buildStrafbuch` liefert, und
   // hinter dem teuersten Aufruf der Seite eingereiht kostete sie eine eigene Runde zur Datenbank.
-  const [sb, statementRows] = await Promise.all([buildStrafbuch(id, now), loadStatementsOfUser(id)]);
+  const [sb, statementRows] = await Promise.all([strafbuchCached(id, nowMs), loadStatementsOfUser(id)]);
 
   const cleaningLimitOffenses: CleaningLimitRow[] = sb.cleaningLimitViolations.map((v) => ({
     entryId: v.entryId,
@@ -54,6 +59,12 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     refId: missedWeightRef(m.dayKey),
     dayStr: fmtDual(m.at),
     days: m.days,
+  }));
+
+  const boxPhotoMissing: BoxPhotoMissingRow[] = sb.boxPhotoMissing.map((b) => ({
+    refId: boxPhotoMissingRef(b.entryId),
+    dueStr: fmtDual(b.dueAt),
+    deadlineStr: fmtDual(b.at),
   }));
 
   const unerlaubteOeffnungen: UnerlaubteOeffnungRow[] = sb.unauthorizedOpenings.map((o) => ({
@@ -205,6 +216,9 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchOffeneAnzeigen: t("strafbuchOffeneAnzeigen"),
     strafbuchAbbrechen: t("strafbuchAbbrechen"),
     strafbuchRueckgaengig: t("strafbuchRueckgaengig"),
+    strafbuchRueckgaengigConfirm: t("strafbuchRueckgaengigConfirm"),
+    strafbuchFolgeStrafe: t("strafbuchFolgeStrafe"),
+    strafbuchFolgeVerworfen: t("strafbuchFolgeVerworfen"),
     strafbuchStellungnahme: t("strafbuchStellungnahme"),
     strafbuchStellungnahmeGeaendert: t("strafbuchStellungnahmeGeaendert", { date: "{date}" }),
     // Der Platzhalter reist als sein eigener Wert durch — dasselbe Muster wie `strafbuchUrteilVon`
@@ -226,6 +240,8 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
     strafbuchReinigungLimit: t("strafbuchReinigungLimit"),
     strafbuchGewichtVersaeumt: t("strafbuchGewichtVersaeumt"),
     strafbuchGewichtVersaeumtTage: t("strafbuchGewichtVersaeumtTage"),
+    strafbuchBoxFotoFehlt: t("strafbuchBoxFotoFehlt"),
+    strafbuchBoxFotoFrist: t("strafbuchBoxFotoFrist"),
     strafbuchReinigungLimitDate: t("strafbuchReinigungLimitDate"),
     strafbuchVerwerfen: t("strafbuchVerwerfen"),
     strafbuchVergehenVerwerfen: t("strafbuchVergehenVerwerfen"),
@@ -284,6 +300,7 @@ export default async function StrafbuchPage({ params }: { params: Promise<{ id: 
       autoEntfernt={autoEntfernt}
       cleaningLimitOffenses={cleaningLimitOffenses}
       missedWeightReports={missedWeightReports}
+      boxPhotoMissing={boxPhotoMissing}
       unfulfilledTasks={aufgaben}
       nichtVerschlossen={nichtVerschlossen}
       verschlussVersaeumt={verschlussVersaeumt}

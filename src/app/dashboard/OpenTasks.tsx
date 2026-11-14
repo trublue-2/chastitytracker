@@ -27,7 +27,7 @@ import { isTaskOpen } from "@/lib/tasks";
  * versäumte. Beide unter „Jetzt zu tun" zu führen war ein Widerspruch (eine versäumte Aufgabe als
  * To-do). Handelbares steht jetzt unter „Jetzt zu tun", der Rest als Notiz unter „Zuletzt".
  */
-export default function OpenTasks({ tasks, tz, defaultCollapsed }: { tasks: TaskCardData[]; tz: string; defaultCollapsed?: boolean }) {
+export default function OpenTasks({ tasks, tz, defaultCollapsed, yieldPrimary }: { tasks: TaskCardData[]; tz: string; defaultCollapsed?: boolean; yieldPrimary?: boolean }) {
   if (tasks.length === 0) return null;
 
   // Handelbar = offen im Sinne des Subs (`pending`/`partial`/`running`). Alles andere hier —
@@ -41,7 +41,7 @@ export default function OpenTasks({ tasks, tz, defaultCollapsed }: { tasks: Task
       {/* Der Knopf steht GENAU dann, wenn die Karte darüber die Selbstmeldung als nächsten Schritt
           nennt — eine Regel, eine Quelle. Nur im To-do-Abschnitt: eine versäumte oder auf Sichtung
           wartende Aufgabe hat nichts zu melden. */}
-      {withMarkDone && nextTaskStep(task)?.kind === "confirm" && <MarkDoneButton taskId={task.id} />}
+      {withMarkDone && nextTaskStep(task)?.kind === "confirm" && <MarkDoneButton taskId={task.id} yieldPrimary={yieldPrimary} />}
     </TaskCard>
   );
 
@@ -66,7 +66,7 @@ export default function OpenTasks({ tasks, tz, defaultCollapsed }: { tasks: Task
 
 /** „Als erledigt melden" — sitzt auf dem Dashboard, nicht in einem Formular; Fehler gehen deshalb an
  *  den Toast und nicht an einen `FormError`-Slot. */
-function MarkDoneButton({ taskId }: { taskId: string }) {
+function MarkDoneButton({ taskId, yieldPrimary }: { taskId: string; yieldPrimary?: boolean }) {
   const t = useTranslations("tasks");
   const tc = useTranslations("common");
   const toast = useToast();
@@ -117,8 +117,10 @@ function MarkDoneButton({ taskId }: { taskId: string }) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      {/* Primär, nicht sekundär: das ist die letzte Handlung der Aufgabe, nicht eine Nebenoption. */}
-      <Button type="button" variant="primary" fullWidth loading={saving} onClick={() => setConfirmOpen(true)} icon={<Check size={16} />}>
+      {/* Primär, nicht sekundär: das ist die letzte Handlung der Aufgabe, nicht eine Nebenoption —
+          ausser eine Anforderung mit Frist steht darüber: ein Bildschirm hat genau EINEN gefüllten
+          Knopf, und der gehört der knapperen Frist. */}
+      <Button type="button" variant={yieldPrimary ? "secondary" : "primary"} fullWidth loading={saving} onClick={() => setConfirmOpen(true)} icon={<Check size={16} />}>
         {t("markDone")}
       </Button>
       {/* Wofür der Knopf da ist. Ohne diesen Satz war unklar, was er über die abgehakten Bedingungen

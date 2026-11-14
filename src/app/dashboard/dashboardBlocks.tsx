@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { getIsLocked, userHasBox } from "@/lib/queries";
-import { isBoxPhotoDue } from "@/lib/boxPhotoDue";
+import { boxPhotoDeadlineAt, isBoxPhotoDue } from "@/lib/boxPhotoDue";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { block, type StackBlock } from "@/lib/blockStack";
@@ -36,6 +36,7 @@ import { categoryNeedsDevice } from "@/lib/categoryConstants";
 import { inspectionHref, openInspections } from "@/lib/entryFormRoute";
 import { inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { belongsOnDashboard, isHeldByTask } from "@/lib/taskIntervals";
+import { isTaskDueSoon } from "@/lib/taskView";
 import DashboardClient, { type DashboardProps } from "./DashboardClient";
 import DashboardAlerts, { type DashboardAlertsProps } from "./DashboardAlerts";
 import OpenTasks from "./OpenTasks";
@@ -215,6 +216,16 @@ function cleaningAllowedNote(windows: unknown, now: Date, tz: string, dl: string
 const taskCardsOf = (ctx: SubDashboardCtx) =>
   taskCardsCached(ctx.userId, ctx.nowMs, ctx.tTasks("requirementKgLocked"), "sub");
 
+/** Steht eine Kontrolle oder Einschliess-Anforderung offen, trägt sie den EINEN gefüllten Knopf des
+ *  Bildschirms (`DashboardAlerts`). Alles andere, das sonst gefüllt wäre — die Selbstmeldung einer
+ *  Aufgabe, „Einschliessen" im offenen Helden —, tritt dann zurück. Beide Abfragen sind je Anfrage
+ *  gecacht und werden von `alerts` ohnehin gestellt. Gleichbedeutend mit „`leadAlertKind` ist
+ *  Kontrolle oder Einschliessen": das Orgasmus-Fenster führt nur allein und trägt keinen Knopf. */
+const hasPrimaryRequest = async ({ userId, nowMs }: SubDashboardCtx) => {
+  const [inspections, lockRequest] = await Promise.all([subVisibleInspectionsNow(userId), lockRequestCached(userId, nowMs)]);
+  return openInspections(inspections).length > 0 || !!lockRequest;
+};
+
 export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<SubDashboardCtx>> = {
   // Anforderungen mit Frist vor allem anderen — auch vor der Box-Karte.
   alerts: block({
@@ -226,8 +237,15 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       ]);
       // Das Box-Foto, das nach „Riegel zu" fällig wurde (`boxPhotoDue.ts`). Nur der LAUFENDE Verschluss
       // zählt — `latestKgEntryCached` ist genau der.
+      // Die Frist nennt die Karte nur, wenn ihr Versäumen auch zählt — sonst wäre sie eine Drohung ohne Folge.
       const boxPhotoDue = latest && isBoxPhotoDue(latest)
-        ? { entryId: latest.id, mobileDesktopMode: user?.mobileDesktopUpload ?? false }
+        ? {
+            entryId: latest.id,
+            mobileDesktopMode: user?.mobileDesktopUpload ?? false,
+            deadline: (await getOffenseRules(userId)).box_photo_missing === "on" && user
+              ? boxPhotoDeadlineAt(latest.boxPhotoDueAt!, user.boxPhotoDeadlineHours)
+              : null,
+          }
         : null;
       return { anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg, boxPhotoDue };
     },
@@ -242,7 +260,13 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
 
       const alertProps: DashboardAlertsProps = {
         tz,
-        boxPhotoDue,
+        boxPhotoDue: boxPhotoDue && {
+          entryId: boxPhotoDue.entryId,
+          mobileDesktopMode: boxPhotoDue.mobileDesktopMode,
+          deadlineLabel: boxPhotoDue.deadline
+            ? t(boxPhotoDue.deadline > now ? "boxPhotoDueDeadline" : "boxPhotoDueDeadlinePassed", { date: formatDateTime(boxPhotoDue.deadline, dl, tz) })
+            : null,
+        },
 
         pendingInspections: pendingInspections.map((k) => ({
           deadline: k.deadline.toISOString(),
@@ -265,6 +289,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
             offeneVerschlussAnf.message,
           ),
           deadlineLabel: offeneVerschlussAnf.endsAt ? t("lockUntil", { date: formatDateTime(offeneVerschlussAnf.endsAt, dl, tz) }) : null,
+          endsAt: offeneVerschlussAnf.endsAt?.toISOString() ?? null,
           // Verstrichen heisst: es läuft bereits ein Vergehen (`late_lock`). Das Banner sah bisher
           // aus wie am ersten Tag — der einzige Unterschied war ein Datum, das er selbst mit der
           // Uhr vergleichen musste.
@@ -312,8 +337,27 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
   }),
 
   openTasks: block({
-    load: async (ctx) => (await taskCardsOf(ctx)).open,
-    render: (tasks, { tz, collapseDefault }) => <OpenTasks tasks={tasks} tz={tz} defaultCollapsed={collapseDefault} />,
+    load: async (ctx) => {
+      const [{ open }, yieldPrimary] = await Promise.all([taskCardsOf(ctx), hasPrimaryRequest(ctx)]);
+      // Die Selbstmeldung tritt zurück (`OpenTasks`, `yieldPrimary`), solange eine Anforderung den
+      // einen gefüllten Knopf des Bildschirms trägt.
+      return { tasks: open, yieldPrimary };
+    },
+    render: ({ tasks, yieldPrimary }, { tz, now, collapseDefault }) => (
+      <OpenTasks
+        tasks={tasks}
+        tz={tz}
+        // Die Aufgaben treten zurück, solange eine knappere Frist darüber steht UND keine von ihnen
+        // in den nächsten Stunden fällig wird. Eine zugeklappte Vorgabe des Trägers bleibt zu; ein
+        // gespeichertes „offen" ist von der Vorgabe nicht zu unterscheiden (`false` in beiden
+        // Fällen), der Schalter in der Rubrik öffnet den Stapel dann mit einem Tipp. `undefined`
+        // (Block nicht zuklappbar) bleibt, wie es ist.
+        defaultCollapsed={collapseDefault === undefined
+          ? undefined
+          : collapseDefault || (yieldPrimary && !tasks.some((task) => isTaskDueSoon(task, now)))}
+        yieldPrimary={yieldPrimary}
+      />
+    ),
   }),
 
   // UNTER den Aufgaben: eine Aufgabe mit Frist tickt, eine offene Strafe ist ein Zustand.
@@ -392,8 +436,8 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
       // jeder künftige Block, der sich auf diesen bezieht, bekäme „ist sichtbar" für einen leeren
       // Platz gemeldet.
       if (!running) {
-        const open = await openStateData(ctx);
-        return open && ({ open } as const);
+        const [open, yieldPrimary] = await Promise.all([openStateData(ctx), hasPrimaryRequest(ctx)]);
+        return open && ({ open, yieldPrimary } as const);
       }
       const [activeLockPeriod, user, activeVorgabe, hours, deviceCount, offenseRules, kgVorgaben, kgPairs, pendingOpen] = await Promise.all([
         subLockPeriodCached(userId), userRowCached(userId), activeVorgabeCached(userId, nowMs),
@@ -430,6 +474,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
             cleaningRelockWarnTime={data.open.cleaningRelockWarnUntil ? formatTime(data.open.cleaningRelockWarnUntil, dl, tz) : null}
             cleaningRelockWarnPassed={!!data.open.cleaningRelockWarnUntil && data.open.cleaningRelockWarnUntil < now}
             lockCall={data.open.lockCall && { id: data.open.lockCall.id, at: data.open.lockCall.at.toISOString() }}
+            yieldPrimary={data.yieldPrimary}
           />
         </DashboardBlock>
       ) : (
@@ -583,11 +628,11 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
 
   statusAndStats: block({
     load: async ({ userId, nowMs, tz }) => {
-      const [entries, latest, hours] = await Promise.all([
-        entriesCached(userId), latestKgEntryCached(userId), wearingHoursCached(userId, nowMs, tz),
+      const [entries, latest, hours, user] = await Promise.all([
+        entriesCached(userId), latestKgEntryCached(userId), wearingHoursCached(userId, nowMs, tz), userRowCached(userId),
       ]);
 
-      return { hasEntries: entries.length > 0, latest, hours };
+      return { hasEntries: entries.length > 0, canAddUsers: user?.role === "admin", latest, hours };
     },
     render: (data, { now, tz }) => {
       const clientProps: DashboardProps = {
@@ -595,6 +640,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
           ? { type: data.latest.type as "VERSCHLUSS" | "OEFFNEN", since: data.latest.startTime.toISOString() }
           : null,
         hasEntries: data.hasEntries,
+        canAddUsers: data.canAddUsers,
 
         tagH: data.hours.tagH,
         wocheH: data.hours.wocheH,

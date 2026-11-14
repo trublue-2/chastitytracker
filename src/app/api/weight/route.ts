@@ -1,3 +1,4 @@
+import { uploadsLinkable } from "@/lib/uploadOwnership";
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi, requireKeyholderOrAdminActor, sessionActor, weightTrackingGate } from "@/lib/authGuards";
 import { errorResponse, serviceFailure } from "@/lib/serviceResult";
@@ -42,6 +43,9 @@ export async function POST(req: NextRequest) {
   // Meldung, die der Träger liest.
   if (Number.isNaN(measuredAt.getTime())) return errorResponse(400, "invalidTime");
   const exif = body.imageExifTime ? new Date(body.imageExifTime) : null;
+
+  // Das Waagen-Foto muss dem Träger oder dem Handelnden gehören (`uploadOwnership.ts`).
+  if (!(await uploadsLinkable([body.imageUrl], [session.user.id, userId]))) return errorResponse(400, "INVALID_IMAGE_URL");
 
   const result = await recordWeight(userId, {
     weightKg: Number(body.weightKg),

@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { ClipboardList, Droplets, ChevronRight, Gavel } from "lucide-react";
 import { block, type StackBlock } from "@/lib/blockStack";
+import { isHiddenFromSub } from "@/lib/delayedTrigger";
 import type { KeyholderSubBlockId } from "@/lib/dashboardBlockRegistry";
 import {
   activeVorgabeCached, activeWearSessionsCached, deviceCountCached, kgVorgabenCached, kgWearPairsCached,
@@ -316,7 +317,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
           viewerTz={viewerTz}
           subTimePrefix={subLabel}
           untilLabel={t("until")}
-          withdrawAction={<WithdrawButton id={anforderung.id} apiPath="/api/admin/orgasmus-anforderung" title={t("withdrawOrgasmTitle")} colorToken="orgasm" />}
+          withdrawAction={<WithdrawButton id={anforderung.id} apiPath="/api/admin/orgasmus-anforderung" title={t("withdrawOrgasmTitle")} colorToken="orgasm" confirmMessage={scheduled ? undefined : t("withdrawOrgasmConfirm")} hiddenFromSub={isHiddenFromSub(anforderung)} />}
         />
       );
     })(),

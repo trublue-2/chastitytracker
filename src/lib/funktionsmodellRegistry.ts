@@ -475,6 +475,11 @@ export const FM_REGISTRY: FmEntry[] = [
     writers: ["admin", "mcp"], affects: ["Box", "Sperrzeit", "Sessions/Statistik", "Strafbuch"],
     anchor: "lockCommit.ts:lockAwaitsBolt",
   }),
+  s({
+    model: "User", field: "boxPhotoDeadlineHours", domain: "box", scope: "standing",
+    effect: "Frist in Stunden ab „Riegel zu\", in der das Box-Foto kommen muss. Danach zählt das Vergehen `box_photo_missing` — nur, wenn dessen Regel scharf ist (Vorgabe aus).",
+    writers: ["admin", "mcp"], affects: ["Box", "Strafbuch"], anchor: "boxPhotoDue.ts",
+  }),
 
   // ── Tagebuch ─────────────────────────────────────────────────────────────────────────
   s({
@@ -877,6 +882,8 @@ export const FM_REGISTRY: FmEntry[] = [
     "Ab wann das Box-Foto fällig ist: gesetzt, wenn die Box „Riegel zu\" meldet — ein Foto vorher belegte nichts. Einmal je Verschluss."),
   x("runtime", "Entry", "boxImageBeforeBolt",
     "Das Box-Foto wurde mehr als fünf Minuten VOR „Riegel zu\" aufgenommen: angenommen, aber markiert — es zeigt womöglich die noch offene Box."),
+  x("runtime", "Entry", "boxPhotoSubmittedAt",
+    "Wann das nachgereichte Box-Foto ankam. Eigenes Feld, damit ein verspätetes Foto das Vergehen `box_photo_missing` nicht rückwirkend aufhebt."),
   x("runtime", "Entry", "boxPhotoWaivedAt",
     "Die Keyholderin hat das fällige Box-Foto erlassen (Notausgang). Eigenes Feld, damit der nächste Riegel-Sync es nicht neu fällig stellt."),
   x("runtime", "Entry", "keyDetected",

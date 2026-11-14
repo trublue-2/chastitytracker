@@ -1,3 +1,4 @@
+import { getOffenseRules } from "@/lib/offenseRulesService";
 import { prisma } from "@/lib/prisma";
 import { structuredLog } from "@/lib/serverLog";
 import { lockmeboxEnabled } from "@/lib/constants";
@@ -50,11 +51,12 @@ async function pushImportant(
   user: Parameters<typeof deliveryChannels>[0] & { locale: string | null },
   titleKey: Parameters<ReturnType<typeof emailT>>[0],
   bodyKey: Parameters<ReturnType<typeof emailT>>[0],
+  bodyParams?: Record<string, string | number>,
 ): Promise<void> {
   if (!(await deliveryChannels(user, "important")).push) return;
   const t = emailT(user.locale);
   // Bewusst NUR Push (kein Mail/Telegram): ein Anstoss zum Öffnen der App, keine Meldung mit Text.
-  firePush(userId, t(titleKey), t(bodyKey), "/dashboard");
+  firePush(userId, t(titleKey), t(bodyKey, bodyParams), "/dashboard");
 }
 
 /**
@@ -70,6 +72,15 @@ export function announceBoxPhotoDue(userId: string): void {
 }
 
 async function notifyPhotoDue(userId: string): Promise<void> {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: NOTIFY_RECIPIENT_SELECT });
-  if (user) await pushImportant(userId, user, "boxPhotoDuePushTitle", "boxPhotoDuePushBody");
+  const [user, rules] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { ...NOTIFY_RECIPIENT_SELECT, boxPhotoDeadlineHours: true } }),
+    getOffenseRules(userId),
+  ]);
+  if (!user) return;
+  // Zählt das Versäumen bei ihm, sagt schon die Mitteilung, wie viel Zeit er hat — wie die Karte im Dashboard.
+  if (rules.box_photo_missing === "on") {
+    await pushImportant(userId, user, "boxPhotoDuePushTitle", "boxPhotoDuePushBodyDeadline", { hours: user.boxPhotoDeadlineHours });
+  } else {
+    await pushImportant(userId, user, "boxPhotoDuePushTitle", "boxPhotoDuePushBody");
+  }
 }

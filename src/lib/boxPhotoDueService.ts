@@ -1,6 +1,8 @@
+import { uploadsLinkable } from "@/lib/uploadOwnership";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { CLIENT_CLOCK_SKEW_MS, isValidImageUrl, parseRotation } from "@/lib/constants";
+import { BOX_PHOTO_DEADLINE_HOURS_RANGE, CLIENT_CLOCK_SKEW_MS, isValidImageUrl, parseRotation } from "@/lib/constants";
+import { clamp } from "@/lib/utils";
 import { boxReportsFreshlyLocked } from "@/lib/boxStatus";
 import { getLatestKgEntry } from "@/lib/queries";
 import { detectKeyInBox } from "@/lib/verifyCode";
@@ -111,7 +113,7 @@ function parseTakenAt(v: unknown): Date | null {
 export async function submitBoxPhoto(userId: string, entryId: string, input: { boxImageUrl: unknown; boxImageRotation?: unknown; boxImageExifTime?: unknown }): Promise<ServiceResult<{ entryId: string }>> {
   const url = typeof input.boxImageUrl === "string" ? input.boxImageUrl : "";
   // Derselbe Pfad-Guard wie überall: das Bild geht an die Vision, eine fremde URL wäre ein SSRF-Hebel.
-  if (!url || !isValidImageUrl(url)) return serviceFail(400, "INVALID_IMAGE_URL");
+  if (!url || !isValidImageUrl(url) || !(await uploadsLinkable([url], [userId]))) return serviceFail(400, "INVALID_IMAGE_URL");
   if (!(await prisma.entry.findFirst({ where: { id: entryId, userId }, select: { id: true } }))) return serviceFail(404, "NOT_FOUND");
   const lock = await dueBoxPhotoLock(userId, entryId);
   if (!lock) return serviceFail(409, "BOX_PHOTO_NOT_DUE");
@@ -123,7 +125,7 @@ export async function submitBoxPhoto(userId: string, entryId: string, input: { b
   const { count } = await prisma.entry.updateMany({
     where: { id: entryId, userId, boxImageUrl: null },
     // `dueBoxPhotoLock` liefert nur Verschlüsse mit gesetztem `boxPhotoDueAt` (isBoxPhotoDue).
-    data: { boxImageUrl: url, boxImageBeforeBolt: boxPhotoTakenBeforeBolt(takenAt, lock.boxPhotoDueAt!) },
+    data: { boxImageUrl: url, boxPhotoSubmittedAt: new Date(), boxImageBeforeBolt: boxPhotoTakenBeforeBolt(takenAt, lock.boxPhotoDueAt!) },
   });
   if (count === 0) return serviceFail(409, "BOX_PHOTO_NOT_DUE");
   detectKeyInBoxInBackground(entryId, url, input.boxImageRotation);
@@ -137,4 +139,18 @@ export async function waiveBoxPhoto(userId: string, db: Db = prisma): Promise<Se
   if (!lock) return serviceFail(409, "BOX_PHOTO_NOT_DUE");
   await db.entry.update({ where: { id: lock.id }, data: { boxPhotoWaivedAt: new Date() } });
   return { ok: true, data: { entryId: lock.id } };
+}
+
+/** Eine Frist-Eingabe auf den erlaubten Bereich — dieselbe Klemme für Schreiben und MCP-Vorschau. */
+export function clampBoxPhotoDeadline(hours: unknown): number {
+  return clamp(Number(hours), BOX_PHOTO_DEADLINE_HOURS_RANGE);
+}
+
+/** Die Frist der Keyholderin für das Box-Foto (Stunden ab „Riegel zu"), geklemmt. Geteilt von der
+ *  Admin-Route und `set_box` — beide schreiben denselben Wert über denselben Weg. Gibt den
+ *  gespeicherten Wert zurück. */
+export async function setBoxPhotoDeadlineHours(userId: string, hours: unknown): Promise<number> {
+  const value = clampBoxPhotoDeadline(hours);
+  await prisma.user.update({ where: { id: userId }, data: { boxPhotoDeadlineHours: value } });
+  return value;
 }

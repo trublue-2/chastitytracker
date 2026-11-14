@@ -3,7 +3,11 @@
 import { useTranslations } from "next-intl";
 import CalendarExpand from "./CalendarExpand";
 import CategorySwitcherCard, { type CategoryVariant } from "./CategorySwitcherCard";
+import { WEAR_LEGEND } from "@/lib/wearIntensity";
 import type { CalendarMonthData } from "@/lib/statsTypes";
+
+/** Stufen 1–4; „Nicht getragen" (Stufe 0) hat ein übersetztes Etikett und steht eigens davor. */
+const WORN_LEGEND = WEAR_LEGEND.slice(1);
 
 /** One picker entry — built server-side from KG + each non-KG category with wear data. */
 export type CalendarVariant = CategoryVariant & {
@@ -25,10 +29,12 @@ export default function WearCalendarSwitcher({ variants }: { variants: CalendarV
       header={(active) => (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-foreground-muted">
           <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-surface-raised border border-border inline-block" />{t("notWorn")}</span>
-          <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-[var(--wear-1)] inline-block" />&lt;25%</span>
-          <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-[var(--wear-2)] inline-block" />25–40%</span>
-          <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-[var(--wear-3)] inline-block" />40–65%</span>
-          <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-[var(--wear-4)] inline-block" />&gt;65%</span>
+          {WORN_LEGEND.map((e) => (
+            <span key={e.label} className="flex items-center gap-1.5">
+              <span className={`w-4 h-4 rounded ${e.cls} inline-block`} />
+              <span className="tabular-nums">{e.label}</span>
+            </span>
+          ))}
           {active.isKG && (
             <span className="flex items-center gap-1.5">
               <span className="relative inline-flex w-4 h-4 items-center justify-center">

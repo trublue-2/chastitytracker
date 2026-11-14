@@ -1,3 +1,4 @@
+import { uploadsLinkable } from "@/lib/uploadOwnership";
 import { NextRequest, NextResponse } from "next/server";
 import { requireApi } from "@/lib/authGuards";
 import { submitTaskProof } from "@/lib/taskProofService";
@@ -26,6 +27,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // denselben Upload); fehlt es, ist das kein Fehler — der Nachweis kann ein reiner Text sein.
     const imageUrl = typeof body.imageUrl === "string" && body.imageUrl ? body.imageUrl : null;
     if (imageUrl && !isValidImageUrl(imageUrl)) return errorResponse(400, "INVALID_IMAGE_URL");
+    if (!(await uploadsLinkable([imageUrl], [session.user.id!]))) return errorResponse(400, "INVALID_IMAGE_URL");
 
     // Fehlende oder unlesbare EXIF-Zeit ist KEIN Fehler: das Bild trägt sie schlicht nicht. Der
     // Nachweis geht dann zur Sichtung, statt abgewiesen zu werden (siehe `evaluateProofs`).

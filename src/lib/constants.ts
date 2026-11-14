@@ -90,12 +90,16 @@ export const VALID_TYPES = ["VERSCHLUSS", "OEFFNEN", "PRUEFUNG", "ORGASMUS", "WE
 export const KG_ENTRY_TYPES: ReadonlySet<string> = new Set(["VERSCHLUSS", "OEFFNEN"]);
 /** Entry types for non-KG DeviceCategories (Plug, Collar, ...). Require deviceId. */
 export const WEAR_ENTRY_TYPES: ReadonlySet<string> = new Set(["WEAR_BEGIN", "WEAR_END"]);
-/** Entry types that may carry a box photo (`boxImageUrl`): der Schlüssel-Nachweis durchs
- *  Sichtfenster der Heimdall-Box. Beim Einschliessen entsteht er, bei jeder Kontrolle wird er
- *  wiederholt — und nur die Wiederholung belegt, dass der Schlüssel drin GEBLIEBEN ist. Die
- *  Wiederholung darf seit `lib/boxKeyProof.ts` auch aus der Telemetrie kommen (unbewegter Riegel
- *  seit dem letzten Nachweis) — das ersetzt aber nur ein FEHLENDES Foto, nie ein vorliegendes. */
-export const BOX_PHOTO_TYPES: ReadonlySet<string> = new Set(["VERSCHLUSS", "PRUEFUNG"]);
+/** Entry types whose CREATE (`POST /api/entries`) may carry a box photo (`boxImageUrl`): der
+ *  Schlüssel-Nachweis durchs Sichtfenster der Box, bei jeder Kontrolle wiederholt — nur die
+ *  Wiederholung belegt, dass der Schlüssel drin GEBLIEBEN ist. Die Wiederholung darf seit
+ *  `lib/boxKeyProof.ts` auch aus der Telemetrie kommen (unbewegter Riegel seit dem letzten
+ *  Nachweis) — das ersetzt aber nur ein FEHLENDES Foto, nie ein vorliegendes.
+ *
+ *  **Nicht mehr VERSCHLUSS** (seit 6.6.0): das Foto des Verschlusses kommt erst nach „Riegel zu" über
+ *  `POST /api/entries/[id]/box-photo` (`boxPhotoDue.ts`). Ein beim Anlegen mitgeschicktes Foto zeigte
+ *  die noch offene Box und hob zugleich die Fälligkeit auf — genau die Lücke, die die Regel schliesst. */
+export const BOX_PHOTO_TYPES: ReadonlySet<string> = new Set(["PRUEFUNG"]);
 /** `BoxEvent.type`: die Übergänge, die der Heimdall-Server melden darf (Ingest-Whitelist). */
 export const BOX_EVENT_TYPES = ["LOCKED", "UNLOCKED", "EARLY_OPEN", "UNAUTHORIZED_OPEN"] as const;
 /** Davon die Bewegungen AUS der Verschluss-Stellung — die Gegenprobe des Schlüssel-Nachweises aus der
@@ -431,6 +435,8 @@ export const INSPECTION_AUTO_MARK_DELAY_RANGE = { ...INSPECTION_ESCALATION_DELAY
 export const INSPECTION_JOKER_MINUTES_RANGE = { min: 30, max: 240, fallback: 60 } as const satisfies NumberRange;
 /** Guthaben an Jokern, das die Keyholderin setzen kann. 0 = Funktion aus. */
 export const INSPECTION_JOKER_BALANCE_RANGE = { min: 0, max: 99, fallback: 0 } as const satisfies NumberRange;
+/** Frist in Stunden ab „Riegel zu", in der das Box-Foto kommen muss (Vergehen `box_photo_missing`). */
+export const BOX_PHOTO_DEADLINE_HOURS_RANGE = { min: 1, max: 48, fallback: 2 } as const satisfies NumberRange;
 /** Länge des optionalen Grundes, den der Träger beim Einsatz angibt. */
 export const INSPECTION_JOKER_REASON_MAX_LENGTH = 200;
 

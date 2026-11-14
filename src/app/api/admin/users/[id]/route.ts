@@ -1,3 +1,4 @@
+import { setBoxPhotoDeadlineHours } from "@/lib/boxPhotoDueService";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -206,6 +207,13 @@ export async function PATCH(
     return NextResponse.json({ ok: true });
   }
 
+  // Frist für das Box-Foto — wie der Riegel-Schalter nur, wo die Instanz eine Box führt.
+  if (body.boxPhotoDeadlineHours !== undefined) {
+    if (!boxCouplingEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    await setBoxPhotoDeadlineHours(id, body.boxPhotoDeadlineHours);
+    return NextResponse.json({ ok: true });
+  }
+
   // Darf der Träger zu einem Vergehen Stellung nehmen? Über den Dienst, wie `lockRequiresBolt` —
   // der MCP legt denselben Schalter um.
   if (body.offenseStatementsAllowed !== undefined) {
@@ -274,10 +282,14 @@ export async function DELETE(
 
   // H5 (Recht auf Vergessenwerden): alle Foto-Dateien des Nutzers VOR dem Cascade-Delete einsammeln,
   // danach von der Platte entfernen (DB-Zeilen kaskadieren, die Dateien nicht).
-  const [entries, devices, refs] = await Promise.all([
+  // Nachweise, Waagen-Fotos und nie verknüpfte Uploads gehören dazu — sie blieben bis 6.6.0 liegen.
+  const [entries, devices, refs, proofs, weights, uploads] = await Promise.all([
     prisma.entry.findMany({ where: { userId: id }, select: { imageUrl: true, codeImageUrl: true, boxImageUrl: true } }),
     prisma.device.findMany({ where: { userId: id }, select: { imageUrl: true } }),
     prisma.deviceReferenceImage.findMany({ where: { device: { userId: id } }, select: { imageUrl: true } }),
+    prisma.taskProof.findMany({ where: { task: { userId: id } }, select: { imageUrl: true } }),
+    prisma.weightEntry.findMany({ where: { userId: id }, select: { imageUrl: true } }),
+    prisma.upload.findMany({ where: { uploaderId: id }, select: { filename: true } }),
   ]);
 
   // Mit dem Nutzer ginge das Passwort seiner LockMeBox verloren (Kaskade) — solange sie zu sein
@@ -295,6 +307,11 @@ export async function DELETE(
     ...entries.flatMap(entryImageUrls),
     ...devices.map((d) => d.imageUrl),
     ...refs.map((r) => r.imageUrl),
+    ...proofs.map((p) => p.imageUrl),
+    ...weights.map((w) => w.imageUrl),
+    // Was er hochgeladen hat und an einer FREMDEN Zeile hängt (Keyholderin fotografiert für ihren
+    // Sub), bleibt: `deleteUploadedFiles` lässt liegen, worauf noch jemand verweist.
+    ...uploads.map((u) => u.filename),
   ]);
   return new NextResponse(null, { status: 204 });
 }

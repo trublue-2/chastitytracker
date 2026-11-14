@@ -215,6 +215,7 @@ const contextUserSelect = {
   inspectionAutoMarkEnabled: true, inspectionAutoMarkDelayMinutes: true,
   ...INSPECTION_JOKER_USER_SELECT,
   lockRequiresBolt: true,
+  boxPhotoDeadlineHours: true,
   offenseStatementsAllowed: true,
   // Die Kanal-Stufen des Trägers: wie laut Mail, Push und Telegram für IHN sein dürfen.
   notifyMail: true, notifyPush: true, notifyTelegram: true,
@@ -222,12 +223,17 @@ const contextUserSelect = {
 
 /** Box-Bestand und wartender Aufruf — die Lese-Seite zu `set_box` (docs/riegel-konzept.md).
  *  Der Schalter selbst kommt aus der ohnehin geladenen User-Zeile. */
-export async function loadBoxSettings(userId: string) {
+export async function loadBoxSettings(userId: string, photoDeadlineHours: number) {
   const [boxes, waitingSince] = await Promise.all([
     prisma.boxStatus.findMany({ where: { userId }, select: { kind: true } }),
     pendingLockCallAt(userId),
   ]);
-  return { hasBox: boxes.length > 0, boltAlways: hasLockmebox(boxes), lockCallWaitingSince: waitingSince?.toISOString() ?? null };
+  return {
+    hasBox: boxes.length > 0, boltAlways: hasLockmebox(boxes), lockCallWaitingSince: waitingSince?.toISOString() ?? null,
+    // Stunden ab „Riegel zu" für das Box-Foto (aus der ohnehin geladenen User-Zeile des Aufrufers);
+    // zum Vergehen nur mit scharfer Regel `box_photo_missing`.
+    photoDeadlineHours,
+  };
 }
 
 /** Liefert HealthHold + Auto-Kontroll-Einstellungen + Reinigungs-Regeln + Wochen-Kontext + anstehende
@@ -261,7 +267,7 @@ export async function getContext(username: string, opts: GetContextOptions = {})
     getOffenseRules(userId, now),
     weightReleaseStatus(userId, now),
     // Führt die Instanz keine Box, wird gar nicht gefragt — `null` ist dann die ganze Antwort.
-    boxCouplingEnabled() ? loadBoxSettings(userId) : Promise.resolve(null),
+    boxCouplingEnabled() ? loadBoxSettings(userId, user.boxPhotoDeadlineHours) : Promise.resolve(null),
     currentVisionConfig(now),
   ]);
 

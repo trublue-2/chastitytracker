@@ -1,3 +1,4 @@
+import { uploadsLinkable } from "@/lib/uploadOwnership";
 import { prisma } from "@/lib/prisma";
 import type { Entry, User } from "@prisma/client";
 import { validateEntryPayload, DEVICE_BEARING_TYPES, LOCK_ENDED_REASON, lockmeboxEnabled } from "@/lib/constants";
@@ -147,6 +148,10 @@ export async function createEntryForUser(
 
   const validationError = validateEntryCreate(user, input, { allowFuture: opts.allowFuture });
   if (validationError) return { ok: false, error: validationError };
+  // Das Bild muss dem Träger oder dem Handelnden gehören (`uploadOwnership.ts`).
+  if (!(await uploadsLinkable([imageUrl], opts.actorUserId ? [userId, opts.actorUserId] : [userId]))) {
+    return { ok: false, error: "INVALID_IMAGE_URL" };
+  }
 
   // In der Transaktion ermittelt, nach dem Commit für die Meldung wiederverwendet.
   let brokeLockPeriod = false;

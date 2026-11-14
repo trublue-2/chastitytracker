@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, ClipboardList, Plus, BarChart2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ViewTransitionLink from "@/app/components/ViewTransitionLink";
 import useViewTransition from "@/app/hooks/useViewTransition";
-import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator";
+import AppFooterMeta from "@/app/components/AppFooterMeta";
 import { adminNavEntry } from "@/lib/adminNavEntry";
 import { isEntryFormRoute } from "@/lib/entryFormRoute";
 import { hapticLight } from "@/lib/haptics";
@@ -94,15 +93,7 @@ export default function BottomNav({ isAdmin, isKeyholder, onNewEntry, version }:
           JEDER Dashboard-Seite ein Streifen unter der Leiste. */}
       {version && (
         <div className="flex items-center justify-between px-4 h-6">
-          <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-[10px] text-foreground-faint hover:text-foreground-muted transition">
-            &copy; trublue {new Date().getFullYear()}
-          </a>
-          <div className="flex items-center gap-2">
-            <UpdateAvailableIndicator currentVersion={version} />
-            <Link href="/dashboard/changelog" className="text-[10px] font-mono bg-surface-raised text-foreground-faint px-1.5 py-0.5 rounded hover:text-foreground-muted transition">
-              {version}
-            </Link>
-          </div>
+          <AppFooterMeta version={version} />
         </div>
       )}
     </nav>

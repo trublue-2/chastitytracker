@@ -428,6 +428,7 @@
     "tasks_tab": "Aufgaben",
     "mainNavLabel": "Hauptnavigation",
     "userTabsLabel": "Bereiche dieses Benutzers",
+    "tabNeedsYou": "wartet auf dich:",
     "journal_tab": "Geteilte Einträge"
   },
   "nav": {
@@ -582,6 +583,7 @@
     "welcomeTitle": "Willkommen!",
     "welcomeDesc": "Erstelle deinen ersten Eintrag, um das Tracking zu starten.",
     "welcomeCta": "Einschliessen",
+    "welcomeAddUsers": "Du betreust jemand anderen? Konto anlegen",
     "lockedSince": "Verschlossen seit",
     "openSince": "Offen seit",
     "wearToday": "Heute",
@@ -622,6 +624,8 @@
     "editLayoutStartsClosed": "„{name}\": startet Zu — antippen, damit der Block offen startet",
     "boxPhotoDueTitle": "Box-Bild mit sichtbarem Schlüssel hinterlegen",
     "boxPhotoDueText": "Der Riegel ist zu. Fotografiere die Box durchs Sichtfenster, sodass der Schlüssel gut erkennbar ist.",
+    "boxPhotoDueDeadline": "Frist bis {date} – danach zählt es als Vergehen.",
+    "boxPhotoDueDeadlinePassed": "Die Frist ist am {date} abgelaufen – das fehlende Foto zählt als Vergehen.",
     "boxPhotoDueSave": "Bild hinterlegen",
     "keyPhotoBeforeBolt": "Foto vor Riegel zu aufgenommen",
     "blockStatsMood": "Stimmung"
@@ -866,6 +870,8 @@
     "startPageDashboard": "Eigener Tracker",
     "hideOwnTracker": "Kein eigener Tracker",
     "hideOwnTrackerHint": "Für Keyholder ohne eigenen Tracker: blendet die eigene Karte in der Übersicht, die Navigation Meine Sicht und den grünen Tracker-Bereich aus. Es werden keine Daten gelöscht — schaltest du es wieder aus, ist alles zurück.",
+    "hideOwnTrackerConfirm": "„Meine Sicht“ und dein grüner Tracker werden ausgeblendet, du siehst nur noch den Keyholder-Bereich. Es werden keine Daten gelöscht; ausschalten bringt alles zurück.",
+    "hideOwnTrackerConfirmButton": "Ausblenden",
     "minutes": "Minuten",
     "saved": "Gespeichert",
     "account": "Konto",
@@ -903,6 +909,7 @@
     "notifyStatusTelegramOff": "nicht verbunden",
     "telegramConnect": "Mit Telegram verbinden",
     "telegramDisconnect": "Telegram entkoppeln",
+    "telegramDisconnectConfirm": "Danach erreichen dich keine Mitteilungen mehr über Telegram. Du kannst den Chat jederzeit wieder verbinden.",
     "telegramConnected": "Telegram ist verbunden.",
     "telegramAwaiting": "Drücke im geöffneten Telegram-Chat auf „Start“. Sobald das erledigt ist, erscheint die Verbindung hier.",
     "weightSection": "Gewicht",
@@ -917,7 +924,12 @@
     "weightReminderHint": "Zum Beginn eines Wiege-Fensters, wenn an dem Tag noch kein Wert steht.",
     "targetUnderweightWarning": "Dieses Ziel liegt im Untergewicht (BMI unter 18,5). Du kannst es trotzdem setzen.",
     "androidAppTitle": "Android-App",
-    "androidAppHint": "Als App installieren – mit Sperre per Fingerabdruck und Mitteilungen"
+    "androidAppHint": "Als App installieren – mit Sperre per Fingerabdruck und Mitteilungen",
+    "appLockTitle": "App-Sperre",
+    "appLockHint": "Fragt nach Gesicht oder Fingerabdruck, wenn du in die App zurückkommst. Gilt nur für dieses Gerät.",
+    "appLockOff": "Aus",
+    "appLockImmediate": "Sofort",
+    "appLockAfter": "Nach {minutes} Min."
   },
   "changelog": {
     "title": "Changelog",
@@ -1133,6 +1145,8 @@
     "orgasmAnforderungExpired": "abgelaufen",
     "orgasmAnforderungScheduled": "geplant für {time}",
     "withdrawOrgasmTitle": "Orgasmus-Anforderung zurückziehen",
+    "withdrawOrgasmConfirm": "Die offene Anweisung oder Gelegenheit entfällt sofort und lässt sich nicht zurücknehmen.",
+    "withdrawNotifiesSub": "Der Sub erhält eine Mitteilung.",
     "setLockDuration": "Sperrzeit setzen",
     "minDurationLabel": "Nach dem Einschliessen sperren",
     "minDurationHint": "Nach dem Einschliessen wird automatisch eine Sperrdauer erstellt.",
@@ -1170,6 +1184,9 @@
     "strafbuchOffeneAnzeigen": "Nur offene Vergehen anzeigen",
     "strafbuchAbbrechen": "Abbrechen",
     "strafbuchRueckgaengig": "Rückgängig",
+    "strafbuchRueckgaengigConfirm": "Das Urteil wird entfernt, ebenso die Mitteilung an den Sub und eine daraus entstandene Strafaufgabe. Der Sub wird darüber nicht benachrichtigt.",
+    "strafbuchFolgeStrafe": "Der Sub erhält eine Mitteilung: „Strafe verhängt“ mit deiner Beschreibung.",
+    "strafbuchFolgeVerworfen": "Der Sub erhält eine Mitteilung, dass das Vergehen fallengelassen wurde.",
     "strafbuchStellungnahme": "Seine Stellungnahme",
     "offenseStatementsLabel": "Stellungnahme erlauben",
     "offenseStatementsDesc": "Der Träger kann zu einem festgestellten Vergehen eine Stellungnahme schreiben — eine je Vergehen, änderbar bis zu deinem Urteil. Sie steht dann über deinem Urteils-Feld. Aus: kein Feld und kein Hinweis bei ihm; bereits Geschriebenes bleibt lesbar.",
@@ -1296,6 +1313,7 @@
     "scheduleDelayHint": "Anforderung wird nach dieser Verzögerung versendet; bis dahin für den Sub unsichtbar.",
     "scheduleFutureRequired": "Versandzeitpunkt muss in der Zukunft liegen",
     "withdrawLockTitle": "Sperrzeit aufheben",
+    "withdrawLockPeriodConfirm": "Die Sperrzeit endet sofort und lässt sich nicht zurücknehmen. Um wieder zu sperren, setzt du eine neue Sperrzeit.",
     "editLockRequestTitle": "Anforderung bearbeiten",
     "withdrawKontrolleTitle": "Kontrolle zurückziehen",
     "sending": "Sende…",
@@ -1391,6 +1409,8 @@
     "strafbuchReinigungLimit": "Reinigungslimit überschritten",
     "strafbuchGewichtVersaeumt": "Gewichts-Meldung versäumt",
     "strafbuchGewichtVersaeumtTage": "Drei Tage ohne Angabe",
+    "strafbuchBoxFotoFehlt": "Box-Foto fehlt",
+    "strafbuchBoxFotoFrist": "Riegel zu bis Fristende",
     "strafbuchReinigungLimitDate": "Reinigungsöffnung am",
     "sectionApp": "App",
     "mobileUploadAdminTitle": "Dateiauswahl auf Mobile",
@@ -1606,7 +1626,10 @@
     "inspectionJokerDesc": "Der Sub kann eine laufende Kontrollfrist vor ihrem Ablauf selbst verschieben, einmal je Kontrolle. Jeder Einsatz kostet einen Joker, du wirst benachrichtigt.",
     "inspectionJokerBalanceLabel": "Verfügbare Joker",
     "inspectionJokerMinutesLabel": "Aufschub je Joker",
-    "inspectionJokerUsedNote": "Joker eingesetzt, ursprüngliche Frist: {date}"
+    "inspectionJokerUsedNote": "Joker eingesetzt, ursprüngliche Frist: {date}",
+    "boxPhotoDeadlineLabel": "Frist für das Box-Foto",
+    "boxPhotoDeadlineDesc": "So lange nach „Riegel zu“ hat er Zeit für das Foto der Box. Zum Vergehen wird es nur, wenn „Box-Foto fehlt“ unter Vergehen eingeschaltet ist.",
+    "boxPhotoDeadlineHours": "Frist"
   },
   "forgotPassword": {
     "pageTitle": "Passwort zurücksetzen",
@@ -1844,6 +1867,7 @@
     "filterCategoryLabel": "Nach Kategorie filtern",
     "filterSenderLabel": "Nach Absender filtern",
     "filterAllCategories": "Alle Kategorien",
+    "filterMore": "Weitere Filter",
     "filterAllSenders": "Alle Absender",
     "emptyFilteredTitle": "Nichts in dieser Auswahl",
     "emptyFilteredText": "Mit diesem Filter gibt es keine Nachrichten.",
@@ -2040,6 +2064,7 @@
     "taskProofReminderMessage": "Zur Aufgabe „{title}“ fehlt noch der Nachweis „{description}“ — fällig um {until}.",
     "boxPhotoDuePushTitle": "Box-Bild hinterlegen",
     "boxPhotoDuePushBody": "Der Riegel ist zu. Öffne die App und hinterlege ein Bild der Box mit sichtbarem Schlüssel.",
+    "boxPhotoDuePushBodyDeadline": "Der Riegel ist zu. Hinterlege innerhalb von {hours} h ein Bild der Box mit sichtbarem Schlüssel.",
     "lockboxCodeSameSubjectKeyholder": "Schlüsselbox-Code nicht gewechselt?",
     "lockboxCodeSameMessageKeyholder": "{username} hat beim neuen Verschluss offenbar denselben Schlüsselbox-Code versiegelt wie beim letzten. Beide Fotos stehen in der Vergleichsansicht.",
     "lockboxCodeUncertainSubjectKeyholder": "Schlüsselbox-Code bitte prüfen",
@@ -2196,6 +2221,7 @@
     "emptyHint": "Noch keine Aufgabe gestellt.",
     "proofAccept": "Annehmen",
     "proofReject": "Ablehnen",
+    "proofRejectHint": "Beim Ablehnen kann der Sub neu einreichen, solange die Aufgabe läuft; danach gilt sie als versäumt. Er erhält eine Mitteilung. Das Urteil lässt sich später ändern.",
     "proofReviewedAccepted": "Angenommen am {at}",
     "proofReviewedRejected": "Abgelehnt am {at}",
     "proofCodeConfirmed": "Über den Code bestätigt",
@@ -2302,6 +2328,10 @@
     "missedWeightReport": {
       "name": "Gewichts-Meldung versäumt",
       "desc": "Drei Tage in Folge ohne Gewichts-Angabe."
+    },
+    "boxPhotoMissing": {
+      "name": "Box-Foto fehlt",
+      "desc": "Nach „Riegel zu“ kam das Foto der Box nicht innerhalb der Frist."
     },
     "unfulfilledTask": {
       "name": "Aufgabe nicht erfüllt",

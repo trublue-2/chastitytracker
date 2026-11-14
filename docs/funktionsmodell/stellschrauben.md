@@ -3,7 +3,7 @@
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
      src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
-Jedes Feld, das Verhalten steuert: 156 Stellschrauben über 41 Modelle.
+Jedes Feld, das Verhalten steuert: 157 Stellschrauben über 41 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
@@ -188,6 +188,7 @@ Steckbrief: [60-box.md](60-box.md)
 
 | Feld | Typ | Default | Gilt | Wirkung | Schreibt | Wirkt auf | Anker |
 |---|---|---|---|---|---|---|---|
+| `User.boxPhotoDeadlineHours` | Int | `2` | dauerhaft | Frist in Stunden ab „Riegel zu", in der das Box-Foto kommen muss. Danach zählt das Vergehen `box_photo_missing` — nur, wenn dessen Regel scharf ist (Vorgabe aus). | Keyholder (UI), Keyholder (MCP) | Box, Strafbuch | `boxPhotoDue.ts` |
 | `User.lockRequiresBolt` | Boolean | `false` | dauerhaft | Sein „Verschlossen" ist dann erst der AUFRUF an die Box; verschlossen ist er, wenn sie den Riegel meldet. Bis dahin läuft nichts an — keine Sperrzeit, keine erfüllte Anforderung, keine Tragezeit. Das Abschalten vollzieht einen wartenden Aufruf sofort. | Keyholder (UI), Keyholder (MCP) | Box, Sperrzeit, Sessions/Statistik, Strafbuch | `lockCommit.ts:lockAwaitsBolt` |
 
 ## Nachrichten
@@ -319,6 +320,7 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `Entry.keyDetected` | Laufzeitzustand | Hat die Bilderkennung im Sichtfenster einen Schlüssel gesehen? Beratend, blockiert nichts — und erkennt 'ein Schlüssel', nicht 'der richtige'. |
 | `Entry.boxPhotoDueAt` | Laufzeitzustand | Ab wann das Box-Foto fällig ist: gesetzt, wenn die Box „Riegel zu" meldet — ein Foto vorher belegte nichts. Einmal je Verschluss. |
 | `Entry.boxPhotoWaivedAt` | Laufzeitzustand | Die Keyholderin hat das fällige Box-Foto erlassen (Notausgang). Eigenes Feld, damit der nächste Riegel-Sync es nicht neu fällig stellt. |
+| `Entry.boxPhotoSubmittedAt` | Laufzeitzustand | Wann das nachgereichte Box-Foto ankam. Eigenes Feld, damit ein verspätetes Foto das Vergehen `box_photo_missing` nicht rückwirkend aufhebt. |
 | `Entry.boxImageBeforeBolt` | Laufzeitzustand | Das Box-Foto wurde mehr als fünf Minuten VOR „Riegel zu" aufgenommen: angenommen, aber markiert — es zeigt womöglich die noch offene Box. |
 | `Entry.note` | Datensatz | Freitext des Erfassenden. |
 | `Entry.orgasmusArt` | Datensatz | Art des Orgasmus; die Auswahlliste steuert `User.orgasmusArtenConfig`. |

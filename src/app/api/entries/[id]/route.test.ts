@@ -20,6 +20,8 @@ const db = vi.hoisted(() => ({
 const access = vi.hoisted(() => ({ entryManageAccess: vi.fn() }));
 const ids = vi.hoisted(() => ({ OWNER_ID: "owner-id", ENTRY_ID: "entry-id" }));
 
+// Besitz der Datei ist hier nicht das Thema (eigene Tests: `uploadOwnership.test.ts`) — jede gilt als eigene.
+vi.mock("@/lib/uploadOwnership", () => ({ uploadsLinkable: vi.fn(async () => true) }));
 vi.mock("@/lib/prisma", () => ({ prisma: db }));
 vi.mock("@/lib/authGuards", () => ({
   requireApi: vi.fn(async () => ({ user: { id: ids.OWNER_ID, role: "user" } })),

@@ -9,7 +9,7 @@ import { useTranslations } from "next-intl";
 import { adminNavItems } from "@/lib/adminNavItems";
 import Sheet from "./Sheet";
 import Spinner from "./Spinner";
-import UpdateAvailableIndicator from "./UpdateAvailableIndicator";
+import AppFooterMeta from "./AppFooterMeta";
 
 interface UserListItem {
   id: string;
@@ -125,15 +125,7 @@ export default function AdminDesktopSidebar({ version, isGlobalAdmin, hideOwnTra
             {t("signOut")}
           </button>
           <div className="px-2 flex items-center justify-between gap-2">
-            <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-[10px] text-foreground-faint hover:text-foreground-muted transition">
-              &copy; trublue {new Date().getFullYear()}
-            </a>
-            <div className="flex items-center gap-2">
-              <UpdateAvailableIndicator currentVersion={version} />
-              <Link href="/dashboard/changelog" className="text-[10px] font-mono bg-surface-raised text-foreground-faint px-1.5 py-0.5 rounded hover:text-foreground-muted transition">
-                {version}
-              </Link>
-            </div>
+            <AppFooterMeta version={version} />
           </div>
         </div>
       </aside>

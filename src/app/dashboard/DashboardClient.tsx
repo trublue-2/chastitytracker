@@ -16,6 +16,9 @@ import { LockClosedIcon } from "@/app/components/lockIcons";
 export interface DashboardProps {
   currentStatus: { type: "VERSCHLUSS" | "OEFFNEN"; since: string } | null;
   hasEntries: boolean;
+  /** The owner may create accounts (instance admin): the welcome block then also points to user
+   *  management — whoever set the instance up for someone else has nothing to lock up here. */
+  canAddUsers: boolean;
 
   // Die Anforderungen mit Frist (Kontrolle, Einschliessen, Orgasmus) stehen NICHT hier, sondern
   // im eigenen Block `DashboardAlerts` ganz oben auf der Seite — Begründung dort.
@@ -81,6 +84,7 @@ export default function DashboardClient(props: DashboardProps) {
   const {
     currentStatus,
     hasEntries,
+    canAddUsers,
     tagH: baseTagH,
     wocheH: baseWocheH,
     monatH: baseMonatH,
@@ -109,6 +113,7 @@ export default function DashboardClient(props: DashboardProps) {
           title={t("welcomeTitle")}
           description={t("welcomeDesc")}
           action={{ label: t("welcomeCta"), href: "/dashboard/new/verschluss" }}
+          secondaryAction={canAddUsers ? { label: t("welcomeAddUsers"), href: "/admin/users/new" } : undefined}
         />
       </DashboardBlock>
     );

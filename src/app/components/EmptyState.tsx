@@ -1,6 +1,7 @@
 import { type ReactNode } from "react";
 import Link from "next/link";
 import Button from "./Button";
+import { quietLinkCls } from "./inputStyles";
 
 interface EmptyStateAction {
   label: string;
@@ -13,6 +14,8 @@ interface EmptyStateProps {
   title: string;
   description?: string;
   action?: EmptyStateAction;
+  /** A quieter second way out, as a text link below the button. */
+  secondaryAction?: { label: string; href: string };
   className?: string;
 }
 
@@ -21,6 +24,7 @@ export default function EmptyState({
   title,
   description,
   action,
+  secondaryAction,
   className = "",
 }: EmptyStateProps) {
   return (
@@ -42,6 +46,11 @@ export default function EmptyState({
             {action.label}
           </Button>
         )
+      )}
+      {secondaryAction && (
+        <Link href={secondaryAction.href} className={`mt-4 ${quietLinkCls} underline underline-offset-2`}>
+          {secondaryAction.label}
+        </Link>
       )}
     </div>
   );

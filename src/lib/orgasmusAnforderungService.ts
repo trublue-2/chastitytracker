@@ -224,7 +224,8 @@ export async function withdrawOrgasmusAnforderung(
  *  PATCH route — targets exactly one directive instead of all open ones. The route already looks
  *  up the row's `userId` for the auth guard, so it's passed in here to avoid a second fetch of the
  *  same row (`updateMany` scoped by id + open-status does the existence/open check via `count`; der `findFirst`
- *  davor holt NUR den Auslöse-Stand für die Melde-Entscheidung). */
+ *  davor holt NUR den Auslöse-Stand für die Melde-Entscheidung). Die Rückfrage im Keyholder-Bereich
+ *  (`withdrawOrgasmConfirm`, `withdrawNotifiesSub`) beschreibt genau diese Regel. */
 export async function withdrawOrgasmusAnforderungById(id: string, userId: string, actor: MessageActor): Promise<ServiceResult<{ count: number }>> {
   // Der Auslöse-Stand wird MITGELESEN, statt nur zu zählen: eine terminierte, noch nicht ausgelöste
   // Anweisung darf zwar zurückgezogen, aber nicht gemeldet werden (`isHiddenFromSub`) — und nach dem

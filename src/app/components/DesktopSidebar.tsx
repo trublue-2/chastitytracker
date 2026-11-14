@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Home, ClipboardList, BarChart2, Plus, LogOut,
@@ -11,7 +10,7 @@ import { useSignOut } from "@/app/hooks/useSignOut";
 import NewEntrySheet, { type NewEntryCategoryRow } from "./NewEntrySheet";
 import ViewTransitionLink from "@/app/components/ViewTransitionLink";
 import useViewTransition from "@/app/hooks/useViewTransition";
-import UpdateAvailableIndicator from "@/app/components/UpdateAvailableIndicator";
+import AppFooterMeta from "@/app/components/AppFooterMeta";
 import { adminNavEntry } from "@/lib/adminNavEntry";
 import type { BildersafeMenuAction } from "@/lib/queries";
 
@@ -98,15 +97,7 @@ export default function DesktopSidebar({ isAdmin, isKeyholder, isLocked, lockCal
             {t("signOut")}
           </button>
           <div className="px-2 flex items-center justify-between gap-2">
-            <a href="https://fetlife.com/trublue_2" target="_blank" rel="noopener noreferrer" className="text-[10px] text-foreground-faint hover:text-foreground-muted transition">
-              &copy; trublue {new Date().getFullYear()}
-            </a>
-            <div className="flex items-center gap-2">
-              <UpdateAvailableIndicator currentVersion={version} />
-              <Link href="/dashboard/changelog" className="text-[10px] font-mono bg-surface-raised text-foreground-faint px-1.5 py-0.5 rounded hover:text-foreground-muted transition">
-                {version}
-              </Link>
-            </div>
+            <AppFooterMeta version={version} />
           </div>
         </div>
       </aside>
