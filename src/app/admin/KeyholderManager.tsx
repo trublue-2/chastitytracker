@@ -42,24 +42,17 @@ export default function KeyholderManager({ subId, initial }: { subId: string; in
   }, []);
 
   const assignedIds = new Set(initial.map((k) => k.id));
-  // Zuweisbar ist nur ein ANDERER Nicht-Admin-User, der nicht schon Keyholder ist:
-  //  - der Sub selbst scheidet aus (niemand ist sein eigener Keyholder),
-  //  - Admins scheiden aus, weil sie ohnehin ALLE Subs kontrollieren — ein Keyholder-Eintrag wäre
-  //    redundant (die Route lehnt es zusätzlich serverseitig ab). Der „Keyholder dieses Subs"-
-  //    Mechanismus ist genau für den Nicht-Admin-Fall: ein normaler User, der NUR diesen Sub
-  //    kontrollieren soll (chirurgischer /admin-Zugang).
-  // Folge: Gibt es ausser dem Sub nur Admins, ist die Liste leer und das Dropdown erscheint nicht —
-  // dann greift der Hinweis unten (keyholdersNoCandidates).
+  // Das Dropdown bietet ANDERE Nicht-Admin-User an, die nicht schon Keyholder sind (der Sub selbst
+  // scheidet aus: niemand ist sein eigener Keyholder). Admins stehen darunter mit eigenem Knopf —
+  // sie kontrollieren ohnehin alle Subs, lesen aber nur mit Zuordnung, was der Sub teilt (Tagebuch).
   const options = candidates
     .filter((c) => c.id !== subId && c.role !== "admin" && !assignedIds.has(c.id))
     .map((c) => ({ value: c.id, label: c.username }));
   // Kandidaten sind geladen (>0), aber keiner ist zuweisbar → erklärender Hinweis statt leerem Nichts.
   const noAssignable = candidates.length > 0 && options.length === 0;
-  // Admins kontrollieren diesen Sub ohnehin automatisch (Keyholder-über-alle). Sie werden hier rein zur
-  // ANZEIGE gelistet (nicht entfernbar — Kontrolle kommt aus der Rolle, nicht aus einem Eintrag), damit
-  // sichtbar ist, wer den Sub wirklich kontrolliert. Sub selbst ausgeschlossen (kein Selbst-Keyholder);
-  // bereits explizit zugewiesene raus (ein zum Admin beförderter Ex-Keyholder mit noch bestehender
-  // Relationship-Zeile soll nicht doppelt — hier UND in der entfernbaren Liste oben — erscheinen).
+  // Admins kontrollieren diesen Sub ohnehin automatisch (Keyholder-über-alle). Ohne Zuordnung lesen sie
+  // aber nicht, was der Sub teilt — deshalb ein „Zuordnen"-Knopf. Sub selbst ausgeschlossen (kein
+  // Selbst-Keyholder); bereits zugewiesene raus (sie stehen schon in der entfernbaren Liste oben).
   const admins = candidates.filter(
     (c) => c.role === "admin" && c.id !== subId && !assignedIds.has(c.id),
   );
@@ -117,7 +110,14 @@ export default function KeyholderManager({ subId, initial }: { subId: string; in
               <PersonRow
                 key={a.id}
                 username={a.username}
-                trailing={<Badge variant="neutral" label={t("roleAdmin")} size="sm" />}
+                trailing={
+                  <span className="flex items-center gap-2">
+                    <Badge variant="neutral" label={t("roleAdmin")} size="sm" />
+                    <Button variant="secondary" size="sm" onClick={() => mutate("POST", a.id)} loading={saving}>
+                      {t("keyholderAssign")}
+                    </Button>
+                  </span>
+                }
               />
             ))}
           </ul>
@@ -137,7 +137,7 @@ export default function KeyholderManager({ subId, initial }: { subId: string; in
           </Button>
         </div>
       )}
-      {noAssignable && (
+      {noAssignable && admins.length === 0 && (
         <p className="text-xs text-foreground-faint">{t("keyholdersNoCandidates")}</p>
       )}
       <FormError message={error} variant="compact" />

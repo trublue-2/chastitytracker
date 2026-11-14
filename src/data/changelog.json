@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.5.9",
+    "date": "2026-11-14",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Eine Keyholderin mit Admin-Rolle kann sich jetzt einem Sub zuordnen und sieht danach dessen geteiltes Tagebuch. Bestehende Admin-Keyholderinnen ordnen sich einmal unter „Keyholder dieses Subs“ zu.",
+          "en": "A keyholder with the admin role can now assign themselves to a sub and then sees the journal entries the sub shares. Existing admin keyholders assign themselves once under “Keyholders of this sub”."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.5.8",
     "date": "2026-11-09",
     "changes": [

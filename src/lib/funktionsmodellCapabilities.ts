@@ -813,7 +813,7 @@ export const FM_CAPABILITIES: FmCapability[] = [
     id: "keyholder-assign", mechanic: "Zugang", title: "Keyholder zuordnen",
     what: "Verknüpft ein KONTO mit einem Träger — die eigentliche Berechtigung. Das Konto braucht dafür keine Admin-Rolle: ein Keyholder ist im Normalfall `role: \"user\"` (siehe `keyholder.ts`).",
     actors: ["admin"], surfaces: ["admin-ui"], routes: ["/api/admin/users/[id]/keyholders"],
-    note: "Ohne Zuordnung sieht das Konto überall leere Listen, nicht alle Träger.",
+    note: "Ohne Zuordnung sieht das Konto überall leere Listen, nicht alle Träger. Auch ein Admin ist zuordenbar: er kontrolliert per Rolle alle Träger, liest aber das geteilte Tagebuch nur mit Zuordnung.",
   }),
   c({
     id: "escalation-settings", mechanic: "Kontrollen", title: "Eskalations-Stufen einstellen",
