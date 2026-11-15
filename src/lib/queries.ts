@@ -3,7 +3,7 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import type { OeffnenGrund, EntrySource } from "@/lib/constants";
 import { LOCK_ENDED_REASON, boxCouplingEnabled } from "@/lib/constants";
 import { activeCleaningWindowIn, parseCleaningWindows } from "@/lib/cleaningService";
-import { triggeredWhere } from "@/lib/delayedTrigger";
+import { SUB_VISIBLE_WHERE, triggeredWhere } from "@/lib/delayedTrigger";
 import { CONFIRMED_LOCK_FILTER, PENDING_LOCK_FILTER, PENDING_OPEN_FILTER, effectiveEntryWhere } from "@/lib/lockPending";
 import { hasLockmebox } from "@/lib/boxStatus";
 import { APP_TZ } from "@/lib/utils";
@@ -28,6 +28,17 @@ export const KONTROLLE_TARGET_INCLUDE = {
 
 export function aktiveKontrolleWhere(now: Date = new Date()): Prisma.KontrollAnforderungWhereInput {
   return { OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }] };
+}
+
+/**
+ * Was der TRÄGER an offenen Kontrollen zu sehen bekommt: ausgelöst (`aktiveKontrolleWhere`) UND
+ * zugestellt (`SUB_VISIBLE_WHERE`). Eine Auto-Kontrolle trägt ihren Code schon vor der Zustellung,
+ * und der Poller verwirft sie dabei, wenn der Träger gar nicht verschlossen ist — wer die Zeile in
+ * dieser Minute zeigt, zeigt einen Code, den es für ihn nie gab. Eine Regel für alle Anzeigen
+ * (Liste, Dashboard, Heartbeat): wo sie auseinanderlaufen, widerspricht sich die Signatur der Liste.
+ */
+export function subVisibleKontrolleWhere(now: Date = new Date()): Prisma.KontrollAnforderungWhereInput {
+  return { ...aktiveKontrolleWhere(now), ...SUB_VISIBLE_WHERE };
 }
 
 /**
@@ -731,14 +742,14 @@ export function foldActiveLockPeriods<T extends { endsAt: Date | null; cleaningA
 }
 
 /** ALLE aktuell OFFENEN (noch nicht eingereichten) Kontroll-Anforderungen, dringendste Frist zuerst.
- *  Geplante, noch nicht ausgelöste bleiben unsichtbar (`aktiveKontrolleWhere`).
+ *  Geplante und noch nicht zugestellte bleiben unsichtbar (`subVisibleKontrolleWhere`).
  *
  *  Mehrzahl seit v5.0.1: je ZIEL darf eine laufen (KG und Plug parallel, siehe
  *  `hasActiveKontrolle`). Eine einzelne zurückzugeben hiesse, dem Keyholder-Agenten eine Frist zu
  *  verschweigen, die der Sub gerade hat. Genutzt von `keyholder_dashboard`. */
 export async function getOpenKontrollen(userId: string, now: Date = new Date()) {
   return prisma.kontrollAnforderung.findMany({
-    where: { userId, entryId: null, withdrawnAt: null, ...aktiveKontrolleWhere(now) },
+    where: { userId, entryId: null, withdrawnAt: null, ...subVisibleKontrolleWhere(now) },
     orderBy: { deadline: "asc" },
     include: KONTROLLE_TARGET_INCLUDE,
   });

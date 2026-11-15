@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { evaluateTasks, TASK_INCLUDE, SUB_VISIBLE_WHERE } from "@/lib/taskIntervals";
+import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
+import { SUB_VISIBLE_WHERE } from "@/lib/delayedTrigger";
 import { NOT_PAUSED_WHERE } from "@/lib/healthHold";
 import { earliestTaskEnd, isTaskOpen, proofDue, taskAnchor, type TaskEvaluation, type TaskLike, type ProofDeadlineWindow,} from "@/lib/tasks";
 import { notifyUser } from "@/lib/notify";

@@ -39,7 +39,7 @@ export interface DelayedTrigger {
  * vier Modelle, die das Feldpaar tragen.
  *
  * SQL-ZWILLING: Wo die Zeilen nicht einzeln geprüft, sondern gefiltert geladen werden, steht
- * dieselbe Regel als `where`-Fragment — für Aufgaben `SUB_VISIBLE_WHERE` (`taskIntervals.ts`), die
+ * dieselbe Regel als `where`-Fragment — `SUB_VISIBLE_WHERE` (unten), die
  * POSITIVE Form („was der Sub sehen darf"), verpackt in ein `AND`. Wer die Verborgenheit als
  * `where` braucht, negiert sie (`NOT: SUB_VISIBLE_WHERE`). Die beiden gehören zusammen: wer hier
  * die Bedingung ändert, ändert sie dort mit, sonst filtert die Abfrage anders, als die Zeile
@@ -54,6 +54,22 @@ export interface DelayedTrigger {
 export function isHiddenFromSub(directive: { wirksamAb: Date | null; benachrichtigtAt: Date | null }): boolean {
   return directive.wirksamAb !== null && directive.benachrichtigtAt === null;
 }
+
+/**
+ * Die SQL-Entsprechung von `isHiddenFromSub` — was der TRÄGER überhaupt geladen bekommt.
+ *
+ * Als `where`-Fragment und nicht als Filter danach: sonst zöge jede seiner Abfragen ihren `take`-
+ * Deckel an Aufgaben voll, die sie gleich wieder wegwirft, und eine terminierte Aufgabe könnte eine
+ * sichtbare aus der Liste verdrängen.
+ *
+ * In `AND` verpackt und nicht als blosses `OR`: die aufnehmenden Bedingungen tragen ihr eigenes `OR`
+ * (z.B. `relevantTaskWhere`, `aktiveKontrolleWhere`), und ein zweites auf derselben Ebene überschriebe es
+ * still — die Einschränkung wäre spurlos weg, und zwar genau die, die ein Leck verhindern soll.
+ * Gilt für jedes Modell mit dem Feldpaar `wirksamAb`/`benachrichtigtAt` (Aufgabe, Kontrolle).
+ */
+export const SUB_VISIBLE_WHERE = {
+  AND: [{ OR: [{ wirksamAb: null }, { benachrichtigtAt: { not: null } }] }],
+} satisfies Prisma.TaskWhereInput;
 
 /**
  * Der vom Client gelieferte Auslöse-Zeitpunkt, geparst — `"invalid"` statt eines Wurfs.
@@ -127,7 +143,7 @@ export function triggeredWhere(now: Date = new Date()) {
  * **Keine Sichtbarkeits-Regel**, auch wenn die ersten beiden Bedingungen wie {@link isHiddenFromSub}
  * aussehen. `withdrawnAt: null` macht den Unterschied: eine zurückgezogene Zeile ist nichts mehr,
  * was zugestellt werden müsste — für den Sub aber sehr wohl weiter VERBORGEN, denn ausgelöst hat
- * sie nie. Wer „darf der Sub das sehen?" fragt, nimmt `NOT: SUB_VISIBLE_WHERE` (`taskIntervals.ts`),
+ * sie nie. Wer „darf der Sub das sehen?" fragt, nimmt `NOT: SUB_VISIBLE_WHERE`,
  * nicht dies hier. Der frühere Name „hiddenFromSubWhere" legte genau die falsche Wahl nahe und
  * führte auf dem Dashboard zum Titel einer zurückgezogenen Strafaufgabe (Befund 16.08.2026).
  *

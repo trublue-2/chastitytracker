@@ -6,9 +6,9 @@ import { notifyUser, notifyControllers, type NotifyContent, type NotifyRecipient
 import { actorColumn, type MessageActor } from "@/lib/messageService";
 import { getControllerAudience } from "@/lib/keyholder";
 import { notifyLateProofsForTask } from "@/lib/taskProofNotify";
-import { evaluateTasks, evaluateTaskById, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
+import { evaluateTasks, evaluateTaskById, TASK_INCLUDE } from "@/lib/taskIntervals";
 import type { PrismaTx } from "@/lib/queries";
-import { parseTriggerAt, computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
+import { parseTriggerAt, computeDelayedTrigger, deadlineFromDispatch, dueForDispatchWhere, isHiddenFromSub, SUB_VISIBLE_WHERE } from "@/lib/delayedTrigger";
 import { startDeadline, taskAnchor, earliestActionableAt, earliestTaskEnd, latestTaskEnd, isTaskResultFinal, effectiveProofOrderMatters, type TaskLike } from "@/lib/tasks";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import {

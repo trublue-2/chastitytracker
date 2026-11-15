@@ -4,6 +4,7 @@ import { buildPairs, filterAndSortPairEntries, mergeWearPairs, KG_PAIR, WEAR_PAI
 import { buildWearSessions, wearSessionPairsByCategory, wearSessionPairsByDevice, type SegmentEntry } from "@/lib/sessionModel";
 import { SESSION_ENTRY_SELECT } from "@/lib/queries";
 import { CLEANING_USER_SELECT } from "@/lib/cleaningService";
+import { SUB_VISIBLE_WHERE } from "@/lib/delayedTrigger";
 import { CLEANING_RULE_CHANGE_SELECT, cleaningRulesFrom, cleaningRulesAt } from "@/lib/cleaningRules";
 import { evaluateTask, coversPoint, isTaskOffense, isTaskOpen, needsKeyholderReview, requirementsShownAt, type Interval, type ProofLike, type TaskEvaluation, type TaskRequirementLike } from "@/lib/tasks";
 
@@ -148,21 +149,6 @@ export type TaskAudience =
   | "sub"
   /** Die Keyholderin: sie sieht auch, was sie für später geplant hat. */
   | "keyholder";
-
-/**
- * Die SQL-Entsprechung von `isHiddenFromSub` — was der TRÄGER überhaupt geladen bekommt.
- *
- * Als `where`-Fragment und nicht als Filter danach: sonst zöge jede seiner Abfragen ihren `take`-
- * Deckel an Aufgaben voll, die sie gleich wieder wegwirft, und eine terminierte Aufgabe könnte eine
- * sichtbare aus der Liste verdrängen.
- *
- * In `AND` verpackt und nicht als blosses `OR`: die aufnehmenden Bedingungen tragen ihr eigenes `OR`
- * (siehe {@link relevantTaskWhere}), und ein zweites auf derselben Ebene überschriebe es still — die
- * Einschränkung wäre spurlos weg, und zwar genau die, die ein Leck verhindern soll.
- */
-export const SUB_VISIBLE_WHERE = {
-  AND: [{ OR: [{ wirksamAb: null }, { benachrichtigtAt: { not: null } }] }],
-} satisfies Prisma.TaskWhereInput;
 
 /** Das Sichtbarkeits-Fragment für diese Sicht — leer für die Keyholderin. */
 function audienceWhere(audience: TaskAudience) {

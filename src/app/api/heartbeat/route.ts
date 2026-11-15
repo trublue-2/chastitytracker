@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getDashboardTasks, evaluateTasks } from "@/lib/taskIntervals";
 import { isTaskResultFinal, proofAwaitingVerdict } from "@/lib/tasks";
-import { getIsLocked, getActiveLockPeriod, getActiveOrgasmusAnforderung, aktiveKontrolleWhere, openLockRequestWhere, LOCK_REQUEST_ORDER } from "@/lib/queries";
+import { getIsLocked, getActiveLockPeriod, getActiveOrgasmusAnforderung, subVisibleKontrolleWhere, openLockRequestWhere, LOCK_REQUEST_ORDER } from "@/lib/queries";
 import { triggeredWhere } from "@/lib/delayedTrigger";
 import { visionConfigured } from "@/lib/vision";
 
@@ -41,7 +41,7 @@ export async function GET() {
   const now = new Date();
   const [kontrollen, anforderungen, lockPeriod, orgasmus, pendingVerifications, pendingKeyChecks, openTasks] = await Promise.all([
     prisma.kontrollAnforderung.findMany({
-      where: { userId, entryId: null, withdrawnAt: null, ...aktiveKontrolleWhere(now) },
+      where: { userId, entryId: null, withdrawnAt: null, ...subVisibleKontrolleWhere(now) },
       select: { id: true },
     }),
     // ALLE offenen (und bereits ausgelösten) — mehrere dürfen koexistieren. Nur die erste zu nehmen

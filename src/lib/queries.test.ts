@@ -11,7 +11,7 @@ vi.mock("@/lib/prisma", async () => {
   return { prisma: createPrismaMock() };
 });
 
-import { releaseLockPeriodsOnOpen, releaseLockPeriodsOnOpenDetailed, cleaningWindowOpen, cleaningBlockReason, cleaningWindowBindingStatus, foldActiveLockPeriods, isCodePhotoRevealed, bildersafeMenuAction, type CleaningPermissionUser, GENUINELY_WITHDRAWN_WHERE, getKgNeighbors, getEntryNeighbors } from "./queries";
+import { releaseLockPeriodsOnOpen, releaseLockPeriodsOnOpenDetailed, cleaningWindowOpen, cleaningBlockReason, cleaningWindowBindingStatus, foldActiveLockPeriods, isCodePhotoRevealed, bildersafeMenuAction, type CleaningPermissionUser, GENUINELY_WITHDRAWN_WHERE, getOpenKontrollen, subVisibleKontrolleWhere, getKgNeighbors, getEntryNeighbors } from "./queries";
 import type { PrismaTx } from "./queries";
 import { prisma } from "@/lib/prisma";
 import type { PrismaMock } from "@/test/prismaMock";
@@ -327,6 +327,27 @@ describe("GENUINELY_WITHDRAWN_WHERE", () => {
     expect(GENUINELY_WITHDRAWN_WHERE).toEqual({
       withdrawnAt: { not: null },
       autoMarkedRemovedAt: null,
+    });
+  });
+});
+
+describe("getOpenKontrollen — nur, was der Träger schon kennt", () => {
+  it("verlangt Zustellung: eine fällige, noch nicht zugestellte Zeile ist verborgen", async () => {
+    // Eine Auto-Kontrolle trägt ihren Code schon vor der Zustellung. Der Poller verwirft sie beim
+    // Zustellen, wenn der Träger gar nicht verschlossen ist — fragt ein Gerät die Liste in dieser
+    // Minute ab, zeigte es einen Code, den es für den Träger nie gab.
+    db.kontrollAnforderung.findMany.mockResolvedValue([]);
+    await getOpenKontrollen("u1", new Date("2026-11-15T10:00:00Z"));
+    const where = db.kontrollAnforderung.findMany.mock.calls[0][0].where;
+    expect(where.AND).toEqual([{ OR: [{ wirksamAb: null }, { benachrichtigtAt: { not: null } }] }]);
+    expect(where).toMatchObject({ userId: "u1", entryId: null, withdrawnAt: null });
+  });
+
+  it("subVisibleKontrolleWhere trägt Zeit-Schranke UND Zustell-Bedingung — für Liste, Dashboard und Heartbeat", () => {
+    const now = new Date("2026-11-15T10:00:00Z");
+    expect(subVisibleKontrolleWhere(now)).toEqual({
+      OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }],
+      AND: [{ OR: [{ wirksamAb: null }, { benachrichtigtAt: { not: null } }] }],
     });
   });
 });

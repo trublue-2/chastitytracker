@@ -5,9 +5,9 @@ import { mapAnforderungStatus, tzDayKey, isPastDeadlineUnfulfilled, dateAtLocalM
 import { cleaningBlockReason, type CleaningBlockReason, type CleaningPermissionUser } from "@/lib/queries";
 import { activeCleaningWindow, CLEANING_USER_SELECT } from "@/lib/cleaningService";
 
-import { evaluateTasks, SUB_VISIBLE_WHERE, TASK_INCLUDE } from "@/lib/taskIntervals";
+import { evaluateTasks, TASK_INCLUDE } from "@/lib/taskIntervals";
 import { isTaskOffense, type TaskOffenseState } from "@/lib/tasks";
-import { triggeredWhere, isHiddenFromSub } from "@/lib/delayedTrigger";
+import { triggeredWhere, isHiddenFromSub, SUB_VISIBLE_WHERE } from "@/lib/delayedTrigger";
 import { CONFIRMED_LOCK_FILTER } from "@/lib/lockPending";
 import { missedWeightBlocks, missedWeightRef } from "@/lib/weightObligation";
 import { boxPhotoMissedAt, boxPhotoMissingRef } from "@/lib/boxPhotoDue";

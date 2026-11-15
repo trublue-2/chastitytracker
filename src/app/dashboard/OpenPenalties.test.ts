@@ -26,7 +26,7 @@ vi.mock("@/app/components/DashboardBlock", () => ({ default: () => null }));
 vi.mock("@/app/components/OffenseList", () => ({ default: () => null }));
 
 import OpenPenalties from "./OpenPenalties";
-import { SUB_VISIBLE_WHERE } from "@/lib/taskIntervals";
+import { SUB_VISIBLE_WHERE } from "@/lib/delayedTrigger";
 import { prisma } from "@/lib/prisma";
 import { loadSubOffenses } from "@/lib/subOffenses";
 import { announcedOpenRefs } from "@/lib/offenseAnnounce";

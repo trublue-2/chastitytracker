@@ -23,7 +23,7 @@ import { toTaskCard } from "@/lib/taskView";
 import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { isKgVorgabe } from "@/lib/vorgaben";
 import {
-  CATEGORY_LIST_ORDER, aktiveKontrolleWhere, keyholderVisibleKontrolleWhere, KONTROLLE_TARGET_INCLUDE,
+  CATEGORY_LIST_ORDER, subVisibleKontrolleWhere, keyholderVisibleKontrolleWhere, KONTROLLE_TARGET_INCLUDE,
   getActiveVorgabe, getActiveLockPeriod, getKeyholderLockPeriod, getActiveWearSessions,
   getNonKgTrackingCategories, getActiveOrgasmusAnforderung, getKeyholderOrgasmusAnforderung,
   getOpenLockRequest,
@@ -210,7 +210,7 @@ const inspectionsOf = cache(async (userId: string, nowMs: number, audience: Bloc
   prisma.kontrollAnforderung.findMany({
     where: {
       userId,
-      ...(audience === "sub" ? aktiveKontrolleWhere(new Date(nowMs)) : keyholderVisibleKontrolleWhere(new Date(nowMs))),
+      ...(audience === "sub" ? subVisibleKontrolleWhere(new Date(nowMs)) : keyholderVisibleKontrolleWhere(new Date(nowMs))),
     },
     orderBy: { createdAt: "desc" },
     // Ziel-Namen fürs Banner: die Sicht muss wissen, WAS zu zeigen ist.
