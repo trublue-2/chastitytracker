@@ -606,8 +606,11 @@ async function loadScheduledDirectives(userId: string, now: Date, iso: Iso): Pro
     prisma.verschlussAnforderung.findMany({
       where: { userId, withdrawnAt: null, fulfilledAt: null, wirksamAb: { gt: now } },
     }),
+    // `pendingDispatchWhere` statt `wirksamAb > now`: eine fällige, aber noch nicht zugestellte
+    // Kontrolle ist für den Träger verborgen (`subVisibleKontrolleWhere`) und stünde sonst weder
+    // hier noch in den offenen — die Keyholderin sähe sie eine Minute lang nirgends.
     prisma.kontrollAnforderung.findMany({
-      where: { userId, withdrawnAt: null, entryId: null, auto: false, wirksamAb: { gt: now } },
+      where: { userId, ...pendingDispatchWhere, entryId: null, auto: false },
     }),
     prisma.task.findMany({
       where: { userId, ...pendingDispatchWhere },

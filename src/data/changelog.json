@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.6.1",
+    "date": "2026-11-15",
+    "changes": [
+      {
+        "type": "fix",
+        "text": {
+          "de": "Kontrollen: Eine fällige Auto-Kontrolle erscheint erst, wenn sie wirklich zugestellt ist – ein angeschlossenes Anzeigegerät zeigt keinen Code mehr, den es für dich nie gab (etwa wenn du gerade nicht verschlossen bist).",
+          "en": "Inspections: a due automatic inspection only appears once it has actually been delivered – a connected display no longer shows a code that never existed for you (for example while you are not locked)."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.6.0",
     "date": "2026-11-09",
     "changes": [

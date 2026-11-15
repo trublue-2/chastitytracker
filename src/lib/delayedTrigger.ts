@@ -59,7 +59,7 @@ export function isHiddenFromSub(directive: { wirksamAb: Date | null; benachricht
  * Die SQL-Entsprechung von `isHiddenFromSub` — was der TRÄGER überhaupt geladen bekommt.
  *
  * Als `where`-Fragment und nicht als Filter danach: sonst zöge jede seiner Abfragen ihren `take`-
- * Deckel an Aufgaben voll, die sie gleich wieder wegwirft, und eine terminierte Aufgabe könnte eine
+ * Deckel an Zeilen voll, die sie gleich wieder wegwirft, und eine terminierte Zeile könnte eine
  * sichtbare aus der Liste verdrängen.
  *
  * In `AND` verpackt und nicht als blosses `OR`: die aufnehmenden Bedingungen tragen ihr eigenes `OR`
@@ -70,6 +70,10 @@ export function isHiddenFromSub(directive: { wirksamAb: Date | null; benachricht
 export const SUB_VISIBLE_WHERE = {
   AND: [{ OR: [{ wirksamAb: null }, { benachrichtigtAt: { not: null } }] }],
 } satisfies Prisma.TaskWhereInput;
+// Typ-Anker: das Fragment steht auch für `KontrollAnforderung`; sein Feldpaar ist mit dem der Aufgabe
+// identisch, und diese Zeile lässt den Compiler es merken, wenn eines der beiden abweicht.
+const _kontrolleFit: Prisma.KontrollAnforderungWhereInput = SUB_VISIBLE_WHERE;
+void _kontrolleFit;
 
 /**
  * Der vom Client gelieferte Auslöse-Zeitpunkt, geparst — `"invalid"` statt eines Wurfs.
