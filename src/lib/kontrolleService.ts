@@ -12,7 +12,7 @@ import { toLocale, inspectionHelpUrl, EMAIL_BUTTON_COLORS, INSPECTION_DEADLINE_D
 import { computeDelayedTrigger, isHiddenFromSub } from "@/lib/delayedTrigger";
 import { serviceErrors, mapServiceError, serviceFail, type ServiceResult } from "@/lib/serviceResult";
 import { isHealthHoldActive } from "@/lib/healthHold";
-import { type PrismaTx, getOpenKontrollen } from "@/lib/queries";
+import { type PrismaTx, getOpenKontrollen, subVisibleKontrolleWhere } from "@/lib/queries";
 import { resolveInspectionTarget, inspectionPreconditionProblem, inspectionTargetLabel } from "@/lib/inspectionTarget";
 import { inspectionHref } from "@/lib/entryFormRoute";
 import { extendInspectionProblem, inspectionDeadlineWrite } from "@/lib/inspectionDeadline";
@@ -304,7 +304,7 @@ export async function hasActiveKontrolle(
     where: {
       userId, entryId: null, withdrawnAt: null,
       categoryId: opts.categoryId, // null = KG; das Ziel gehört zum Guard, nicht nur der User
-      OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }], // sichtbar
+      ...subVisibleKontrolleWhere(now),                       // sichtbar: ausgelöst UND zugestellt
       deadline: { gte: now },                                 // noch innerhalb der Frist (nicht überfällig)
       ...(opts.excludeId ? { id: { not: opts.excludeId } } : {}),
     },

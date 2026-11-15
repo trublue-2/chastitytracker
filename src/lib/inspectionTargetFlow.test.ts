@@ -31,7 +31,9 @@ vi.mock("@/lib/prisma", () => ({
     $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
   },
 }));
-vi.mock("@/lib/queries", () => ({
+vi.mock("@/lib/queries", async (importOriginal) => ({
+  // Die echte Sichtbarkeits-Regel: der Überschneidungs-Guard baut sein `where` daraus.
+  subVisibleKontrolleWhere: (await importOriginal<typeof import("@/lib/queries")>()).subVisibleKontrolleWhere,
   getLatestKgEntry: vi.fn(),
   getActiveWearSessionForCategory: vi.fn(),
   prepareWearEntry: vi.fn(),
@@ -61,6 +63,7 @@ import { requestKontrolle } from "./kontrolleService";
 import { autoMarkInspectionRemoved } from "./inspectionEscalationService";
 import { prisma } from "@/lib/prisma";
 import { getLatestKgEntry, getActiveWearSessionForCategory, prepareWearEntry } from "@/lib/queries";
+import { SUB_VISIBLE_WHERE } from "@/lib/delayedTrigger";
 import { createOeffnenEntryTx } from "@/lib/oeffnenService";
 
 const userMock = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
@@ -122,6 +125,12 @@ describe("requestKontrolle — das Ziel muss laufen", () => {
     expect(tx.kontrollAnforderung.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ categoryId: "cat-plug" }) }),
     );
+  });
+
+  it("der Guard zählt nur zugestellte Kontrollen — eine unzugestellte Auto-Zeile blockiert nichts", async () => {
+    await requestKontrolle({ userId: "u1", categoryId: "cat-plug" }, "herrin");
+    const { where } = tx.kontrollAnforderung.findFirst.mock.calls[0][0] as { where: object };
+    expect(where).toMatchObject(SUB_VISIBLE_WHERE);
   });
 });
 

@@ -63,7 +63,7 @@ export function isHiddenFromSub(directive: { wirksamAb: Date | null; benachricht
  * sichtbare aus der Liste verdrängen.
  *
  * In `AND` verpackt und nicht als blosses `OR`: die aufnehmenden Bedingungen tragen ihr eigenes `OR`
- * (z.B. `relevantTaskWhere`, `aktiveKontrolleWhere`), und ein zweites auf derselben Ebene überschriebe es
+ * (z.B. `relevantTaskWhere`, `subVisibleKontrolleWhere`), und ein zweites auf derselben Ebene überschriebe es
  * still — die Einschränkung wäre spurlos weg, und zwar genau die, die ein Leck verhindern soll.
  * Gilt für jedes Modell mit dem Feldpaar `wirksamAb`/`benachrichtigtAt` (Aufgabe, Kontrolle).
  */

@@ -26,7 +26,7 @@ export const KONTROLLE_TARGET_INCLUDE = {
   device: { select: { name: true } },
 } satisfies Prisma.KontrollAnforderungInclude;
 
-export function aktiveKontrolleWhere(now: Date = new Date()): Prisma.KontrollAnforderungWhereInput {
+function aktiveKontrolleWhere(now: Date = new Date()): Prisma.KontrollAnforderungWhereInput {
   return { OR: [{ wirksamAb: null }, { wirksamAb: { lte: now } }] };
 }
 
@@ -36,6 +36,9 @@ export function aktiveKontrolleWhere(now: Date = new Date()): Prisma.KontrollAnf
  * und der Poller verwirft sie dabei, wenn der Träger gar nicht verschlossen ist — wer die Zeile in
  * dieser Minute zeigt, zeigt einen Code, den es für ihn nie gab. Eine Regel für alle Anzeigen
  * (Liste, Dashboard, Heartbeat): wo sie auseinanderlaufen, widerspricht sich die Signatur der Liste.
+ *
+ * Trägt ein `OR` UND ein `AND`: wer daneben ein eigenes `AND` braucht (z.B. `inspectionTargetWhere`),
+ * spreizt es NICHT daneben — es überschriebe still —, sondern fasst beides in ein `AND: [...]`.
  */
 export function subVisibleKontrolleWhere(now: Date = new Date()): Prisma.KontrollAnforderungWhereInput {
   return { ...aktiveKontrolleWhere(now), ...SUB_VISIBLE_WHERE };
@@ -84,7 +87,7 @@ export function todaysAutoPlanWhere(userId: string, day: Date): Prisma.KontrollA
 }
 
 /**
- * Where-Fragment für KEYHOLDER-Sichten (Admin-UI + MCP) — anders als `aktiveKontrolleWhere`
+ * Where-Fragment für KEYHOLDER-Sichten (Admin-UI + MCP) — anders als `subVisibleKontrolleWhere`
  * (Sub/Enforcement): zeigt zusätzlich MANUELL terminierte Kontrollen (`auto: false`), bevor sie
  * feuern, damit der Keyholder seine eigene geplante Kontrolle sehen und stornieren kann. Verborgen
  * bleiben nur ZUKÜNFTIGE Auto-/Zufalls-Kontrollen (`auto: true`, wirksamAb > now) — deren

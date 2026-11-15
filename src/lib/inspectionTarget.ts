@@ -144,8 +144,9 @@ export async function resolveInspectionTarget(
  *
  * Die Regel verhindert, dass ein Plug-Foto eine KG-Kontrolle abhakt (und umgekehrt): die Kategorie
  * muss übereinstimmen (`null` = KG), und ein ans Gerät gepinntes Ziel erfüllt nur genau dieses
- * Gerät. Als `AND` genestet, damit ein `OR` des Aufrufers (z.B. `aktiveKontrolleWhere`) daneben
- * bestehen bleibt.
+ * Gerät. Als `AND` genestet, damit ein `OR` des Aufrufers daneben bestehen bleibt. Der Aufrufer
+ * seinerseits nimmt es in ein `AND: [...]` mit weiteren Fragmenten, statt es neben ein anderes `AND`
+ * zu spreizen (`subVisibleKontrolleWhere` trägt auch eines).
  */
 export function inspectionTargetWhere(
   target: { categoryId: string | null },

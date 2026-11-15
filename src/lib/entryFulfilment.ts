@@ -8,7 +8,7 @@ import { recordSystemMessage } from "@/lib/messageService";
 import { getOffenseRules } from "@/lib/offenseRulesService";
 import { offenseNameKey } from "@/lib/offenseLabels";
 import {
-  aktiveKontrolleWhere,
+  subVisibleKontrolleWhere,
   openLockRequestWhere,
   LOCK_REQUEST_ORDER,
   type PrismaTx,
@@ -109,14 +109,17 @@ export async function applyEntryFulfilment(
       // Nur Anforderungen auf DIESES Ziel: ein Plug-Foto darf keine KG-Kontrolle abhaken und
       // umgekehrt. Kommt aus `deriveEntryVerification`, damit Ableitung und Erfüllung dieselbe
       // Schranke benutzen.
-      ...targetWhere,
-      // `createdAt <= at` ist die eigentliche Rückdatierungs-Schranke. `aktiveKontrolleWhere`
-      // filtert nur `wirksamAb`, und das ist bei einer manuell gestellten Anforderung `null` —
-      // ohne diese Zeile beantwortete ein auf 09:00 zurückdatierter Eintrag eine Kontrolle, die
-      // erst um 14:00 gestellt wurde. Auf dem Sub-Pfad (`at = jetzt`) ist die Bedingung immer
-      // wahr und damit wirkungslos.
+      //
+      // BEIDE Fragmente stehen in einem `AND`, nicht nebeneinander gespreizt: `targetWhere` trägt
+      // die Geräte-Bindung selbst als `AND`, und `subVisibleKontrolleWhere` ebenfalls — das zweite
+      // überschriebe das erste still, und ein Foto für Gerät B erfüllte eine an Gerät A gebundene
+      // Kontrolle.
+      AND: [targetWhere, subVisibleKontrolleWhere(at)],
+      // `createdAt <= at` ist die eigentliche Rückdatierungs-Schranke. `subVisibleKontrolleWhere`
+      // lässt eine manuell gestellte Anforderung (`wirksamAb` null) immer durch — ohne diese Zeile
+      // beantwortete ein auf 09:00 zurückdatierter Eintrag eine Kontrolle, die erst um 14:00
+      // gestellt wurde. Auf dem Sub-Pfad (`at = jetzt`) ist die Bedingung wirkungslos.
       createdAt: { lte: at },
-      ...aktiveKontrolleWhere(at),
     };
     // Der Rundum-Weg trifft NUR Anforderungen, die selbst ohne Code entstanden sind (`code: null`).
     // Ohne diese Schranke wäre der Toggle ein Umweg um eine bestehende Kontrolle: eine Anforderung

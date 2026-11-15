@@ -139,7 +139,7 @@ describe("inspectionTargetWhere — welches Foto erfüllt welche Kontrolle", () 
     ]);
   });
 
-  it("als AND genestet, damit ein OR des Aufrufers (aktiveKontrolleWhere) daneben bestehen bleibt", () => {
+  it("als AND genestet, damit ein OR des Aufrufers (subVisibleKontrolleWhere) daneben bestehen bleibt", () => {
     // Beides direkt auf oberster Ebene würde sich gegenseitig überschreiben — die Sichtbarkeits-
     // Bedingung fiele still weg, und ein Foto könnte eine noch gar nicht ausgelöste Kontrolle erfüllen.
     const where = { ...inspectionTargetWhere(plug, "plug-1"), OR: [{ wirksamAb: null }] };

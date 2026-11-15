@@ -20,6 +20,8 @@ const txMock = {
 vi.mock("@/lib/prisma", () => ({ prisma: { strafeRecord: { create: vi.fn() } } }));
 
 import { applyEntryFulfilment } from "./entryFulfilment";
+import { inspectionTargetWhere } from "./inspectionTarget";
+import { subVisibleKontrolleWhere } from "./queries";
 import { isPastDeadlineUnfulfilled } from "./utils";
 
 /** Die Frist der Anordnung: „schliess dich bis 20:00 ein." */
@@ -134,6 +136,22 @@ describe("Verschluss-Anforderung — `at` entscheidet über das Vergehen", () =>
 });
 
 describe("Kontroll-Anforderung", () => {
+  it("erfüllt nur zugestellte Kontrollen UND behält die Geräte-Bindung des Ziels", async () => {
+    // Beide Fragmente tragen ein `AND`; nebeneinander gespreizt überschriebe das eine das andere,
+    // und ein Foto für Gerät B erfüllte eine an Gerät A gebundene Kontrolle.
+    txMock.kontrollAnforderung.findFirst.mockResolvedValue(null);
+    const targetWhere = inspectionTargetWhere({ categoryId: null }, "device-b");
+    await applyEntryFulfilment(
+      txMock as never,
+      entry({ type: "PRUEFUNG" }),
+      { verification: { kind: "code", code: "89758", sealCode: null }, targetWhere },
+      ON_TIME,
+    );
+    const { where } = txMock.kontrollAnforderung.findFirst.mock.calls[0][0] as { where: { AND: unknown[] } };
+    expect(where.AND).toContainEqual(targetWhere);
+    expect(where.AND).toContainEqual(subVisibleKontrolleWhere(ON_TIME));
+  });
+
   it("mit Code-Pflicht ist der Code der Schlüssel — und `at` der Erfüllungs-Zeitstempel", async () => {
     txMock.kontrollAnforderung.findFirst.mockResolvedValue({ id: "k1" });
     await applyEntryFulfilment(
