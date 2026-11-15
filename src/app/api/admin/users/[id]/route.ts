@@ -22,6 +22,7 @@ import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
 import { errorResponse, serviceResponse } from "@/lib/serviceResult";
 import { boxPasswordAtRisk } from "@/lib/boxPairing";
 import { normalizeQuickSettings } from "@/lib/quickSettings";
+import { emailUpdateData } from "@/lib/emailBounce";
 
 export async function GET(
   _req: NextRequest,
@@ -93,7 +94,7 @@ export async function PATCH(
     if ("error" in prepared) return NextResponse.json({ error: prepared.error }, { status: prepared.status });
     const email = prepared.value;
     try {
-      const user = await prisma.user.update({ where: { id }, data: { email } });
+      const user = await prisma.user.update({ where: { id }, data: await emailUpdateData(id, email) });
       return NextResponse.json({ id: user.id, email: user.email });
     } catch (err) {
       if (isUniqueConstraintOn(err, "email")) {

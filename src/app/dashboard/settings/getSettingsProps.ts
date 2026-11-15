@@ -47,6 +47,8 @@ export interface SettingsFormProps {
   /** Erreicht Mail diesen Nutzer — Adresse hinterlegt UND Instanz versendet (`mailReaches`, dieselbe
    *  Regel wie der Frist-Rückfall)? Für die Warnung „kein Kanal trägt". */
   mailReachable: boolean;
+  /** Die Adresse ist wegen wiederholter Rückläufer für den Versand gesperrt (`emailBounce`). */
+  mailBlocked: boolean;
   /** Ist irgendein Push-Ziel registriert (App oder Browser, auf irgendeinem Gerät)? Ohne Ziel liefert
    *  der Push-Schalter nichts. Für dieselbe Warnung. */
   pushReachable: boolean;
@@ -97,6 +99,7 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
   let notifyTelegram: NotifyLevel = "all";
   let telegramLinked = false;
   let mailReachable = false;
+  let mailBlocked = false;
   let pushReachable = false;
 
   if (userId) {
@@ -104,7 +107,7 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
       prisma.user.findUnique({
         where: { id: userId },
         select: {
-          username: true, email: true, locale: true, timezone: true, startPage: true, hideOwnTracker: true,
+          username: true, email: true, emailBlockedAt: true, locale: true, timezone: true, startPage: true, hideOwnTracker: true,
           telegramChatId: true, notifyMail: true, notifyPush: true, notifyTelegram: true,
           weightTrackingEnabled: true, unitSystem: true, heightCm: true,
           targetWeightKg: true, targetWeightKeyholderKg: true,
@@ -124,7 +127,8 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
       notifyTelegram = toNotifyLevel(dbUser.notifyTelegram);
       username = dbUser.username;
       email = dbUser.email ?? null;
-      mailReachable = mailReaches(email);
+      mailBlocked = dbUser.emailBlockedAt != null;
+      mailReachable = mailReaches(email, mailBlocked);
       locale = dbUser.locale;
       timezone = dbUser.timezone;
       startPage = dbUser.startPage;
@@ -175,6 +179,7 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
     telegramConfigured: telegramLinkAvailable(),
     telegramLinked,
     mailReachable,
+    mailBlocked,
     pushReachable,
     mailConfigured: mailConfigured(),
     version: pkg.version,

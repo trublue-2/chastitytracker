@@ -18,6 +18,12 @@ samt ihrer Änderung), `important` (Urteile, Vergehen, Handlungsbedarf), `info` 
 **Fristen kommen immer an:** erreicht keiner der eingeschalteten Kanäle den Empfänger, geht eine
 `deadline`-Meldung an jeden erreichbaren (`deliveryChannels.ts`).
 
+**Gesperrte Adresse:** scheitern Mails an eine Adresse wiederholt endgültig (das Portal wertet die Rückläufer
+aus und setzt `User.emailBlockedAt`), versendet `sendMail` nichts mehr dorthin, und Mail gilt für den
+Frist-Rückfall als nicht erreichbar. Der Nutzer sieht den Hinweis in den Einstellungen, die Keyholderin ein
+Zeichen in der Benutzerliste. Eine neu gespeicherte Adresse hebt die Sperre auf. Das gilt für jede Mail der
+Instanz — auch das Zurücksetzen des Passworts.
+
 Die Stufe gilt auch für Meldungen ÜBER einen Träger an seine Keyholder — jeder entscheidet für sich.
 Ein Raster am Sub, das die Meldungen an seine Keyholder steuerte, gab es bis v6.2.2; es ist entfallen.
 Einziger verbliebener Einzel-Schalter: die Wiege-Erinnerung (`NotificationPreference`,

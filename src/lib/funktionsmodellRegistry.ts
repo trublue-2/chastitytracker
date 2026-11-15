@@ -544,6 +544,12 @@ export const FM_REGISTRY: FmEntry[] = [
   x("identity", "User", "passwordHash", "bcrypt-Hash. Kein Verhalten, sondern der Zugang selbst."),
   x("identity", "User", "email", "Zustelladresse; steuert nichts, ausser dass ohne sie keine Mail geht."),
   x("identity", "User", "createdAt", "Anlage-Zeitpunkt."),
+  x("runtime", "User", "emailBounceCount",
+    "Zählstand der endgültig fehlgeschlagenen Zustellungen an `email`. Vom Portal geschrieben, nicht von Hand; eine neue Adresse setzt auf 0."),
+  x("runtime", "User", "emailLastBounceAt",
+    "Zeitpunkt des letzten Rückläufers. Ein Zählstand, der älter als 30 Tage ist, beginnt neu."),
+  x("runtime", "User", "emailBlockedAt",
+    "Ab wann der Versand an `email` ruht, weil Zustellungen wiederholt scheiterten (Mail, Frist-Rückfall). Hinweis in den Einstellungen; eine neue Adresse hebt die Sperre auf."),
   x("runtime", "User", "autoInspectionPlannedFor",
     "Merker des Planers: bis wann der Tagesplan gewürfelt ist. Wird vom Poller gesetzt, nicht von Hand."),
 

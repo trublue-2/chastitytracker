@@ -22,6 +22,11 @@ model User {
   passwordHash                   String
   role                           String                   @default("user")
   email                          String?                  @unique
+  // Rückläufer-Erkennung: das Portal zählt endgültig fehlgeschlagene Zustellungen an diese Adresse und
+  // setzt bei Erreichen der Schwelle `emailBlockedAt` (src/lib/emailBounce.ts). Eine neue Adresse setzt alle drei zurück.
+  emailBounceCount               Int                      @default(0)
+  emailLastBounceAt              DateTime?
+  emailBlockedAt                 DateTime?
   createdAt                      DateTime                 @default(now())
   cleaningAllowed                Boolean                  @default(false) @map("reinigungErlaubt")
   cleaningMaxMinutes             Int                      @default(15) @map("reinigungMaxMinuten")

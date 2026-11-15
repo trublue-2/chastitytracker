@@ -19,7 +19,7 @@ export default async function UserManagementPage() {
   const t = await getTranslations("admin");
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "asc" },
-    select: { id: true, username: true, role: true, email: true },
+    select: { id: true, username: true, role: true, email: true, emailBlockedAt: true },
   });
 
   return (
@@ -51,6 +51,9 @@ export default async function UserManagementPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    {u.emailBlockedAt && (
+                      <Badge variant="warn" label={t("emailBlockedBadge")} size="sm" />
+                    )}
                     {u.role === "admin" && (
                       <Badge variant="neutral" label={t("roleAdmin")} size="sm" />
                     )}

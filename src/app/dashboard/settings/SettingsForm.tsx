@@ -35,7 +35,7 @@ import ConfirmDialog from "@/app/components/ConfirmDialog";
 import type { SettingsFormProps } from "./getSettingsProps";
 import { formColCls } from "@/app/components/inputStyles";
 
-export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, notifyMail, notifyPush, notifyTelegram, telegramConfigured, telegramLinked, mailReachable, pushReachable, mailConfigured, version, buildDate, feedback, census, androidAppUrl, weight, journal, box, instanceSections }: SettingsFormProps & {
+export default function SettingsForm({ username, email, locale, timezone, startPage, showStartPage, controlledSubs, isAdmin, hideOwnTracker, notifyMail, notifyPush, notifyTelegram, telegramConfigured, telegramLinked, mailReachable, mailBlocked, pushReachable, mailConfigured, version, buildDate, feedback, census, androidAppUrl, weight, journal, box, instanceSections }: SettingsFormProps & {
   /** Abschnitte, die der INSTANZ gehören statt der Person — heute die Foto-Prüfung. Nur die
    *  Admin-Seite reicht sie herein; im Träger-Bereich bleibt die Maske rein persönlich. Innerhalb
    *  des `<main>`, damit sie in derselben Spalte und Landmarke stehen wie der Rest. */
@@ -245,7 +245,7 @@ export default function SettingsForm({ username, email, locale, timezone, startP
       // Reihenfolge der Gründe ist nicht beliebig: versendet die INSTANZ nicht, hilft auch eine
       // Adresse nicht weiter — dann wäre „keine Adresse hinterlegt" eine Aufforderung ins Leere.
       // Erst wenn Mail grundsätzlich geht, ist die fehlende Adresse der Grund und behebbar.
-      reason: mailReachable ? null : mailConfigured ? t("notifyStatusMailNone") : t("notifyStatusMailNoSmtp"),
+      reason: mailReachable ? null : mailBlocked ? t("notifyStatusMailBlocked") : mailConfigured ? t("notifyStatusMailNone") : t("notifyStatusMailNoSmtp"),
     },
     ...(telegramConfigured
       ? [{
@@ -370,10 +370,13 @@ export default function SettingsForm({ username, email, locale, timezone, startP
           {/* Email change */}
           <ExpandRow
             label={t("changeEmail")}
-            subtitle={email ?? t("notifyStatusMailNone")}
+            subtitle={mailBlocked ? t("notifyStatusMailBlocked") : email ?? t("notifyStatusMailNone")}
             open={expanded === "email"}
             onToggle={() => toggle("email")}
           >
+            {mailBlocked && !emailSuccess && (
+              <p className="text-sm text-warn-text bg-warn-bg border border-warn-border rounded-xl px-4 py-3 mb-4">{t("emailBlockedNotice")}</p>
+            )}
             {emailSuccess ? (
               <p className="text-sm text-ok-text bg-ok-bg border border-ok-border rounded-xl px-4 py-3">{t("emailSaved")}</p>
             ) : (

@@ -3,6 +3,7 @@ import { requireApi } from "@/lib/authGuards";
 import { prisma } from "@/lib/prisma";
 import { prepareEmailInput } from "@/lib/loginIdentity";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
+import { emailUpdateData } from "@/lib/emailBounce";
 
 /** Die hinterlegte Adresse des angemeldeten Users. Existiert, damit das Feedback-Formular sein
  *  Pflichtfeld vorbelegen kann, ohne dass jede Seite die Adresse mitrendern muss — geladen wird
@@ -34,7 +35,7 @@ export async function PATCH(req: NextRequest) {
   try {
     await prisma.user.update({
       where: { id: session.user.id },
-      data: { email: value },
+      data: await emailUpdateData(session.user.id, value),
     });
   } catch (e: unknown) {
     if (isUniqueConstraintOn(e, "email")) {

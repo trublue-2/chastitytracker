@@ -5,6 +5,7 @@ import {
 } from "@/lib/constants";
 import { hasPushTarget } from "@/lib/push";
 import { mailReaches } from "@/lib/mail";
+import { isEmailBlocked } from "@/lib/emailBounce";
 import { telegramChatReachable } from "@/lib/telegram";
 import { structuredLog } from "@/lib/serverLog";
 
@@ -56,7 +57,8 @@ export async function deliveryChannels(
   const chosen = channelsForLevels(recipient, priority);
   if (priority !== "deadline") return chosen;
   try {
-    const mail = mailReaches(recipient.email);
+    // Eine wegen Rückläufern gesperrte Adresse trägt nicht — sonst bliebe die Frist-Meldung an ihr hängen.
+    const mail = mailReaches(recipient.email, await isEmailBlocked(recipient.email));
     if (chosen.mail && mail) return chosen;
     const push = await hasPushTarget(recipient.id);
     if (chosen.push && push) return chosen;

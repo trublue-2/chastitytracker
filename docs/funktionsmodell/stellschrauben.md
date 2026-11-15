@@ -302,6 +302,9 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `User.username` | Identität | Anmeldename, zugleich die Kennung in Meldungen. |
 | `User.passwordHash` | Identität | bcrypt-Hash. Kein Verhalten, sondern der Zugang selbst. |
 | `User.email` | Identität | Zustelladresse; steuert nichts, ausser dass ohne sie keine Mail geht. |
+| `User.emailBounceCount` | Laufzeitzustand | Zählstand der endgültig fehlgeschlagenen Zustellungen an `email`. Vom Portal geschrieben, nicht von Hand; eine neue Adresse setzt auf 0. |
+| `User.emailLastBounceAt` | Laufzeitzustand | Zeitpunkt des letzten Rückläufers. Ein Zählstand, der älter als 30 Tage ist, beginnt neu. |
+| `User.emailBlockedAt` | Laufzeitzustand | Ab wann der Versand an `email` ruht, weil Zustellungen wiederholt scheiterten (Mail, Frist-Rückfall). Hinweis in den Einstellungen; eine neue Adresse hebt die Sperre auf. |
 | `User.createdAt` | Identität | Anlage-Zeitpunkt. |
 | `User.autoInspectionPlannedFor` | Laufzeitzustand | Merker des Planers: bis wann der Tagesplan gewürfelt ist. Wird vom Poller gesetzt, nicht von Hand. |
 | `User.telegramChatId` | Datensatz | Verknüpfter Telegram-Chat als Ziel des dritten Benachrichtigungs-Kanals. Kein Schalter, sondern eine Bindung: gesetzt vom Verknüpfungs-Webhook (der Nutzer drückt im Chat Start), gelöscht beim Entkoppeln. `null` = nicht verknüpft, dann wird für ihn nie über Telegram zugestellt. |

@@ -9,6 +9,13 @@
           "de": "Kontrollen: Eine fällige Auto-Kontrolle erscheint erst, wenn sie wirklich zugestellt ist – ein angeschlossenes Anzeigegerät zeigt keinen Code mehr, den es für dich nie gab (etwa wenn du gerade nicht verschlossen bist).",
           "en": "Inspections: a due automatic inspection only appears once it has actually been delivered – a connected display no longer shows a code that never existed for you (for example while you are not locked)."
         }
+      },
+      {
+        "type": "feat",
+        "text": {
+          "de": "E-Mail: Schlagen Mails an eine Adresse mehrfach endgültig fehl, schickt der Tracker nichts mehr dorthin und weist dich in den Einstellungen darauf hin. Mit einer geänderten Adresse geht es wieder los.",
+          "en": "Email: if mails to an address repeatedly fail for good, the tracker stops sending there and points it out in the settings. Entering a changed address starts over."
+        }
       }
     ]
   },

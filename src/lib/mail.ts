@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import { EMAIL_BUTTON_COLORS } from "@/lib/constants";
 import { structuredLog } from "@/lib/serverLog";
+import { isEmailBlocked } from "@/lib/emailBounce";
 
 export function escHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -32,10 +33,11 @@ export function mailConfigured(): boolean {
   return !!process.env.SMTP_HOST;
 }
 
-/** Erreicht eine Mail den Nutzer — Adresse hinterlegt UND Instanz kann versenden? Geteilt vom
- *  Frist-Rückfall und der Warnung in den Einstellungen, damit beide dasselbe meinen. */
-export function mailReaches(email: string | null | undefined): boolean {
-  return !!email && mailConfigured();
+/** Erreicht eine Mail den Nutzer — Adresse hinterlegt, Instanz kann versenden UND die Adresse ist nicht
+ *  wegen wiederholter Rückläufer gesperrt (`blocked`, siehe `emailBounce`)? Geteilt vom Frist-Rückfall
+ *  und der Warnung in den Einstellungen, damit beide dasselbe meinen. */
+export function mailReaches(email: string | null | undefined, blocked = false): boolean {
+  return !!email && mailConfigured() && !blocked;
 }
 
 export async function sendMail(to: string, subject: string, html: string) {
@@ -43,6 +45,12 @@ export async function sendMail(to: string, subject: string, html: string) {
   // keinen Business-Flow (Reset, Kontrolle, Benachrichtigung) mit einem 500 abbrechen.
   if (!mailConfigured()) {
     structuredLog("mail", "skipped_no_smtp", { to, subject });
+    return;
+  }
+  // Eine Adresse, an der Mails immer wieder endgültig scheitern (Rückläufer, siehe `emailBounce`),
+  // bekommt nichts mehr — jeder weitere Versuch wäre nur ein weiterer Rückläufer.
+  if (await isEmailBlocked(to)) {
+    structuredLog("mail", "skipped_blocked", { to, subject });
     return;
   }
   const info = await transporter.sendMail({

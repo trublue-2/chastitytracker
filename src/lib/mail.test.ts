@@ -7,6 +7,8 @@ const { transportSend, createTransport } = vi.hoisted(() => {
   return { transportSend, createTransport: vi.fn((_opts: Record<string, unknown>) => ({ sendMail: transportSend })) };
 });
 vi.mock("nodemailer", () => ({ default: { createTransport } }));
+const { isEmailBlocked } = vi.hoisted(() => ({ isEmailBlocked: vi.fn(async (_e: string | null | undefined) => false) }));
+vi.mock("./emailBounce", () => ({ isEmailBlocked }));
 
 /** Kollabiert Whitespace zwischen Tags — die Einrückung des Templates ist irrelevant fürs Rendering. */
 const norm = (html: string) => html.replace(/>\s+</g, "><").trim();
@@ -126,6 +128,16 @@ describe("sendMail — Logspur", () => {
     vi.restoreAllMocks();
     if (prevHost === undefined) delete process.env.SMTP_HOST;
     else process.env.SMTP_HOST = prevHost;
+  });
+
+  it("verschickt nichts an eine wegen Rückläufern gesperrte Adresse und loggt das", async () => {
+    process.env.SMTP_HOST = "mail.test";
+    isEmailBlocked.mockResolvedValueOnce(true);
+
+    await sendMail("kaputt@test.example", "Kontrolle", "<p>x</p>");
+
+    expect(transportSend).not.toHaveBeenCalled();
+    expect(logged.join("\n")).toContain("skipped_blocked to=kaputt@test.example");
   });
 
   it("meldet den geglückten Versand mit Empfänger, Betreff und der ID des MTA", async () => {
