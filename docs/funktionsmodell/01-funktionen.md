@@ -6,7 +6,7 @@
 Was der Tracker kann — flach aufgelistet, nach Mechanik gruppiert. Für den Betrieb, nicht für
 Endnutzer: die Spalte **Endpunkt** nennt die API-Route bzw. das MCP-Werkzeug dahinter.
 
-122 Funktionen über 19 Mechaniken, davon 14 ohne jede Bedienung — sie laufen von selbst.
+123 Funktionen über 19 Mechaniken, davon 14 ohne jede Bedienung — sie laufen von selbst.
 
 **Wer** ist der Auslöser, **Wo** die Oberfläche. Eine Funktion mit zwei Oberflächen ist EINE
 Funktion: „Kontrolle anfordern" gibt es in der App und über den MCP, und beide Wege enden im
@@ -170,6 +170,7 @@ Steckbrief: [60-box.md](60-box.md)
 | **Box wieder verriegeln** | Löst das Verriegeln nach einer Reinigungspause aus. | Sub | App (Träger) | `/api/box/relock` |
 | **Box nochmals öffnen** | Steht der Tracker auf offen, die Box meldet den Riegel aber zu, setzt der Träger den Öffnen-Befehl neu. <br>*Nicht nach einer Sperrbruch-Öffnung: dort bleibt die Box mit Absicht zu. Nur für die LockMeBox: bei Heimdall ist „Tracker offen, Box wartet auf den Knopf" der Normalfall. Ausgeführt wird der Befehl erst, wenn das Handy des Trägers sich an der Box verbindet.* | Sub | App (Träger) | `/api/box/reopen` |
 | **LockMeBox per Bluetooth koppeln und bedienen** | Das Handy des Trägers verbindet sich mit einer LockMeBox (Werks-Firmware) und reicht Status und Befehle zwischen Box und Tracker durch; der erste Kontakt koppelt sie. <br>*Die Box folgt den Einträgen wie Heimdall, ausgeführt wird aber erst beim nächsten Verbinden an der Box. Nur mit BLE_BRIDGE_KEY. Details: docs/lockmebox.md.* | Sub | App (Träger) | `/api/box/ble` `/api/box/ble/diagnostic` |
+| **LockMeBox auf Heimdall umstellen** | Der Träger spielt seiner offenen LockMeBox per Bluetooth die Heimdall-Firmware auf; die Box lädt sie über WLAN vom Heimdall-Server und meldet sich danach dort als Heimdall-Box an. <br>*Nur mit BLE_BRIDGE_KEY, HEIMDALL_SYNC_SECRET und HEIMDALL_BASE_URL. Löst zuerst die LockMeBox-Kopplung (Bedingungen wie „Box entfernen“). Details: docs/lockmebox.md.* | Sub | App (Träger) | `/api/box/ble/firmware` |
 | **Box entfernen** | Der Träger entfernt seine Box, um eine andere zu koppeln — er führt genau eine. <br>*Nur wenn er offen ist, die Box nicht als zu gemeldet hat und weder Aufruf noch Kommando wartet. Eine zweite Kopplung lehnen beide Wege ab (Bluetooth und Heimdall-Sync). Details: docs/lockmebox.md.* | Sub | App (Träger) | `/api/box/[boxId]` |
 | **Gegenstelle für die Box** | Liefert der Box ihre Konfiguration und nimmt Zustandsmeldungen und Ereignisse entgegen. <br>*Der Tracker konfiguriert die Box nicht — Schwellen und Failsafes kommen von dort.* | System | Gegenstelle | `/api/integration/box/config` `/api/integration/box/status` `/api/integration/box/event` |
 | **Siegel im Foto erkennen** | Prüft, ob das Siegel auf dem Bild unversehrt und lesbar ist. | System | läuft von selbst | `/api/detect-seal` |

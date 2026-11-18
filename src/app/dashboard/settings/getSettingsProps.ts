@@ -5,7 +5,7 @@ import { getRecipientChannels } from "@/lib/notificationPrefs";
 import { telegramLinkAvailable } from "@/lib/telegram";
 import { hasPushTarget } from "@/lib/push";
 import { mailReaches, mailConfigured } from "@/lib/mail";
-import { androidAppPageUrl, boxCouplingEnabled, isValidStartPage, lockmeboxEnabled, toNotifyLevel, type NotifyLevel } from "@/lib/constants";
+import { androidAppPageUrl, boxCouplingEnabled, firmwareSwapEnabled, isValidStartPage, lockmeboxEnabled, toNotifyLevel, type NotifyLevel } from "@/lib/constants";
 import { toBoxKind, type BoxKind } from "@/lib/boxStatus";
 import type { WeightSettingsProps } from "./WeightSettings";
 import type { UnitSystem } from "@/lib/weight";
@@ -73,7 +73,12 @@ export interface SettingsFormProps {
    *  Box noch die LockMeBox zum Koppeln). Sonst die EINE Box des Trägers (`boxPairing.ts`) — dann
    *  bietet er „Box entfernen" an —, oder `paired: null`: dann das Koppeln einer LockMeBox. Ob DIESES
    *  Gerät Bluetooth kann, entscheidet erst der Browser. */
-  box: { paired: { boxId: string; name: string; kind: BoxKind } | null } | null;
+  box: {
+    paired: { boxId: string; name: string; kind: BoxKind } | null;
+    /** Lässt sich eine LockMeBox hier auf Heimdall umstellen (`firmwareSwapEnabled`)? Unabhängig von
+     *  `paired`: der Wechsel löst die Kopplung, sein Ablauf muss danach weiter sichtbar bleiben. */
+    firmwareSwap: boolean;
+  } | null;
 }
 
 /**
@@ -195,6 +200,7 @@ export async function getSettingsProps(): Promise<SettingsFormProps> {
 
 async function boxSettings(userId: string): Promise<SettingsFormProps["box"]> {
   const box = await prisma.boxStatus.findFirst({ where: { userId }, select: { boxId: true, name: true, kind: true } });
-  if (box) return { paired: { boxId: box.boxId, name: box.name, kind: toBoxKind(box.kind) } };
-  return lockmeboxEnabled() ? { paired: null } : null;
+  const firmwareSwap = firmwareSwapEnabled();
+  if (box) return { paired: { boxId: box.boxId, name: box.name, kind: toBoxKind(box.kind) }, firmwareSwap };
+  return lockmeboxEnabled() ? { paired: null, firmwareSwap } : null;
 }

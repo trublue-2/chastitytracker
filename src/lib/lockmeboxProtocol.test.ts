@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { nextLockmeboxCommand, parseLockmeboxStatus, splitLockmeboxFrames } from "./lockmeboxProtocol";
+import { heimdallProvisionLink, nextLockmeboxCommand, parseLockmeboxStatus, splitLockmeboxFrames } from "./lockmeboxProtocol";
 
 // Echte Zeilen einer LockMeBox mit Firmware 15 (25.09.2026): Status offen, nach dem Sperren, nach
 // einem falschen Passwort, nach dem Öffnen. 17 Felder plus Schlussstrich.
@@ -84,5 +84,19 @@ describe("nextLockmeboxCommand", () => {
   it("nennt das falsche Passwort beim Öffnen beim Namen", () => {
     expect(nextLockmeboxCommand({ locked: true, passwordWrong: true }, "open", "open"))
       .toEqual({ command: null, problem: "passwordWrong", settled: false });
+  });
+});
+
+describe("heimdallProvisionLink", () => {
+  // Gegen den Parser der Box (Heimdall `provisioning.cpp`): ssid/url/token im Klartext, das Passwort
+  // bei enc=b64 base64-kodiert — UTF-8-sicher, wie der Setup-QR im Heimdall-Dashboard.
+  it("baut den Setup-Link mit base64-kodiertem Passwort", () => {
+    const link = new URL(heimdallProvisionLink("Heim & WLAN", "pässwort1", "https://heimdall.example", "ABCD-EFGH"));
+    expect(`${link.origin}${link.pathname}`).toBe("http://192.168.4.1/provision");
+    expect(link.searchParams.get("ssid")).toBe("Heim & WLAN");
+    expect(Buffer.from(link.searchParams.get("pass")!, "base64").toString("utf8")).toBe("pässwort1");
+    expect(link.searchParams.get("url")).toBe("https://heimdall.example");
+    expect(link.searchParams.get("token")).toBe("ABCD-EFGH");
+    expect(link.searchParams.get("enc")).toBe("b64");
   });
 });

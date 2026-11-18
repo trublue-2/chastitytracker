@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { afterEach, beforeEach, describe, it, expect } from "vitest";
-import { encryptLockmeboxCommand, generateLockmeboxPassword, lockmeboxPlaintext } from "./lockmebox";
+import { encryptLockmeboxCommand, generateLockmeboxPassword, lockmeboxFirmwarePlaintext, lockmeboxPlaintext } from "./lockmebox";
 
 // Ein Test-Schlüssel — der echte steht nur in der Umgebung der Instanzen.
 const TEST_KEY = "000102030405060708090a0b0c0d0e0f";
@@ -36,6 +36,17 @@ describe("lockmeboxPlaintext", () => {
     expect(lockmeboxPlaintext("lock", "Abc123")).toBe("C/0/1/*/Abc123");
     expect(lockmeboxPlaintext("open", "Abc123")).toBe("O/Abc123");
     expect(lockmeboxPlaintext("status", "Abc123")).toBe("S");
+  });
+});
+
+describe("lockmeboxFirmwarePlaintext", () => {
+  // Aufbau wie im bewährten Flash-Werkzeug: U/<b64 url>/<b64 ssid>/<b64 passwort>, UTF-8.
+  it("kodiert Adresse, WLAN-Name und Passwort je als Base64", () => {
+    const [letter, url, ssid, pw] = lockmeboxFirmwarePlaintext("http://h.example/api/box/takeover/ab", "Heim WLAN", "pässwort1").split("/");
+    expect(letter).toBe("U");
+    expect(Buffer.from(url, "base64").toString("utf8")).toBe("http://h.example/api/box/takeover/ab");
+    expect(Buffer.from(ssid, "base64").toString("utf8")).toBe("Heim WLAN");
+    expect(Buffer.from(pw, "base64").toString("utf8")).toBe("pässwort1");
   });
 });
 

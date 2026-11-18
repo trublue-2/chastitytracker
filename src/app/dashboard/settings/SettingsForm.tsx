@@ -27,6 +27,7 @@ import JournalSettings from "./JournalSettings";
 import WeightSettings from "./WeightSettings";
 import LockmeboxConnect from "@/app/components/LockmeboxConnect";
 import BoxRemoveButton from "./BoxRemoveButton";
+import BoxFirmwareSwap from "./BoxFirmwareSwap";
 import TelegramSettings from "./TelegramSettings";
 import PushAllowRow from "./PushAllowRow";
 import AndroidAppRow from "./AndroidAppRow";
@@ -553,6 +554,10 @@ export default function SettingsForm({ username, email, locale, timezone, startP
                   <LockmeboxConnect unsupportedHint />
                 </>
               )}
+              {/* Ausserhalb der Weiche oben: der Wechsel löst die Kopplung, und das nächste
+                  Auffrischen der Seite (AutoRefresh) zeigt dann „keine Box". Hier bleibt der Ablauf
+                  samt Setup-Link stehen, bis sich die Box als Heimdall-Box meldet. */}
+              {box.firmwareSwap && <BoxFirmwareSwap boxId={box.paired?.kind === "lockmebox" ? box.paired.boxId : null} />}
             </ExpandRow>
           )}
 

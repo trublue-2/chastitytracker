@@ -28,6 +28,10 @@ export type LockmeboxCommand = (typeof LOCKMEBOX_COMMANDS)[number];
 /** Das Kennzeichen, mit dem die Box eine Antwort beginnt (Feld 0) — sie wiederholt den Befehl. */
 export const LOCKMEBOX_COMMAND_LETTER: Record<LockmeboxCommand, string> = { status: "S", lock: "C", open: "O" };
 
+/** Der Update-Befehl der Werks-Firmware (`lockmeboxFirmwarePlaintext`). Kein Relais-Befehl: er geht
+ *  nur beim Wechsel auf Heimdall hinaus, einmal, und ob die Box darauf antwortet, ist nicht belegt. */
+export const LOCKMEBOX_FIRMWARE_LETTER = "U";
+
 /** Ergebnis-Bit „Passwort falsch" (Feld 4). */
 const RESULT_PASSWORD_WRONG = 32;
 /** Akku-Feld: 200 = lädt (ohne Prozentangabe). */
@@ -90,6 +94,25 @@ export function parseLockmeboxStatus(frame: string): LockmeboxStatus | null {
 }
 
 export type LockmeboxProblem = "passwordWrong" | "notApplied";
+
+/** Wechsel auf Heimdall: taugt dieses WLAN für die Box? Die Grenzen setzt das ESP32-WLAN — Name 1–32
+ *  Byte, WPA-Passwort 8–63 Zeichen. Die EINE Regel für Route und Formular. */
+export function isValidSwapWifi(ssid: string, password: string): boolean {
+  const ssidBytes = new TextEncoder().encode(ssid).length;
+  return ssidBytes >= 1 && ssidBytes <= 32 && password.length >= 8 && password.length <= 63;
+}
+
+/**
+ * Der Setup-Link für eine frisch übernommene Box: sie spannt nach dem Neustart das offene WLAN
+ * `Heimdall-Setup-…` auf und liest Heim-WLAN, Server und Geräte-Token aus diesem Link (Aufbau wie
+ * der Setup-QR im Heimdall-Dashboard). Das Passwort steht base64-kodiert darin (`enc=b64`), damit es
+ * nicht im Klartext im Verlauf liegt. Entsteht im Browser — das WLAN-Passwort bleibt dort.
+ */
+export function heimdallProvisionLink(ssid: string, password: string, serverUrl: string, token: string): string {
+  const passB64 = btoa(String.fromCharCode(...new TextEncoder().encode(password)));
+  const q = { ssid, pass: passB64, url: serverUrl, token, enc: "b64" };
+  return `http://192.168.4.1/provision?${Object.entries(q).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("&")}`;
+}
 
 /** Ein Schritt der Handy-Brücke, wie das Handy ihn an `/api/box/ble` schickt. */
 export interface LockmeboxRelayInput {

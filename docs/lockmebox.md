@@ -90,6 +90,27 @@ verschlossenen Box, bleibt nur der Hammer. Deshalb (`boxPasswordAtRisk` in `boxP
 
 Ausserhalb des Trackers liegt: eine ganze Instanz samt Datenbank löschen.
 
+## Wechsel auf Heimdall
+
+Ist die Instanz zusätzlich mit einem Heimdall-Server verbunden (`HEIMDALL_SYNC_SECRET` und
+`HEIMDALL_BASE_URL`), bieten die Einstellungen der gekoppelten LockMeBox „Firmware wechseln" an. Die
+Box bekommt dann die Heimdall-Firmware und hängt danach am WLAN statt am Handy.
+
+1. Der Träger gibt ein 2,4-GHz-WLAN an und verbindet sich mit der Box (Knopf drücken).
+2. Der Tracker gleicht den Stand ab und löst die Kopplung — mit denselben Bedingungen wie „Box
+   entfernen": Träger offen, kein Aufruf wartet, Box offen (`firmwareSwapService.ts`).
+3. Der Heimdall-Server legt das Gerät für diesen Träger an und stellt eine Einmal-Adresse für die
+   Firmware aus (15 Minuten gültig). Der Tracker baut daraus den Update-Befehl der Werks-Firmware,
+   das Handy schreibt ihn an die Box.
+4. Die Box lädt die Firmware über das WLAN und startet als Heimdall-Box mit dem offenen
+   Setup-WLAN `Heimdall-Setup-…`. Den Setup-Link dafür baut der Browser aus dem eben eingegebenen
+   WLAN und dem Geräte-Token (`heimdallProvisionLink`); die Seite fragt nach, bis sich die Box meldet.
+
+Eine **verschlossene** Box nimmt den Update-Befehl nicht an (am Gerät geprüft) — an der Sperre
+vorbei lässt sich nicht umflashen. Die Werks-Firmware lädt nur über HTTP; der Heimdall-Server
+braucht dafür einen eigenen HTTP-Router für `/api/box/takeover/` ohne Umleitung auf HTTPS. Zurück zur
+Werks-Firmware geht es über Heimdall („Werks-Firmware wiederherstellen").
+
 ## Grenzen — bewusst so
 
 - **Kein Notausgang im Tracker.** Öffnen kann die Box nur, wer das Passwort kennt, und das kennt nur

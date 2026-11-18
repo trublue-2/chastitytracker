@@ -197,6 +197,18 @@ export function bleBridgeKey(): string | null {
   return /^[0-9a-f]{32}$/i.test(raw) ? raw : null;
 }
 
+/** Kann dieser Tracker den Heimdall-Server ANRUFEN? Kopplung an (Secret) UND Ziel-URL gesetzt —
+ *  die eine Regel, nach der `heimdallFetch` entscheidet, ob es ein Ziel gibt. */
+export function heimdallConfigured(): boolean {
+  return heimdallEnabled() && !!process.env.HEIMDALL_BASE_URL;
+}
+
+/** Lässt sich eine LockMeBox hier auf Heimdall umstellen (`firmwareSwapService.ts`)? Braucht beide
+ *  Wege: die Bluetooth-Brücke für den Befehl und einen Heimdall-Server, der die Firmware liefert. */
+export function firmwareSwapEnabled(): boolean {
+  return lockmeboxEnabled() && heimdallConfigured();
+}
+
 /** Gibt es auf dieser Instanz überhaupt eine Box-Kopplung — Heimdall ODER LockMeBox? Das Tor für
  *  alles, was nur vom Box-ZUSTAND abhängt (Karte, Kommandos, Riegel-Schalter, Formular-Rückfrage).
  *  Was an Heimdall selbst hängt (Instant-Push, Riegel-Ereignisse), prüft weiter `heimdallEnabled`. */

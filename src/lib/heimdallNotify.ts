@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
 import { heimdallEnabled } from "@/lib/constants";
+import { heimdallFetch, heimdallUsername } from "@/lib/heimdallApi";
 
 /**
  * Instant-Push Tracker → Heimdall. Sagt dem Heimdall-Server, dass sich für einen User gerade der
@@ -10,8 +10,7 @@ import { heimdallEnabled } from "@/lib/constants";
  * jeder Ausfall hinterlässt eine Logzeile. Ein Instant-Push, der nie feuert, ist von aussen nicht
  * von „die Box schlief gerade" zu unterscheiden; ohne Log bleibt nur, den Pfad im Code nachzulesen.
  *
- * Auth = derselbe Shared-Secret-Bearer wie inbound (`HEIMDALL_SYNC_SECRET`), nur rückwärts —
- * Heimdall matcht ihn gegen die TrackerInstance.apiKey.
+ * Adresse und Anmeldung: `heimdallFetch`.
  */
 export function notifyHeimdall(username: string | null | undefined, command?: "lock" | "open"): void {
   if (!username || !heimdallEnabled()) return; // Box-Kopplung ganz aus — nichts zu melden.
@@ -19,22 +18,21 @@ export function notifyHeimdall(username: string | null | undefined, command?: "l
   // Kopplung aktiv (Secret gesetzt), aber keine Ziel-URL: das pendingCommand liegt bereit und die
   // Box holt es erst beim nächsten Sync — der Riegel folgt also auf den Tastendruck. Genau der Fall,
   // der wie ein Bug aussieht. Deshalb laut, nicht still.
-  const base = process.env.HEIMDALL_BASE_URL;
-  if (!base) {
+  const request = heimdallFetch("/api/tracker/notify", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username, command }),
+    timeoutMs: 3000,
+  });
+  if (!request) {
     console.warn(
       "[heimdallNotify] HEIMDALL_BASE_URL nicht gesetzt — kein Instant-Push. " +
       "Die Box vollzieht das Kommando erst beim nächsten Sync (Tastendruck/Heartbeat).",
     );
     return;
   }
-  const secret = process.env.HEIMDALL_SYNC_SECRET!;
 
-  void fetch(`${base.replace(/\/$/, "")}/api/tracker/notify`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" },
-    body: JSON.stringify({ username, command }),
-    signal: AbortSignal.timeout(3000),
-  })
+  void request
     .then(async (r) => {
       if (!r.ok) {
         console.warn(`[heimdallNotify] HTTP ${r.status} für ${command ?? "config-change"} — kein Instant-Push`);
@@ -60,6 +58,5 @@ export function notifyHeimdall(username: string | null | undefined, command?: "l
  *  dessen Warnung genau für die Keyholder-Flows zu verschlucken. */
 export async function notifyHeimdallForUserId(userId: string, command?: "lock" | "open"): Promise<void> {
   if (!heimdallEnabled()) return;
-  const u = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } }).catch(() => null);
-  notifyHeimdall(u?.username, command);
+  notifyHeimdall(await heimdallUsername(userId), command);
 }

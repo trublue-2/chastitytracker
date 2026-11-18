@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { bleBridgeKey } from "@/lib/constants";
-import { LOCKMEBOX_COMMAND_LETTER, type LockmeboxCommand } from "@/lib/lockmeboxProtocol";
+import { LOCKMEBOX_COMMAND_LETTER, LOCKMEBOX_FIRMWARE_LETTER, type LockmeboxCommand } from "@/lib/lockmeboxProtocol";
 
 /**
  * Die verschlüsselte Hälfte des LockMeBox-Protokolls — nur auf dem Server.
@@ -33,6 +33,17 @@ export function lockmeboxPlaintext(command: LockmeboxCommand, password: string):
     case "lock": return [letter, "0", "1", "*", password].join("/");
     case "open": return [letter, password].join("/");
   }
+}
+
+/**
+ * Der Update-Befehl der Werks-Firmware: `U/<url>/<wlan-name>/<wlan-passwort>`, jedes Feld base64.
+ * Die Box wählt sich damit ins WLAN ein, lädt die Datei unter der Adresse (nur HTTP) und startet sie.
+ * Er braucht kein Box-Passwort — eine VERSCHLOSSENE Box nimmt ihn aber nicht an (am Gerät geprüft,
+ * 27.09.2026). Verwendet nur für den Wechsel auf Heimdall (`firmwareSwapService.ts`).
+ */
+export function lockmeboxFirmwarePlaintext(url: string, ssid: string, password: string): string {
+  const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
+  return [LOCKMEBOX_FIRMWARE_LETTER, b64(url), b64(ssid), b64(password)].join("/");
 }
 
 /** Das Box-Passwort: 10 Zeichen aus Buchstaben und Ziffern — mehr nimmt die Firmware nicht an. */

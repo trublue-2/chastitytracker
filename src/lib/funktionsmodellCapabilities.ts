@@ -551,6 +551,12 @@ export const FM_CAPABILITIES: FmCapability[] = [
     note: "Die Box folgt den Einträgen wie Heimdall, ausgeführt wird aber erst beim nächsten Verbinden an der Box. Nur mit BLE_BRIDGE_KEY. Details: docs/lockmebox.md.",
   }),
   c({
+    id: "box-firmware-swap", mechanic: "Box", title: "LockMeBox auf Heimdall umstellen",
+    what: "Der Träger spielt seiner offenen LockMeBox per Bluetooth die Heimdall-Firmware auf; die Box lädt sie über WLAN vom Heimdall-Server und meldet sich danach dort als Heimdall-Box an.",
+    actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/box/ble/firmware"],
+    note: "Nur mit BLE_BRIDGE_KEY, HEIMDALL_SYNC_SECRET und HEIMDALL_BASE_URL. Löst zuerst die LockMeBox-Kopplung (Bedingungen wie „Box entfernen“). Details: docs/lockmebox.md.",
+  }),
+  c({
     id: "box-remove", mechanic: "Box", title: "Box entfernen",
     what: "Der Träger entfernt seine Box, um eine andere zu koppeln — er führt genau eine.",
     actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/box/[boxId]"],

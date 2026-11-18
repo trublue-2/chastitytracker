@@ -8,8 +8,9 @@
 import { fetchWithTimeout, parseApiErrorCode } from "@/lib/apiClient";
 import { codedError, codeOf } from "@/lib/codedError";
 import { isNativePlatform } from "@/lib/nativeApp";
+import type { FirmwareSwapStart } from "@/lib/firmwareSwapService";
 import {
-  LOCKMEBOX_COMMAND_LETTER, LOCKMEBOX_NAME_PREFIX, LOCKMEBOX_NAME_RE, LOCKMEBOX_RX, LOCKMEBOX_SERVICE,
+  LOCKMEBOX_COMMAND_LETTER, LOCKMEBOX_FIRMWARE_LETTER, LOCKMEBOX_NAME_PREFIX, LOCKMEBOX_NAME_RE, LOCKMEBOX_RX, LOCKMEBOX_SERVICE,
   LOCKMEBOX_TX, splitLockmeboxFrames, type LockmeboxCommand, type LockmeboxInfo, type LockmeboxProblem,
   type LockmeboxRelayInput, type LockmeboxRelayResult,
 } from "@/lib/lockmeboxProtocol";
@@ -73,10 +74,11 @@ export async function lockmeboxBleMode(): Promise<"native" | "web" | null> {
   return mode;
 }
 
-async function relayStep(body: LockmeboxRelayInput): Promise<LockmeboxRelayResult> {
-  // Jeder Fehler auf diesem Weg ist einer des SERVERS oder der Leitung, nie der Box — getrennt
-  // markiert, damit der Träger nicht an der Box sucht, was am Netz liegt.
-  const res = await fetchWithTimeout("/api/box/ble", {
+/** Ein Aufruf an den Server während einer Sitzung. Jeder Fehler auf diesem Weg ist einer des SERVERS
+ *  oder der Leitung, nie der Box — getrennt markiert, damit der Träger nicht an der Box sucht, was am
+ *  Netz liegt. */
+async function postToServer<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetchWithTimeout(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -86,6 +88,8 @@ async function relayStep(body: LockmeboxRelayInput): Promise<LockmeboxRelayResul
   if (!res.ok) throw codedError(RELAY_ERROR_PREFIX + ((await parseApiErrorCode(res)) ?? ""));
   return res.json();
 }
+
+const relayStep = (body: LockmeboxRelayInput) => postToServer<LockmeboxRelayResult>("/api/box/ble", body);
 
 /** Sagt dem Server, WARUM keine Verbindung möglich ist — die Ursache gehört ins Log des Betreibers,
  *  nicht in die Oberfläche. Fire-and-forget: ein Fehler hier ändert nichts am Ergebnis der Sitzung. */
@@ -111,23 +115,28 @@ async function initBle(ble: BleModule): Promise<LockmeboxSessionError | null> {
   }
 }
 
-/**
- * Sitzung per GERÄTEAUSWAHL — der Knopf „Mit Box verbinden". MUSS aus einem Klick heraus gerufen
- * werden: der Browser zeigt die Auswahl nur auf eine Nutzeraktion hin. Koppelt auch eine neue Box.
- */
-export async function runLockmeboxSession(): Promise<LockmeboxSessionOutcome> {
-  const ble = await import("@capacitor-community/bluetooth-le");
+/** Die Geräteauswahl des Browsers bzw. der App: nur Geräte, die als LockMeBox werben. MUSS aus einem
+ *  Klick heraus gerufen werden — der Browser zeigt die Auswahl nur auf eine Nutzeraktion hin. */
+async function pickLockmebox(ble: BleModule): Promise<FoundBox | SessionFailure> {
   const initError = await initBle(ble);
   if (initError) return { ok: false, error: initError };
-  let device: { deviceId: string; name?: string };
   try {
-    device = await ble.BleClient.requestDevice({ namePrefix: LOCKMEBOX_NAME_PREFIX, optionalServices: [LOCKMEBOX_SERVICE] });
+    const device = await ble.BleClient.requestDevice({ namePrefix: LOCKMEBOX_NAME_PREFIX, optionalServices: [LOCKMEBOX_SERVICE] });
+    const boxId = device.name ?? "";
+    return LOCKMEBOX_NAME_RE.test(boxId) ? { deviceId: device.deviceId, boxId } : { ok: false, error: "noDevice" };
   } catch {
     return { ok: false, error: "noDevice" };
   }
-  const boxId = device.name ?? "";
-  if (!LOCKMEBOX_NAME_RE.test(boxId)) return { ok: false, error: "noDevice" };
-  return relaySession(ble, { deviceId: device.deviceId, boxId });
+}
+
+/**
+ * Sitzung per GERÄTEAUSWAHL — der Knopf „Mit Box verbinden" (aus einem Klick heraus, siehe
+ * {@link pickLockmebox}). Koppelt auch eine neue Box.
+ */
+export async function runLockmeboxSession(): Promise<LockmeboxSessionOutcome> {
+  const ble = await import("@capacitor-community/bluetooth-le");
+  const found = await pickLockmebox(ble);
+  return "ok" in found ? found : relaySession(ble, found);
 }
 
 /**
@@ -155,9 +164,39 @@ export async function runLockmeboxAutoSession(boxId: string, signal: AbortSignal
   return found ? relaySession(ble, found) : null;
 }
 
-/** Verbinden, Status an den Server, dessen Befehl an die Box, Antwort zurück — bis der Server nichts
- *  mehr zu tun hat. Trennt am Ende in jedem Fall. */
-async function relaySession(ble: BleModule, { deviceId, boxId }: FoundBox): Promise<LockmeboxSessionOutcome> {
+/** Eine offene Verbindung zur Box, wie {@link withBoxLink} sie hergibt. */
+interface BoxLink {
+  /** Zeile schreiben und auf die erste Antwort warten, die mit `prefix` beginnt — `null` nach `timeoutMs`. */
+  sendAndAwait(prefix: string, frame: string, timeoutMs: number): Promise<string | null>;
+  /** Hat sich die Box beim Verbinden von selbst gemeldet, bevor wir etwas schrieben? */
+  greeted(): boolean;
+  /** Das Letzte, was die Box geschickt hat (auch angefangen) — für die Fehlermeldung. */
+  lastLine(): string | null;
+}
+
+type SessionFailure = Extract<LockmeboxSessionOutcome, { ok: false }>;
+
+/** Antwortet die Box nicht auf die Statusabfrage, obwohl sie sich gemeldet hat, liest sie unsere
+ *  Befehle nicht (falscher Schlüssel) — sonst schweigt sie schlicht. */
+function silenceError(link: BoxLink, boxId: string, command: LockmeboxCommand): SessionFailure {
+  const error = command === "status" && link.greeted() ? "keyRejected" : "noReply";
+  if (error === "keyRejected") reportKeyRejected(boxId);
+  return { ok: false, error, lastLine: link.lastLine() };
+}
+
+/** Die Antwort-Kennung eines Relais-Befehls: die Box wiederholt seinen Buchstaben. */
+const replyPrefix = (command: LockmeboxCommand) => `<${LOCKMEBOX_COMMAND_LETTER[command]}/`;
+
+/**
+ * Verbinden, Benachrichtigungen an, `run` ausführen, in jedem Fall trennen. Fehler unterwegs werden
+ * zu Sitzungsfehlern: einer des Servers (`relayStep`/`codedError`) als `server`, sonst nach der
+ * Stelle, an der es hakte.
+ */
+async function withBoxLink<T extends { ok: true }>(
+  ble: BleModule,
+  deviceId: string,
+  run: (link: BoxLink) => Promise<T | SessionFailure>,
+): Promise<T | SessionFailure> {
   const { BleClient, textToDataView, dataViewToText } = ble;
 
   // Die Box schickt eine Zeile in mehreren Stücken. `buffer` hält die angefangene; wartet gerade ein
@@ -181,46 +220,35 @@ async function relaySession(ble: BleModule, { deviceId, boxId }: FoundBox): Prom
     const hit = awaiting && split.frames.find((l) => l.startsWith(awaiting!.prefix));
     if (hit) awaiting!.resolve(hit);
   };
-  const sendAndAwait = (command: LockmeboxCommand, frame: string) =>
-    new Promise<string | null>((resolve, reject) => {
-      const timer = setTimeout(() => done(null), command === "status" ? STATUS_TIMEOUT_MS : REPLY_TIMEOUT_MS);
-      const done = (line: string | null) => {
-        clearTimeout(timer);
-        awaiting = null;
-        resolve(line);
-      };
-      const mine = { prefix: `<${LOCKMEBOX_COMMAND_LETTER[command]}/`, resolve: done };
-      awaiting = mine;
-      stage = "write";
-      written = true;
-      // Nur setzen, solange DIESER Befehl noch wartet: kam die Antwort schon vor der Schreib-Quittung,
-      // läuft längst der nächste Befehl, und ein spätes „wait“ verfälschte dessen Fehlerart.
-      BleClient.write(deviceId, LOCKMEBOX_SERVICE, LOCKMEBOX_RX, textToDataView(frame)).then(() => { if (awaiting === mine) stage = "wait"; }, (e) => {
-        clearTimeout(timer);
-        awaiting = null;
-        reject(e);
-      });
-    });
+  const link: BoxLink = {
+    greeted: () => greeted,
+    lastLine: () => buffer || lastFrame,
+    sendAndAwait: (prefix, frame, timeoutMs) =>
+      new Promise<string | null>((resolve, reject) => {
+        const timer = setTimeout(() => done(null), timeoutMs);
+        const done = (line: string | null) => {
+          clearTimeout(timer);
+          awaiting = null;
+          resolve(line);
+        };
+        const mine = { prefix, resolve: done };
+        awaiting = mine;
+        stage = "write";
+        written = true;
+        // Nur setzen, solange DIESER Befehl noch wartet: kam die Antwort schon vor der Schreib-Quittung,
+        // läuft längst der nächste Befehl, und ein spätes „wait“ verfälschte dessen Fehlerart.
+        BleClient.write(deviceId, LOCKMEBOX_SERVICE, LOCKMEBOX_RX, textToDataView(frame)).then(() => { if (awaiting === mine) stage = "wait"; }, (e) => {
+          clearTimeout(timer);
+          awaiting = null;
+          reject(e);
+        });
+      }),
+  };
 
   try {
     await BleClient.connect(deviceId);
     await BleClient.startNotifications(deviceId, LOCKMEBOX_SERVICE, LOCKMEBOX_TX, onNotify);
-
-    let step = await relayStep({ boxId, line: null, sent: null });
-    for (let i = 0; i < MAX_STEPS && step.send; i++) {
-      const { command, frame } = step.send;
-      const line = await sendAndAwait(command, frame);
-      if (!line) {
-        const error = command === "status" && greeted ? "keyRejected" : "noReply";
-        if (error === "keyRejected") reportKeyRejected(boxId);
-        return { ok: false, error, lastLine: buffer || lastFrame };
-      }
-      step = await relayStep({ boxId, line, sent: command });
-    }
-    if (step.problem) return { ok: false, error: step.problem };
-    // Grenze erreicht, obwohl der Server noch etwas schicken wollte: nicht als Erfolg melden.
-    if (step.send) return { ok: false, error: "notApplied" };
-    return { ok: true, locked: step.locked, info: step.info };
+    return await run(link);
   } catch (e) {
     const code = codeOf(e);
     if (code?.startsWith(RELAY_ERROR_PREFIX)) return { ok: false, error: "server", code: code.slice(RELAY_ERROR_PREFIX.length) || null };
@@ -228,4 +256,72 @@ async function relaySession(ble: BleModule, { deviceId, boxId }: FoundBox): Prom
   } finally {
     await BleClient.disconnect(deviceId).catch(() => {});
   }
+}
+
+/** Einen Befehl des Servers an die Box, ihre Antwort zurück an den Server — dessen nächster Schritt,
+ *  oder warum es hier endet. */
+async function relayRound(link: BoxLink, boxId: string, { command, frame }: NonNullable<LockmeboxRelayResult["send"]>): Promise<LockmeboxRelayResult | SessionFailure> {
+  const line = await link.sendAndAwait(replyPrefix(command), frame, command === "status" ? STATUS_TIMEOUT_MS : REPLY_TIMEOUT_MS);
+  if (!line) return silenceError(link, boxId, command);
+  return relayStep({ boxId, line, sent: command });
+}
+
+const isFailure = (r: LockmeboxRelayResult | SessionFailure): r is SessionFailure => "ok" in r;
+
+/** Status an den Server, dessen Befehl an die Box, Antwort zurück — bis der Server nichts mehr zu
+ *  tun hat. */
+async function relaySession(ble: BleModule, { deviceId, boxId }: FoundBox): Promise<LockmeboxSessionOutcome> {
+  return withBoxLink(ble, deviceId, async (link) => {
+    let step = await relayStep({ boxId, line: null, sent: null });
+    for (let i = 0; i < MAX_STEPS && step.send; i++) {
+      const next = await relayRound(link, boxId, step.send);
+      if (isFailure(next)) return next;
+      step = next;
+    }
+    if (step.problem) return { ok: false, error: step.problem };
+    // Grenze erreicht, obwohl der Server noch etwas schicken wollte: nicht als Erfolg melden.
+    if (step.send) return { ok: false, error: "notApplied" };
+    return { ok: true, locked: step.locked, info: step.info };
+  });
+}
+
+/** Was der Server für den Wechsel auf Heimdall zurückgibt, ohne den Befehl selbst. */
+export type FirmwareSwapTicket = Omit<FirmwareSwapStart, "frame">;
+
+/** So lange wartet das Handy nach dem Update-Befehl auf eine Antwort. Ob die Box überhaupt antwortet,
+ *  ist nicht belegt — sie wechselt danach ins WLAN. Zählt also nur, dass der Befehl ankam. */
+const FIRMWARE_REPLY_MS = 5_000;
+
+/**
+ * Die eigene LockMeBox auf Heimdall umstellen — aus einem Klick heraus ({@link pickLockmebox}), nur
+ * für die gekoppelte Box `boxId`.
+ *
+ * 1. Stand abgleichen — der erste Schritt der Brücke wie bei „Box abfragen": der Tracker weiss danach,
+ *    ob sie offen ist. Will er darauf einen Befehl schicken (ein Aufruf wartet) oder ist sie zu, endet
+ *    es hier: gewechselt wird nur eine ruhende, offene Box, und den wartenden Befehl führt der Wechsel
+ *    nicht nebenbei aus.
+ * 2. Den Update-Befehl vom Server holen. Er prüft noch einmal selbst und entfernt die Kopplung.
+ * 3. Befehl an die Box schreiben. Ab hier lädt sie selbst über das WLAN.
+ */
+export async function runLockmeboxFirmwareSwap(
+  boxId: string,
+  wifi: { ssid: string; password: string },
+): Promise<({ ok: true } & FirmwareSwapTicket) | SessionFailure> {
+  const ble = await import("@capacitor-community/bluetooth-le");
+  const found = await pickLockmebox(ble);
+  if ("ok" in found) return found;
+  if (found.boxId !== boxId) return { ok: false, error: "noDevice" };
+
+  return withBoxLink(ble, found.deviceId, async (link) => {
+    const first = await relayStep({ boxId, line: null, sent: null });
+    if (!first.send) return { ok: false, error: "notApplied" };
+    const status = await relayRound(link, boxId, first.send);
+    if (isFailure(status)) return status;
+    if (status.problem) return { ok: false, error: status.problem };
+    if (status.send || status.locked) return { ok: false, error: "server", code: "BOX_SWAP_BLOCKED" };
+
+    const { frame, ...ticket } = await postToServer<FirmwareSwapStart>("/api/box/ble/firmware", { boxId, ...wifi });
+    await link.sendAndAwait(`<${LOCKMEBOX_FIRMWARE_LETTER}`, frame, FIRMWARE_REPLY_MS);
+    return { ok: true as const, ...ticket };
+  });
 }

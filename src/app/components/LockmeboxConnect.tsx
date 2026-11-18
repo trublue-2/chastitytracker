@@ -7,7 +7,7 @@ import { Bluetooth } from "lucide-react";
 import Button from "@/app/components/Button";
 import FormError from "@/app/components/FormError";
 import FormSuccess from "@/app/components/FormSuccess";
-import { useApiError } from "@/app/hooks/useApiError";
+import { useLockmeboxError } from "@/app/hooks/useLockmeboxError";
 import {
   lockmeboxBleMode, runLockmeboxAutoSession, runLockmeboxSession, type LockmeboxSessionError,
   type LockmeboxSessionOutcome,
@@ -16,9 +16,6 @@ import {
 /** Nach einem gescheiterten Versuch so lange warten, bevor die App wieder sucht — die Box schläft
  *  nach etwa einer Minute ein, ein Dauer-Neuversuch hülfe also nicht, er belastete nur den Akku. */
 const AUTO_RETRY_MS = 3_000;
-
-/** So viel der letzten Zeile der Box zeigt die Fehlermeldung — genug, um das Format zu erkennen. */
-const LAST_LINE_MAX = 80;
 
 /** Fehler, die ein neuer Versuch beheben kann: die Box schlief wieder ein oder die Leitung hakte. */
 const RETRYABLE = new Set<LockmeboxSessionError>(["noDevice", "noReply", "connectFailed", "writeFailed", "notApplied"]);
@@ -43,7 +40,7 @@ export default function LockmeboxConnect({ unsupportedHint = false, autoBoxId, q
   autoBoxId?: string;
 }) {
   const t = useTranslations("lockmebox");
-  const apiError = useApiError();
+  const errorText = useLockmeboxError();
   const router = useRouter();
   const [mode, setMode] = useState<"native" | "web" | null | undefined>(undefined);
   const [saving, setSaving] = useState(false);
@@ -70,11 +67,7 @@ export default function LockmeboxConnect({ unsupportedHint = false, autoBoxId, q
       // Held, Einträge und Karte gleich mit — der Tracker hat eben umgeschaltet.
       router.refresh();
     } else {
-      setError(
-        outcome.error === "server" ? (outcome.code ? apiError(outcome.code) : t("serverUnreachable"))
-        : outcome.error === "noReply" && outcome.lastLine ? t("noReplyLast", { line: outcome.lastLine.slice(0, LAST_LINE_MAX) })
-        : t(outcome.error),
-      );
+      setError(errorText(outcome));
     }
   };
 
