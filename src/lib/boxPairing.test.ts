@@ -31,7 +31,7 @@ vi.mock("@/lib/lockCommit", () => ({
   findPendingOpenTx: vi.fn(async () => state.pendingOpen),
 }));
 
-import { boxPasswordAtRisk, otherBoxExists, removeBox } from "./boxPairing";
+import { lockmeboxMayBeLocked, otherBoxExists, removeBox } from "./boxPairing";
 
 const OPEN_BOX: Box = { id: "row1", pendingCommand: null, locked: false, reportedLocked: false };
 
@@ -85,13 +85,13 @@ describe("otherBoxExists", () => {
   });
 });
 
-describe("boxPasswordAtRisk", () => {
+describe("lockmeboxMayBeLocked", () => {
   it.each([
     ["LockMeBox als zu gemeldet", { kind: "lockmebox", locked: true, reportedLocked: true }, true],
     ["LockMeBox, Schliessbefehl ohne Antwort (SOLL zu, IST unbekannt)", { kind: "lockmebox", locked: true, reportedLocked: null }, true],
     ["LockMeBox als offen gemeldet", { kind: "lockmebox", locked: false, reportedLocked: false }, false],
     ["Heimdall zu — ihr Passwort liegt nicht beim Tracker", { kind: "heimdall", locked: true, reportedLocked: true }, false],
   ])("%s", (_label, box, atRisk) => {
-    expect(boxPasswordAtRisk(box)).toBe(atRisk);
+    expect(lockmeboxMayBeLocked(box)).toBe(atRisk);
   });
 });

@@ -1252,8 +1252,9 @@ model BoxStatus {
   // `lockmeboxService.ts`). Bestimmt, wer die Zeile schreibt; die Anzeige ist für beide dieselbe.
   kind                   String    @default("heimdall")
   // Nur "lockmebox": das Passwort, mit dem der Tracker die Box verschliesst (`C/0/1/*/<pw>`) und
-  // wieder öffnet (`O/<pw>`). EINES je Box, beim Koppeln erzeugt und nie gewechselt — ein Wechsel
-  // könnte eine Box aussperren, deren Verschluss-Rückmeldung verloren ging. Verlässt nie den Server.
+  // wieder öffnet (`O/<pw>`). EINES je Box, beim Koppeln aus `LockmeboxSecret` übernommen (bzw. dort
+  // erzeugt) und nie gewechselt — ein Wechsel könnte eine Box aussperren, deren Verschluss-Rückmeldung
+  // verloren ging. Verlässt nie den Server.
   lockPassword           String?
   locked                 Boolean   @default(false)
   // Physisches IST der frischen Sync-Meldung — `locked` ist das SOLL. Seit dem Präsenz-Guard
@@ -1281,6 +1282,17 @@ model BoxStatus {
 
   @@unique([userId, boxId])
   @@index([userId])
+}
+
+// Das Passwort einer LockMeBox, an der BOX und nicht am Träger. Bleibt, wenn die Box-Zeile verschwindet
+// („Box entfernen", Nutzer gelöscht): stimmt der Stand des Trackers einmal nicht und die Box war doch
+// zu, wäre mit der Zeile sonst der einzige Schlüssel weg. Koppelt jemand dieselbe Box wieder, nimmt
+// der Tracker dieses Passwort statt eines neuen (`lockmeboxService.ts`). Nie gewechselt, nie gelöscht;
+// angezeigt wird es nirgends — der Notausgang ist der Blick in die Datenbank.
+model LockmeboxSecret {
+  boxId     String   @id // BLE-Name `LOCKMEBOX-<id>`, wie `BoxStatus.boxId`
+  password  String
+  createdAt DateTime @default(now())
 }
 
 model Entry {

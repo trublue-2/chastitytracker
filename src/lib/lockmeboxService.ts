@@ -28,6 +28,20 @@ import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
  * der Träger noch keine andere Box führt (eine Box je Träger, `boxPairing.ts`).
  */
 
+/** Das Passwort dieser Box (`LockmeboxSecret`): das hinterlegte, sonst ein neues. `upsert` mit leerem
+ *  Update — zwei gleichzeitige Erstkontakte einigen sich auf EIN Passwort; emuliert Prisma das upsert
+ *  statt `ON CONFLICT`, fängt der Rückfall den Verlierer des Wettlaufs. */
+async function lockmeboxSecretFor(boxId: string): Promise<string> {
+  const select = { password: true } as const;
+  const { password } = await prisma.lockmeboxSecret
+    .upsert({ where: { boxId }, create: { boxId, password: generateLockmeboxPassword() }, update: {}, select })
+    .catch((e) => {
+      if (!isUniqueConstraintOn(e, "boxId")) throw e;
+      return prisma.lockmeboxSecret.findUniqueOrThrow({ where: { boxId }, select });
+    });
+  return password;
+}
+
 export async function lockmeboxRelayStep(
   userId: string,
   input: LockmeboxRelayInput,
@@ -37,20 +51,17 @@ export async function lockmeboxRelayStep(
 
   const key = { userId_boxId: { userId, boxId: input.boxId } };
   const now = new Date();
-  // Koppeln beim ersten Kontakt — aber nur, solange der Träger noch keine andere Box führt
-  // (`otherBoxExists`). Das Passwort entsteht HIER, einmal je Box, und wird nie gewechselt: ginge
-  // die Rückmeldung eines Verschlusses verloren, sperrte ein neues Passwort die Box aus. Eine
-  // bestehende Zeile — und damit ihr Passwort — bleibt deshalb unangetastet.
+  // Koppeln beim ersten Kontakt — nur ohne andere Box (`otherBoxExists`) und nur, wenn die Box keinem
+  // anderen gehört. Das Passwort gehört der Box (`lockmeboxSecretFor`, Begründung am Schema-Modell).
   const select = { kind: true, lockPassword: true, pendingCommand: true } as const;
   let box = await prisma.boxStatus.findUnique({ where: key, select });
   if (!box) {
     if (await otherBoxExists(prisma, userId, input.boxId)) return serviceFail(409, "BOX_ONE_PER_USER");
     if (await boxPairedElsewhere(prisma, userId, input.boxId)) return serviceFail(409, "BOX_PAIRED_ELSEWHERE");
-    // Zwei gleichzeitige Erstkontakte: der zweite trifft auf die eben angelegte Zeile und liest sie —
-    // deren Passwort gilt, ein zweites entsteht nie.
+    // Zwei gleichzeitige Erstkontakte: der zweite trifft auf die eben angelegte Zeile und liest sie.
     box = await prisma.boxStatus
       .create({
-        data: { userId, boxId: input.boxId, name: input.boxId, kind: "lockmebox" satisfies BoxKind, locked: false, lockPassword: generateLockmeboxPassword() },
+        data: { userId, boxId: input.boxId, name: input.boxId, kind: "lockmebox" satisfies BoxKind, locked: false, lockPassword: await lockmeboxSecretFor(input.boxId) },
         select,
       })
       .catch(async (e) => {
@@ -66,7 +77,7 @@ export async function lockmeboxRelayStep(
     // Geht jetzt ein Schliessbefehl hinaus, gilt die Box ab SOFORT als „vermutlich zu": SOLL zu, IST
     // unbekannt. Reisst die Verbindung ab, nachdem sie zugefahren ist, aber bevor ihre Antwort hier
     // ankommt, stünde sonst „offen" in der Zeile — und „Box entfernen" oder das Löschen des Nutzers
-    // nähme das Passwort einer verschlossenen Box mit (`boxPasswordAtRisk`). Erst ihre nächste
+    // liesse eine verschlossene Box still verschwinden (`lockmeboxMayBeLocked`). Erst ihre nächste
     // Meldung setzt den Zustand wieder aus der Box selbst.
     const lockGoingOut = next.command === "lock";
     await prisma.boxStatus.update({

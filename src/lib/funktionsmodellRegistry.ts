@@ -120,7 +120,7 @@ export const FM_SCANNED_MODELS = [
   "Task", "TaskRequirement", "TaskProof",
   "StrafeRecord", "ManualOffense", "OffenseRuleChange", "CleaningRuleChange", "TimezoneChange",
   "AdminPasswordChange",
-  "BoxStatus", "BoxEvent",
+  "BoxStatus", "BoxEvent", "LockmeboxSecret",
   "Message", "MessageRead", "NotificationPreference", "PushSubscription", "NativePushToken",
   "KeyholderNote", "NoteRef", "KeyholderActionLog", "HealthHold", "RecurringContext", "Appointment",
   "AdminUserRelationship", "Passkey", "PasswordResetToken", "PortalTokenUsed", "RateLimit",
@@ -1258,7 +1258,7 @@ export const FM_REGISTRY: FmEntry[] = [
   x("identity", "BoxStatus", "kind",
     "Welche Box: `heimdall` meldet sich selbst, `lockmebox` (Werks-Firmware) nur, wenn sich das Handy des Trägers per Bluetooth verbindet."),
   x("record", "BoxStatus", "lockPassword",
-    "Nur LockMeBox: das Passwort, mit dem der Tracker sie verschliesst und öffnet. Einmal je Box beim Koppeln erzeugt, nie gewechselt, verlässt nie den Server."),
+    "Nur LockMeBox: das Passwort, mit dem der Tracker sie verschliesst und öffnet. Beim Koppeln aus `LockmeboxSecret` übernommen, nie gewechselt, verlässt nie den Server."),
   x("runtime", "BoxStatus", "locked", "Das SOLL: so soll die Box stehen."),
   x("runtime", "BoxStatus", "reportedLocked",
     "Das IST der letzten Meldung. Seit dem Präsenz-Guard kann die Box offen stehen, obwohl sie zu sein soll."),
@@ -1288,6 +1288,11 @@ export const FM_REGISTRY: FmEntry[] = [
   x("record", "BoxEvent", "fwVersion", "Firmware-Stand zum Ereignis."),
   x("record", "BoxEvent", "at", "Zeitpunkt des Ereignisses, server-autoritativ aus dem Sync."),
   stamp("BoxEvent"),
+
+  x("identity", "LockmeboxSecret", "boxId", "Bluetooth-Name der LockMeBox — das Passwort hängt an der Box, nicht am Träger."),
+  x("record", "LockmeboxSecret", "password",
+    "Das Passwort der Box. Bleibt, wenn die Box-Zeile verschwindet (Box entfernt, Nutzer gelöscht); erneutes Koppeln nimmt es wieder. Nie gewechselt, nirgends angezeigt."),
+  stamp("LockmeboxSecret"),
 
   // ── Nachrichten ────────────────────────────────────────────────────────────────────────────
   pk("Message"),

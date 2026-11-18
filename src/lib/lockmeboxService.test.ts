@@ -31,6 +31,7 @@ beforeEach(() => {
   db.boxStatus.findUnique.mockResolvedValue(null);
   db.boxStatus.findFirst.mockResolvedValue(null);
   db.boxStatus.create.mockResolvedValue(PAIRED);
+  db.lockmeboxSecret.upsert.mockResolvedValue({ password: "Abc1234567" });
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -40,6 +41,17 @@ describe("lockmeboxRelayStep — Erstkontakt", () => {
     expect(result.ok && result.data.send?.command).toBe("status");
     expect(db.boxStatus.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ userId: "u1", boxId: BOX, kind: "lockmebox", lockPassword: expect.any(String) }),
+    }));
+  });
+
+  it("nimmt das hinterlegte Passwort der Box — auch nach „Box entfernen“ bleibt es dieselbe", async () => {
+    db.lockmeboxSecret.upsert.mockResolvedValue({ password: "Kept123456" });
+    await lockmeboxRelayStep("u1", FIRST_CONTACT);
+    expect(db.lockmeboxSecret.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { boxId: BOX }, update: {}, create: { boxId: BOX, password: expect.any(String) },
+    }));
+    expect(db.boxStatus.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ lockPassword: "Kept123456" }),
     }));
   });
 

@@ -3,7 +3,7 @@
 <!-- GENERIERT — nicht von Hand ändern. Quelle: prisma/schema.prisma +
      src/lib/funktionsmodellRegistry.ts · neu erzeugen: `npm run funktionsmodell` -->
 
-Jedes Feld, das Verhalten steuert: 157 Stellschrauben über 41 Modelle.
+Jedes Feld, das Verhalten steuert: 157 Stellschrauben über 42 Modelle.
 Typ und Default stammen aus dem Schema, die Bedeutung aus der Registry — beides wird bei jedem
 Testlauf gegeneinander geprüft, ein neues Feld ohne Eintrag lässt `npm test` fehlschlagen.
 
@@ -477,7 +477,7 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `BoxStatus.boxId` | Identität | Stabile Geräte-Kennung der Box. |
 | `BoxStatus.name` | Datensatz | Anzeigename der Box; kommt aus Heimdall bzw. ist bei der LockMeBox ihr Bluetooth-Name. |
 | `BoxStatus.kind` | Identität | Welche Box: `heimdall` meldet sich selbst, `lockmebox` (Werks-Firmware) nur, wenn sich das Handy des Trägers per Bluetooth verbindet. |
-| `BoxStatus.lockPassword` | Datensatz | Nur LockMeBox: das Passwort, mit dem der Tracker sie verschliesst und öffnet. Einmal je Box beim Koppeln erzeugt, nie gewechselt, verlässt nie den Server. |
+| `BoxStatus.lockPassword` | Datensatz | Nur LockMeBox: das Passwort, mit dem der Tracker sie verschliesst und öffnet. Beim Koppeln aus `LockmeboxSecret` übernommen, nie gewechselt, verlässt nie den Server. |
 | `BoxStatus.locked` | Laufzeitzustand | Das SOLL: so soll die Box stehen. |
 | `BoxStatus.reportedLocked` | Laufzeitzustand | Das IST der letzten Meldung. Seit dem Präsenz-Guard kann die Box offen stehen, obwohl sie zu sein soll. |
 | `BoxStatus.lockUntil` | Laufzeitzustand | Die effektive Sperre aus eigener Frist und Tracker-Sperrzeit, gekappt. |
@@ -502,6 +502,9 @@ eigentliche Vollständigkeitsbeweis: ein Feld, das weder oben noch hier steht, g
 | `BoxEvent.fwVersion` | Datensatz | Firmware-Stand zum Ereignis. |
 | `BoxEvent.at` | Datensatz | Zeitpunkt des Ereignisses, server-autoritativ aus dem Sync. |
 | `BoxEvent.createdAt` | Datensatz | Anlage-Zeitpunkt. |
+| `LockmeboxSecret.boxId` | Identität | Bluetooth-Name der LockMeBox — das Passwort hängt an der Box, nicht am Träger. |
+| `LockmeboxSecret.password` | Datensatz | Das Passwort der Box. Bleibt, wenn die Box-Zeile verschwindet (Box entfernt, Nutzer gelöscht); erneutes Koppeln nimmt es wieder. Nie gewechselt, nirgends angezeigt. |
+| `LockmeboxSecret.createdAt` | Datensatz | Anlage-Zeitpunkt. |
 | `Message.id` | Identität | Primärschlüssel. |
 | `Message.subjectUserId` | Identität | Der Sub, um den es geht — IMMER der Scope-Schlüssel, auch bei Meldungen AN die Keyholder. |
 | `Message.senderKind` | Datensatz | `system`, `keyholder` oder `ai`. Eine Art, kein Name. |

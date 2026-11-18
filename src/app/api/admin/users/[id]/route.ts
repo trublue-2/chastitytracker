@@ -20,7 +20,7 @@ import { setLockRequiresBolt } from "@/lib/lockCommit";
 import { setOffenseStatementsAllowed } from "@/lib/offenseStatementService";
 import { deleteUploadedFiles, entryImageUrls } from "@/lib/imageUtils";
 import { errorResponse, serviceResponse } from "@/lib/serviceResult";
-import { boxPasswordAtRisk } from "@/lib/boxPairing";
+import { lockmeboxMayBeLocked } from "@/lib/boxPairing";
 import { normalizeQuickSettings } from "@/lib/quickSettings";
 import { emailUpdateData } from "@/lib/emailBounce";
 
@@ -293,12 +293,12 @@ export async function DELETE(
     prisma.upload.findMany({ where: { uploaderId: id }, select: { filename: true } }),
   ]);
 
-  // Mit dem Nutzer ginge das Passwort seiner LockMeBox verloren (Kaskade) — solange sie zu sein
-  // könnte, bliebe dann nur der Hammer (`boxPasswordAtRisk`). Prüfen und Löschen in EINER
+  // Mit dem Nutzer verschwände seine LockMeBox aus dem Tracker (Kaskade; das Passwort bleibt in
+  // `LockmeboxSecret`) — solange sie zu sein könnte, nicht (`lockmeboxMayBeLocked`). Prüfen und Löschen in EINER
   // Transaktion: ein Schliessbefehl, der dazwischen hinausgeht, markiert die Box als „vermutlich zu".
   const deleted = await prisma.$transaction(async (tx) => {
     const boxes = await tx.boxStatus.findMany({ where: { userId: id }, select: { kind: true, locked: true, reportedLocked: true } });
-    if (boxes.some(boxPasswordAtRisk)) return false;
+    if (boxes.some(lockmeboxMayBeLocked)) return false;
     await tx.user.delete({ where: { id } });
     return true;
   });

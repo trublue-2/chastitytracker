@@ -62,7 +62,7 @@ LockMeBox). Beide Kopplungswege — der erste Bluetooth-Kontakt und der erste He
 unbekannten Box — lehnen deshalb eine zweite Box ab (`BOX_ONE_PER_USER`). Gewechselt wird über
 „Box entfernen" in den Einstellungen (`DELETE /api/box/<boxId>`), und das nur, wenn der Träger offen
 ist, die Box nicht als zu gemeldet hat und weder Aufruf noch Kommando wartet — eine verschlossene
-LockMeBox verlöre mit ihrer Zeile das Passwort. Eine Heimdall-Box muss zusätzlich bei Heimdall
+LockMeBox soll nicht still aus dem Tracker verschwinden. Eine Heimdall-Box muss zusätzlich bei Heimdall
 abgemeldet werden, sonst legt ihr nächster Sync die Zeile wieder an.
 
 Die Box schläft etwa eine Minute nach dem letzten Kontakt ein und ist dann nur nach einem Druck auf
@@ -78,8 +78,9 @@ Handy geteilt), Verschlüsselung: `lockmebox.ts` (nur Server).
 
 ## Das Passwort geht nie verloren, solange die Box zu sein könnte
 
-Nur der Tracker kennt das Passwort (`BoxStatus.lockPassword`); verschwindet die Zeile einer
-verschlossenen Box, bleibt nur der Hammer. Deshalb (`boxPasswordAtRisk` in `boxPairing.ts`):
+Nur der Tracker kennt das Passwort; ohne es bleibt bei einer verschlossenen Box nur der Hammer.
+Deshalb zwei Schichten — keine verschlossene Box verschwindet (`lockmeboxMayBeLocked` in
+`boxPairing.ts`), und falls der Stand doch einmal nicht stimmt, überlebt das Passwort die Zeile:
 
 - **Ab dem Senden des Schliessbefehls gilt die Box als „vermutlich zu"** (SOLL zu, IST unbekannt,
   `lockmeboxRelayStep`). Reisst die Verbindung ab, nachdem sie zugefahren ist, aber bevor ihre Antwort
@@ -89,6 +90,11 @@ verschlossenen Box, bleibt nur der Hammer. Deshalb (`boxPasswordAtRisk` in `boxP
 - **Einen Nutzer löschen** verweigert die Admin-Route ebenso (`USER_BOX_LOCKED`) — die Box-Zeile ginge
   per Kaskade mit.
 - Das Passwort wird nie neu erzeugt; ein Backup bleibt deshalb gültig.
+- **Das Passwort hängt an der Box, nicht an der Zeile** (`LockmeboxSecret`, Schlüssel `boxId`). „Box
+  entfernen" und das Löschen eines Nutzers nehmen nur die Box-Zeile mit; das Passwort bleibt. Koppelt
+  jemand dieselbe Box wieder, nimmt der Tracker es statt eines neuen. Für den Fall, dass der Stand des
+  Trackers einmal nicht stimmt und die Box beim Entfernen doch zu war: neu koppeln, dann öffnet sie mit
+  dem alten Passwort. Angezeigt wird es nirgends — der Notausgang ist der Blick in die Datenbank.
 
 Ausserhalb des Trackers liegt: eine ganze Instanz samt Datenbank löschen.
 

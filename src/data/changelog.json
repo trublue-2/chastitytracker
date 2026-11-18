@@ -16,6 +16,13 @@
           "de": "Box: Keyholder können eine LockMeBox in den Einstellungen ihres Subs selbst koppeln und abfragen – mit dem eigenen Handy, direkt an der Box.",
           "en": "Box: keyholders can pair and query a LockMeBox in their sub's settings themselves – with their own phone, right at the box."
         }
+      },
+      {
+        "type": "security",
+        "text": {
+          "de": "Box: Das Passwort einer LockMeBox bleibt erhalten, auch wenn die Box entfernt wird – wird sie wieder gekoppelt, öffnet sie mit dem bisherigen Passwort.",
+          "en": "Box: a LockMeBox keeps its password even when the box is removed – paired again, it opens with the previous password."
+        }
       }
     ]
   },
