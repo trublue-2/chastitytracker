@@ -31,13 +31,15 @@ const RETRYABLE = new Set<LockmeboxSessionError>(["noDevice", "noReply", "connec
  * Kann das Gerät kein Bluetooth, zeigt sie nichts (`unsupportedHint` aus) — in der Karte wäre der
  * Satz eine Dauerzeile ohne Handlung. In den Einstellungen sagt sie, warum es nicht geht.
  */
-export default function LockmeboxConnect({ unsupportedHint = false, autoBoxId, query = false }: {
+export default function LockmeboxConnect({ unsupportedHint = false, autoBoxId, query = false, subjectId }: {
   unsupportedHint?: boolean;
   /** Der Knopf heisst „Box abfragen" statt „Mit Box verbinden": dieselbe Sitzung, aber als bewusste
    *  Frage nach dem Stand (Riegel, Akku, Firmware) — z.B. in den Einstellungen der gekoppelten Box. */
   query?: boolean;
   /** Die gekoppelte Box, nach der die App selbst sucht. Ohne sie: nur der Knopf. */
   autoBoxId?: string;
+  /** Die Box dieses Subs statt der eigenen (Sub-Einstellungen der Keyholderin). */
+  subjectId?: string;
 }) {
   const t = useTranslations("lockmebox");
   const errorText = useLockmeboxError();
@@ -114,7 +116,7 @@ export default function LockmeboxConnect({ unsupportedHint = false, autoBoxId, q
     setError(null);
     setSuccess(null);
     try {
-      report(await runLockmeboxSession());
+      report(await runLockmeboxSession(subjectId));
     } catch {
       setError(t("noReply"));
     } finally {

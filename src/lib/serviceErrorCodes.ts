@@ -261,6 +261,7 @@ export const BOX_CODES = [
   "BOX_BLE_OTHER_BOX",
   // Eine Box je Träger (boxPairing.ts): Koppeln einer zweiten, Entfernen der einen.
   "BOX_ONE_PER_USER",
+  "BOX_PAIRED_ELSEWHERE",
   "BOX_REMOVE_BLOCKED",
   // /api/box/ble/firmware — LockMeBox auf Heimdall umstellen (firmwareSwapService.ts).
   "BOX_SWAP_BLOCKED",

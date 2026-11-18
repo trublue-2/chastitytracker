@@ -18,10 +18,11 @@ import { activeHealthHold } from "@/lib/healthHold";
 import BoxLockToggle from "@/app/admin/BoxLockToggle";
 import BoxPhotoDeadlineInput from "@/app/admin/BoxPhotoDeadlineInput";
 import BoxIdentityInfo from "@/app/admin/BoxIdentityInfo";
+import LockmeboxConnect from "@/app/components/LockmeboxConnect";
 import type { UnitSystem } from "@/lib/weight";
 import { parseReasonConfig, resolveOrgasmusOptions, ART_SEP } from "@/lib/reasonsService";
 import ReasonsEditor from "@/app/admin/ReasonsEditor";
-import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, ORGASMUS_ART_I18N_KEYS, GRUND_I18N_KEYS, boxCouplingEnabled } from "@/lib/constants";
+import { ORGASMUS_ARTEN, OEFFNEN_GRUENDE, ORGASMUS_ART_I18N_KEYS, GRUND_I18N_KEYS, boxCouplingEnabled, lockmeboxEnabled } from "@/lib/constants";
 import AccountSection from "./AccountSection";
 import UserLocaleSelect from "@/app/admin/UserLocaleSelect";
 import MobileUploadToggle from "@/app/admin/MobileUploadToggle";
@@ -304,6 +305,13 @@ export default async function EinstellungenPage({ params }: { params: Promise<{ 
         <SettingsSection defaultCollapsed title={t("sectionBox")} description={t("sectionBoxDesc")} bodyPadded>
           <div className="flex flex-col gap-4">
             <BoxIdentityInfo boxes={box.boxes} />
+            {/* Wie in den Einstellungen des Subs: ohne Box koppeln, mit LockMeBox abfragen (Heimdall hängt am WLAN). */}
+            {lockmeboxEnabled() && !user.hideOwnTracker && (!box.boxConfirm || box.boltAlways) && (
+              <div className="flex flex-col gap-2">
+                {!box.boxConfirm && <p className="text-sm text-foreground-muted">{t("boxLockmeboxPairHint")}</p>}
+                <LockmeboxConnect subjectId={user.id} query={box.boxConfirm} unsupportedHint={!box.boxConfirm} />
+              </div>
+            )}
             {box.boxConfirm && <BoxLockToggle userId={user.id} initialEnabled={user.lockRequiresBolt} alwaysOn={box.boltAlways} />}
             {box.boxConfirm && <BoxPhotoDeadlineInput userId={user.id} initialHours={user.boxPhotoDeadlineHours} />}
           </div>

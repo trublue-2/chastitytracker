@@ -20,7 +20,9 @@ Bluetooth-Verbindung zugleich an; die Hersteller-App muss dafür beendet sein.
 1. **Einmal koppeln:** Einstellungen → „Schlüsselbox (LockMeBox)" → Knopf an der Box drücken →
    „Mit Box verbinden". Der erste Kontakt legt die `BoxStatus`-Zeile an (`kind = "lockmebox"`) und
    erzeugt das Box-Passwort (`lockPassword`, 10 Zeichen, einmal je Box, nie gewechselt). Danach
-   zeigt der Eintrag nur noch, welche Box gekoppelt ist.
+   zeigt der Eintrag nur noch, welche Box gekoppelt ist. Dasselbe kann die Keyholderin mit IHREM
+   Handy an der Box: Sub-Einstellungen → „Box" (`/api/box/ble?userId=<sub>`, Keyholderin des
+   Subs oder Admin). Gekoppelt wird dem Sub, und wie bei ihm führt die Verbindung aus, was ansteht.
 2. **Die Box folgt den Einträgen** wie die Heimdall-Box: ein Verschluss setzt `pendingCommand =
    "lock"`, eine erlaubte Öffnung `"open"` (`boxCommand.ts`). Eine verbotene Öffnung erzeugt kein
    Kommando — die Box bleibt zu, der Eintrag dokumentiert den Bruch sofort.

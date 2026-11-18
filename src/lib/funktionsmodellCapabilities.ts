@@ -67,6 +67,7 @@ export const FM_MCP_EXEMPT: Record<string, string> = {
   "keyholder-assign": "Absicht: die KI entschiede über ihre eigene Berufung mit.",
   "photo-analysis": "Absicht: Anbieter und API-Schlüssel der Foto-Prüfung entscheiden über Datenweg und Kosten der ganzen Instanz — eine Entscheidung des Betreibers, nicht der Keyholderin. Den Stand LIEST die KI in `get_context` (`photoAnalysis`).",
   // ── Absicht: technisch nicht KI-fähig ──────────────────────────────────────────────────────
+  "box-ble": "Absicht: Bluetooth braucht ein Handy an der Box — die KI steht nie dort. Den Stand der Box LIEST sie in `get_box_state`.",
   "upload": "Absicht: eine KI liefert keine Fotos. Die Leserichtung deckt `get_image` ab.",
   "stats-pages": "Absicht: Seiten, keine Handlung. Dieselben Zahlen liefern `period_summary`, `records` und `device_stats`.",
   "inbox-keyholder": "Absicht: der Posteingang sammelt Meldungen FÜR den Menschen; die KI bekommt dieselben Befunde direkt aus den Deep-Views.",
@@ -546,9 +547,9 @@ export const FM_CAPABILITIES: FmCapability[] = [
   }),
   c({
     id: "box-ble", mechanic: "Box", title: "LockMeBox per Bluetooth koppeln und bedienen",
-    what: "Das Handy des Trägers verbindet sich mit einer LockMeBox (Werks-Firmware) und reicht Status und Befehle zwischen Box und Tracker durch; der erste Kontakt koppelt sie.",
-    actors: ["sub"], surfaces: ["sub-ui"], routes: ["/api/box/ble", "/api/box/ble/diagnostic"],
-    note: "Die Box folgt den Einträgen wie Heimdall, ausgeführt wird aber erst beim nächsten Verbinden an der Box. Nur mit BLE_BRIDGE_KEY. Details: docs/lockmebox.md.",
+    what: "Das Handy des Trägers — oder seiner Keyholderin in seinen Einstellungen — verbindet sich mit einer LockMeBox (Werks-Firmware) und reicht Status und Befehle zwischen Box und Tracker durch; der erste Kontakt koppelt sie dem Träger.",
+    actors: ["sub", "admin"], surfaces: ["sub-ui", "admin-ui"], routes: ["/api/box/ble", "/api/box/ble/diagnostic"],
+    note: "Die Box folgt den Einträgen wie Heimdall, ausgeführt wird aber erst beim nächsten Verbinden an der Box — egal, wessen Handy verbindet. Nur mit BLE_BRIDGE_KEY. Details: docs/lockmebox.md.",
   }),
   c({
     id: "box-firmware-swap", mechanic: "Box", title: "LockMeBox auf Heimdall umstellen",

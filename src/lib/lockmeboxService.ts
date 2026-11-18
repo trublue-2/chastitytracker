@@ -3,7 +3,7 @@ import { boxReportedLockedSafe, commitPendingOpenSafe } from "@/lib/lockCommit";
 import { toPendingCommand, type BoxKind } from "@/lib/boxStatus";
 import { nextLockmeboxCommand, parseLockmeboxStatus, type LockmeboxRelayInput, type LockmeboxRelayResult } from "@/lib/lockmeboxProtocol";
 import { clearBoxCommandForUser } from "@/lib/boxCommand";
-import { otherBoxExists } from "@/lib/boxPairing";
+import { boxPairedElsewhere, otherBoxExists } from "@/lib/boxPairing";
 import { isUniqueConstraintOn } from "@/lib/prismaErrors";
 import { encryptLockmeboxCommand, generateLockmeboxPassword, lockmeboxPlaintext } from "@/lib/lockmebox";
 import { serviceFail, type ServiceResult } from "@/lib/serviceResult";
@@ -45,6 +45,7 @@ export async function lockmeboxRelayStep(
   let box = await prisma.boxStatus.findUnique({ where: key, select });
   if (!box) {
     if (await otherBoxExists(prisma, userId, input.boxId)) return serviceFail(409, "BOX_ONE_PER_USER");
+    if (await boxPairedElsewhere(prisma, userId, input.boxId)) return serviceFail(409, "BOX_PAIRED_ELSEWHERE");
     // Zwei gleichzeitige Erstkontakte: der zweite trifft auf die eben angelegte Zeile und liest sie —
     // deren Passwort gilt, ein zweites entsteht nie.
     box = await prisma.boxStatus

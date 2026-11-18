@@ -49,6 +49,13 @@ describe("lockmeboxRelayStep — Erstkontakt", () => {
     expect(db.boxStatus.create).not.toHaveBeenCalled();
   });
 
+  it("lehnt eine Box ab, die schon einem anderen Träger gehört — zwei Passwörter für ein Schloss", async () => {
+    db.boxStatus.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "row-of-u2" });
+    expect(await lockmeboxRelayStep("u1", FIRST_CONTACT)).toMatchObject({ ok: false, status: 409, error: "BOX_PAIRED_ELSEWHERE" });
+    expect(db.boxStatus.findFirst).toHaveBeenLastCalledWith(expect.objectContaining({ where: { boxId: BOX, NOT: { userId: "u1" } } }));
+    expect(db.boxStatus.create).not.toHaveBeenCalled();
+  });
+
   it("lässt eine schon gekoppelte Box unangetastet — keine Prüfung, kein neues Passwort", async () => {
     db.boxStatus.findUnique.mockResolvedValue(PAIRED);
     expect((await lockmeboxRelayStep("u1", FIRST_CONTACT)).ok).toBe(true);

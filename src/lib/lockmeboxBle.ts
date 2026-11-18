@@ -89,7 +89,11 @@ async function postToServer<T>(url: string, body: unknown): Promise<T> {
   return res.json();
 }
 
-const relayStep = (body: LockmeboxRelayInput) => postToServer<LockmeboxRelayResult>("/api/box/ble", body);
+/** Ein Schritt der Brücke beim Server — für die eigene Box, mit `subjectId` für die Box dieses Subs. */
+type RelayStep = (body: LockmeboxRelayInput) => Promise<LockmeboxRelayResult>;
+const relayStepFor = (subjectId?: string): RelayStep => (body) =>
+  postToServer<LockmeboxRelayResult>(subjectId ? `/api/box/ble?userId=${encodeURIComponent(subjectId)}` : "/api/box/ble", body);
+const relayStep = relayStepFor();
 
 /** Sagt dem Server, WARUM keine Verbindung möglich ist — die Ursache gehört ins Log des Betreibers,
  *  nicht in die Oberfläche. Fire-and-forget: ein Fehler hier ändert nichts am Ergebnis der Sitzung. */
@@ -131,12 +135,12 @@ async function pickLockmebox(ble: BleModule): Promise<FoundBox | SessionFailure>
 
 /**
  * Sitzung per GERÄTEAUSWAHL — der Knopf „Mit Box verbinden" (aus einem Klick heraus, siehe
- * {@link pickLockmebox}). Koppelt auch eine neue Box.
+ * {@link pickLockmebox}). Koppelt auch eine neue Box — mit `subjectId` die des Subs.
  */
-export async function runLockmeboxSession(): Promise<LockmeboxSessionOutcome> {
+export async function runLockmeboxSession(subjectId?: string): Promise<LockmeboxSessionOutcome> {
   const ble = await import("@capacitor-community/bluetooth-le");
   const found = await pickLockmebox(ble);
-  return "ok" in found ? found : relaySession(ble, found);
+  return "ok" in found ? found : relaySession(ble, found, relayStepFor(subjectId));
 }
 
 /**
@@ -260,21 +264,21 @@ async function withBoxLink<T extends { ok: true }>(
 
 /** Einen Befehl des Servers an die Box, ihre Antwort zurück an den Server — dessen nächster Schritt,
  *  oder warum es hier endet. */
-async function relayRound(link: BoxLink, boxId: string, { command, frame }: NonNullable<LockmeboxRelayResult["send"]>): Promise<LockmeboxRelayResult | SessionFailure> {
+async function relayRound(link: BoxLink, boxId: string, { command, frame }: NonNullable<LockmeboxRelayResult["send"]>, step: RelayStep = relayStep): Promise<LockmeboxRelayResult | SessionFailure> {
   const line = await link.sendAndAwait(replyPrefix(command), frame, command === "status" ? STATUS_TIMEOUT_MS : REPLY_TIMEOUT_MS);
   if (!line) return silenceError(link, boxId, command);
-  return relayStep({ boxId, line, sent: command });
+  return step({ boxId, line, sent: command });
 }
 
 const isFailure = (r: LockmeboxRelayResult | SessionFailure): r is SessionFailure => "ok" in r;
 
 /** Status an den Server, dessen Befehl an die Box, Antwort zurück — bis der Server nichts mehr zu
  *  tun hat. */
-async function relaySession(ble: BleModule, { deviceId, boxId }: FoundBox): Promise<LockmeboxSessionOutcome> {
+async function relaySession(ble: BleModule, { deviceId, boxId }: FoundBox, relay: RelayStep = relayStep): Promise<LockmeboxSessionOutcome> {
   return withBoxLink(ble, deviceId, async (link) => {
-    let step = await relayStep({ boxId, line: null, sent: null });
+    let step = await relay({ boxId, line: null, sent: null });
     for (let i = 0; i < MAX_STEPS && step.send; i++) {
-      const next = await relayRound(link, boxId, step.send);
+      const next = await relayRound(link, boxId, step.send, relay);
       if (isFailure(next)) return next;
       step = next;
     }

@@ -21,6 +21,14 @@ export async function otherBoxExists(db: Db, userId: string, boxId: string): Pro
   return !!(await db.boxStatus.findFirst({ where: { userId, NOT: { boxId } }, select: { id: true } }));
 }
 
+/** Gehört diese Box schon einem ANDEREN Träger? Die Datenbank verbietet es nicht (`@@unique([userId,
+ *  boxId])`) — zwei Zeilen hiessen aber zwei Passwörter für ein Schloss: verschliesst der eine, kann der
+ *  Tracker des anderen die Box nie mehr öffnen. Realistisch seit die Keyholderin für ihre Subs koppelt
+ *  und in der Geräteauswahl alle Boxen gleich heissen (`LOCKMEBOX-…`). */
+export async function boxPairedElsewhere(db: Db, userId: string, boxId: string): Promise<boolean> {
+  return !!(await db.boxStatus.findFirst({ where: { boxId, NOT: { userId } }, select: { id: true } }));
+}
+
 /**
  * **Das Passwort einer LockMeBox darf nie verloren gehen, solange sie zu sein könnte** — nur der
  * Tracker kennt es, ohne es bleibt nur der Hammer. „Könnte zu sein" heisst: sie hat „zu" gemeldet,
