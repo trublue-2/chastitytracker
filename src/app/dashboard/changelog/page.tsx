@@ -5,6 +5,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import { toDateLocale } from "@/lib/utils";
 import releasesData from "@/data/changelog.json";
 import UpstreamSection from "./UpstreamSection";
+import DebugModeToggle from "./DebugModeToggle";
 import NativeAppVersion from "@/app/components/NativeAppVersion";
 import Section from "@/app/components/Section";
 import { blockStackCls, titleCls } from "@/app/components/inputStyles";
@@ -186,6 +187,11 @@ export default async function ChangelogPage() {
           </Section>
         ))}
       </div>
+
+      {/* Ganz unten und zugeklappt: kein Alltags-Schalter, sondern der Zugang zu Test-Werkzeugen. */}
+      <Section title={t("advancedTitle")} defaultCollapsed className="mt-8">
+        <DebugModeToggle />
+      </Section>
     </main>
   );
 }

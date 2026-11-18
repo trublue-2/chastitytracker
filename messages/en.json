@@ -951,7 +951,10 @@
     "chore": "Internal",
     "upstreamBannerTitle": "{count, plural, =1 {1 newer version available} other {# newer versions available}}",
     "upstreamBannerHint": "The following changes have not been installed yet. Self-hosters: docker compose pull && docker compose up -d",
-    "upstreamBadge": "available"
+    "upstreamBadge": "available",
+    "debugMode": "Debug mode",
+    "debugModeHint": "Shows tools for testing and conversions on this device, such as “Change firmware” for the LockMeBox.",
+    "advancedTitle": "Advanced"
   },
   "updateIndicator": {
     "label": "Update v{version}",

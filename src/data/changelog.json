@@ -6,8 +6,8 @@
       {
         "type": "feat",
         "text": {
-          "de": "Box: Eine LockMeBox lässt sich in den Box-Einstellungen auf die Heimdall-Firmware umstellen – danach meldet sie sich selbst übers WLAN und braucht zum Verschliessen und Öffnen kein Handy mehr.",
-          "en": "Box: a LockMeBox can be switched to the Heimdall firmware in the box settings – afterwards it connects on its own over Wi-Fi and no longer needs a phone to lock and open."
+          "de": "Box: Vorbereitung, um eine LockMeBox auf die Heimdall-Firmware umzustellen – noch im Test.",
+          "en": "Box: groundwork for switching a LockMeBox to the Heimdall firmware – still being tested."
         }
       },
       {

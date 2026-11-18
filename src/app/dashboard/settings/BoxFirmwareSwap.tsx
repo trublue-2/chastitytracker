@@ -10,6 +10,7 @@ import FormError from "@/app/components/FormError";
 import FormSuccess from "@/app/components/FormSuccess";
 import { useApiError } from "@/app/hooks/useApiError";
 import { useLockmeboxError } from "@/app/hooks/useLockmeboxError";
+import { useDebugMode } from "@/app/hooks/useDebugMode";
 import { fetchWithTimeout } from "@/lib/apiClient";
 import { runLockmeboxFirmwareSwap, type FirmwareSwapTicket } from "@/lib/lockmeboxBle";
 import { heimdallProvisionLink, isValidSwapWifi } from "@/lib/lockmeboxProtocol";
@@ -49,6 +50,10 @@ export default function BoxFirmwareSwap({ boxId }: {
   const [progress, setProgress] = useState<Progress>({ downloaded: false, registered: false });
   const [copied, setCopied] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
+  // Ein Umbau-Werkzeug, kein Alltags-Knopf: nur der EINSTIEG hängt am Debug-Modus (Changelog). Einmal
+  // geöffnet, bleibt der Ablauf stehen, auch wenn der Modus inzwischen aus ist — sonst ginge mitten
+  // im Wechsel der Setup-Link verloren.
+  const [debugMode] = useDebugMode();
 
   // Nachfragen, bis die Box angemeldet ist — nach dem Muster von `useBoxStatus`: im Hintergrund nicht,
   // beim Zurückkommen sofort (wer aus dem Setup-WLAN der Box zurückkehrt, will den Stand jetzt), und
@@ -105,6 +110,7 @@ export default function BoxFirmwareSwap({ boxId }: {
   if (!ticket && !boxId) return null;
 
   if (!open) {
+    if (!debugMode) return null;
     return (
       <Button variant="secondary" size="sm" onClick={() => setOpen(true)} icon={<Cpu size={16} />}>
         {t("swapButton")}

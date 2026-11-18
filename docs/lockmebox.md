@@ -95,7 +95,8 @@ Ausserhalb des Trackers liegt: eine ganze Instanz samt Datenbank löschen.
 ## Wechsel auf Heimdall
 
 Ist die Instanz zusätzlich mit einem Heimdall-Server verbunden (`HEIMDALL_SYNC_SECRET` und
-`HEIMDALL_BASE_URL`), bieten die Einstellungen der gekoppelten LockMeBox „Firmware wechseln" an. Die
+`HEIMDALL_BASE_URL`), bieten die Einstellungen der gekoppelten LockMeBox „Firmware wechseln" an — nur
+im Debug-Modus (Schalter ganz unten im Changelog, je Gerät in `localStorage`, `useDebugMode`). Die
 Box bekommt dann die Heimdall-Firmware und hängt danach am WLAN statt am Handy.
 
 1. Der Träger gibt ein 2,4-GHz-WLAN an und verbindet sich mit der Box (Knopf drücken).
