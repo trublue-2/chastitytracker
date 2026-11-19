@@ -22,6 +22,7 @@ import { belongsOnDashboard, getEvaluatedTaskHistory, loadTaskProofViews } from 
 import { toTaskCard } from "@/lib/taskView";
 import { buildWearSessionRows } from "@/lib/wearSessionRows";
 import { isKgVorgabe } from "@/lib/vorgaben";
+import { getOffenseRules } from "@/lib/offenseRulesService";
 import {
   CATEGORY_LIST_ORDER, subVisibleKontrolleWhere, keyholderVisibleKontrolleWhere, KONTROLLE_TARGET_INCLUDE,
   getActiveVorgabe, getActiveLockPeriod, getKeyholderLockPeriod, getActiveWearSessions,
@@ -92,6 +93,9 @@ const BLOCK_USER_SELECT = {
   boxPhotoDeadlineHours: true,
   // Für die Foto-Aufnahme der Dashboard-Karten (`BoxPhotoDueCard`) — dieselbe Begründung.
   mobileDesktopUpload: true,
+  // Für die Aktions-Chips oben auf der Keyholder-Seite des Subs: „Kontrolle anfordern" verschickt
+  // einen Code und erscheint nur mit Adresse (`KontrolleButton`).
+  email: true,
 } as const;
 
 /** Die Benutzerzeile eines Trägers, wie die Blöcke sie sehen. */
@@ -139,6 +143,13 @@ export const hasWeightDataCached = cache(async (userId: string) =>
 /** Die Orgasmus-Einträge, neueste zuerst — Session-Karte und Session-Liste stellen dieselbe Frage. */
 export const orgasmEntriesCached = cache(async (userId: string) =>
   (await entriesCached(userId)).filter((e) => e.type === "ORGASMUS"),
+);
+
+/** Die Vergehens-Regeln des Trägers zum Stichtag — EINE Abfrage je Request. Mehrere Blöcke derselben
+ *  Seite brauchen sie (Hinweise, laufende Session); jeder rief `getOffenseRules` einzeln auf. `nowMs`
+ *  als Zahl, weil `cache()` über die Identität der Argumente nachschlägt. */
+export const offenseRulesCached = cache((userId: string, nowMs: number) =>
+  getOffenseRules(userId, new Date(nowMs)),
 );
 
 /** Der jüngste KG-Eintrag — daraus liest die Seite „verschlossen seit" bzw. „geöffnet seit".

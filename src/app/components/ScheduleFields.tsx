@@ -140,6 +140,7 @@ export default function ScheduleFields({
   atHint,
   allowImmediate = true,
   atInputRef,
+  label,
 }: {
   value: ScheduleValue;
   onChange: (next: ScheduleValue) => void;
@@ -153,6 +154,8 @@ export default function ScheduleFields({
   allowImmediate?: boolean;
   /** Ref auf das Zeitpunkt-Feld — für Formulare, die nach dem Speichern dorthin zurückführen. */
   atInputRef?: Ref<HTMLInputElement>;
+  /** Beschriftung der Reiter — Vorgabe „Versand". Eine Sperrzeit wird nicht versandt, sie BEGINNT. */
+  label?: string;
 }) {
   const t = useTranslations("admin");
   // „Dauer" und „Zeitpunkt" sind das Vokabular JEDER Zeit-Eingabe und stehen deshalb in `common` —
@@ -163,7 +166,7 @@ export default function ScheduleFields({
   return (
     <>
       <FieldTabs
-        label={t("schedulingLabel")}
+        label={label ?? t("schedulingLabel")}
         value={value.mode}
         onChange={(mode) => set({ mode })}
         options={[

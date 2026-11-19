@@ -10,6 +10,7 @@ import DetailField from "@/app/components/DetailField";
 import PhotoChoice, { usePhotoChoice } from "@/app/components/PhotoChoice";
 import PhotoThumb from "@/app/components/PhotoThumb";
 import ListPager from "@/app/components/ListPager";
+import SegmentedControl from "@/app/components/SegmentedControl";
 import usePagedList from "@/app/hooks/usePagedList";
 import { LIST_PAGE_SIZE } from "@/lib/constants";
 import KontrolleActions from "./KontrolleActions";
@@ -199,19 +200,45 @@ function AdminKontrolleThumb({ row, labels }: { row: AdminKontrolleRowData; labe
 }
 
 export default function AdminKontrolleListClient({ items, allItems, labels }: { items: AdminKontrolleRowData[]; allItems?: AdminKontrolleRowData[]; labels: Labels }) {
-  const [showAll, setShowAll] = useState(false);
+  // Ohne Offenes gleich „Alle": sonst stünde die Keyholderin vor einer leeren Liste und müsste den
+  // Verlauf erst suchen.
+  const empty = items.length === 0;
+  const [showAll, setShowAll] = useState(empty);
+  // Leert sich die Liste nach einem Urteil (router.refresh), wechselt der Filter mit — sonst stünde
+  // er auf „Zu erledigen (0)" vor einer leeren Fläche. Anpassung beim Rendern statt Effekt: so
+  // erscheint nie ein Zwischenbild.
+  const [wasEmpty, setWasEmpty] = useState(empty);
+  if (empty !== wasEmpty) {
+    setWasEmpty(empty);
+    setShowAll(empty);
+  }
   const t = useTranslations("admin");
 
   const activeItems = showAll && allItems ? allItems : items;
   const { page, setPage, totalPages, visible } = usePagedList(activeItems, LIST_PAGE_SIZE);
 
-  function toggleShowAll() {
-    setShowAll(v => !v);
+  function selectShowAll(next: boolean) {
+    setShowAll(next);
     setPage(0);
   }
 
   return (
     <>
+      {/* Der Umschalter steht OBEN: unten war er nur zu finden, wer bis ans Ende der offenen Liste
+          scrollte — und ohne Offenes gab es ihn gar nicht. */}
+      {allItems && (
+        <div className={`${blockInsetCls} pb-3 flex`}>
+          <SegmentedControl
+            size="md"
+            options={[
+              { value: "open", label: t("inspectionsFilterOpen", { count: items.length }) },
+              { value: "all", label: t("inspectionsFilterAll", { count: allItems.length }) },
+            ]}
+            value={showAll ? "all" : "open"}
+            onChange={(v) => selectShowAll(v === "all")}
+          />
+        </div>
+      )}
       <div className="divide-y divide-border-subtle">
         {visible.map((row, i) => (
           <div key={i} className={`${blockInsetCls} py-3 flex items-start gap-3`}>
@@ -271,20 +298,6 @@ export default function AdminKontrolleListClient({ items, allItems, labels }: { 
         ))}
       </div>
       <ListPager page={page} totalPages={totalPages} onPage={setPage} />
-      {allItems && allItems.length > items.length && (
-        // Eigene Trennlinie und eigener Abstand, statt sich auf den `ListPager` darüber zu verlassen:
-        // der rendert bei nur einer Seite gar nichts, und dann stünde der Knopf ohne Abstand direkt
-        // unter der letzten Zeile.
-        <div className="px-5 py-3 border-t border-border-subtle">
-          <button
-            type="button"
-            onClick={toggleShowAll}
-            className="w-full text-xs font-medium text-foreground-muted hover:text-foreground py-2 rounded-lg hover:bg-surface-raised transition"
-          >
-            {showAll ? t("alarmeShowAlarmsOnly") : t("alarmeShowAll", { count: allItems.length })}
-          </button>
-        </div>
-      )}
     </>
   );
 }

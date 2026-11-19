@@ -28,6 +28,7 @@ import { sendTelegram } from "@/lib/telegram";
 import { structuredLog } from "@/lib/serverLog";
 import { prisma } from "@/lib/prisma";
 import { APP_NAME } from "@/lib/constants";
+import { appBaseUrl } from "@/lib/mail";
 
 type Spy = ReturnType<typeof vi.fn>;
 const mail = sendMailSafe as unknown as Spy;
@@ -52,7 +53,8 @@ describe("deliverToChannels", () => {
     await deliverToChannels(RECIPIENT, ALL, CONTENT);
     expect(mail).toHaveBeenCalledWith("sub@example.org", `${APP_NAME} – Betreff`, "<p>x</p>");
     expect(push).toHaveBeenCalledWith("u1", "Titel", "Text", "/x", 2);
-    expect(telegram).toHaveBeenCalledWith("chat-1", "Titel\n\nText");
+    // Mit Link aufs Ziel: Telegram führt sonst als einziger Kanal nicht in die App.
+    expect(telegram).toHaveBeenCalledWith("chat-1", `Titel\n\nText\n\n${appBaseUrl()}/x`);
   });
 
   it("baut die Mail nur, wenn sie hinausgeht", async () => {

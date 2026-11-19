@@ -15,7 +15,7 @@ export interface JournalSettingsProps {
 /** Die Tagebuch-Einstellungen des Subs. Sie gehören allein ihm — die Keyholderin sieht sie nicht. */
 export default function JournalSettings({ defaultVisibility, promptsEnabled }: JournalSettingsProps) {
   const t = useTranslations("journal");
-  const { saving, save } = useSettingsSave("/api/settings/journal", { refresh: false });
+  const { saving, save, saveToggle } = useSettingsSave("/api/settings/journal", { refresh: false });
   const [visibility, setVisibility] = useState(defaultVisibility);
   const [prompts, setPrompts] = useState(promptsEnabled);
 
@@ -25,10 +25,7 @@ export default function JournalSettings({ defaultVisibility, promptsEnabled }: J
     if (!(await save({ defaultVisibility: next }))) setVisibility(previous);
   }
 
-  async function savePrompts(next: boolean) {
-    setPrompts(next);
-    if (!(await save({ promptsEnabled: next }))) setPrompts(!next);
-  }
+  const savePrompts = (next: boolean) => saveToggle("promptsEnabled", next, setPrompts);
 
   return (
     <div className="flex flex-col gap-5">

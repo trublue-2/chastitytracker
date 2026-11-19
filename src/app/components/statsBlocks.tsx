@@ -419,7 +419,7 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
 
   // Kontrollen
   inspections: block({
-    load: async ({ userId, nowMs, now, tz, dl, t, ta }) => {
+    load: async ({ userId, nowMs, now, tz, dl, t, ta, isKeyholderView }) => {
       const [anforderungen, entries] = await Promise.all([
         subVisibleInspectionsCached(userId, nowMs), entriesAscCached(userId),
       ]);
@@ -435,7 +435,7 @@ export const STATS_BLOCK_TABLE: Record<StatsBlockId, StackBlock<StatsCtx>> = {
       // Pillen und Daten hier auflösen, damit die client-seitig blätternde Liste einfach bleibt
       // (keine Datums- oder i18n-Logik dort).
       return items.map((k): StatsKontrolleRow => {
-        const pill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta);
+        const pill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta, isKeyholderView ? "keyholder" : "sub");
         return {
           id: k.id,
           code: k.code,

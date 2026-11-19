@@ -263,7 +263,7 @@ export function mapKontrolleRow(
 
   const anfPill = !row.entryId && row.anforderungStatus ? ANFORDERUNG_PILLS[row.anforderungStatus] : null;
   const kPill = row.entryId
-    ? getKombinierterPill(row.anforderungStatus, row.verifikationStatus, t)
+    ? getKombinierterPill(row.anforderungStatus, row.verifikationStatus, t, "keyholder")
     : anfPill ? { label: t(anfPill.labelKey), cls: anfPill.cls } : null;
   // Bei „zu spät" IMMER den echten Einreichzeitpunkt zeigen, nicht erst ab der 5-Minuten-Schwelle
   // von `isTimeCorrected`. Genau darauf beruht das Urteil (`isPastDeadlineUnfulfilled` liest

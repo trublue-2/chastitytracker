@@ -17,7 +17,7 @@ import { currentOrNextCleaningWindow, type NextCleaningWindow } from "@/lib/clea
 import { datedWindowLabel } from "@/lib/weekdays";
 import { parseWeekdayGoalRules } from "@/lib/weekdayGoal";
 import { buildWeekdayLabels } from "@/lib/statsBuilders";
-import { userRowCached, strafbuchCached } from "@/lib/dashboardData";
+import { userRowCached, strafbuchCached, offenseRulesCached } from "@/lib/dashboardData";
 import { selectSubOffenses, attentionOffensesOf } from "@/lib/subOffenses";
 import { loadStatementViews } from "@/lib/offenseStatementService";
 import OffenseList from "@/app/components/OffenseList";
@@ -49,7 +49,6 @@ import BoxPhotoWaive from "@/app/components/BoxPhotoWaive";
 import { boxPhotoDueAtOf } from "@/lib/boxPhotoDue";
 import Section from "@/app/components/Section";
 import StatsCard from "@/app/components/StatsCard";
-import { getOffenseRules } from "@/lib/offenseRulesService";
 
 /**
  * **Die Blöcke der Keyholder-Detailseite — je mit eigener Datenbeschaffung.**
@@ -161,7 +160,7 @@ export const KEYHOLDER_SUB_BLOCK_TABLE: Record<KeyholderSubBlockId, StackBlock<K
         // Ob ein früheres Öffnen geahndet wird, ist je Sub schaltbar — und SIE hat den Schalter.
         // Ohne diese Abfrage läse die Keyholderin auf ihrer eigenen Karte, dass eine Regel gilt,
         // die sie gerade selbst abgeschaltet hat.
-        getOffenseRules(subjectId, now),
+        offenseRulesCached(subjectId, nowMs),
         // Für das Reinigungsfenster in ihrer Sperrzeit-Zeile. Eine gecachte Ein-Zeilen-Abfrage —
         // und die Alternative wäre, dass die Keyholderin die Uhrzeiten, die der Träger auf SEINER
         // Übersicht liest, nur noch im Einstellungs-Formular findet.

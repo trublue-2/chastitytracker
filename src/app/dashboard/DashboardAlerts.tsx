@@ -53,6 +53,8 @@ export interface DashboardAlertsProps {
     label: string;
     message: string | null;
     windowLabel: string;
+    /** Pflicht oder Erlaubnis, und bei der Pflicht die Folge — siehe `LockRequestBanner.consequence`. */
+    consequence: string;
   } | null;
 
   /** Das Box-Foto, das nach „Riegel zu" fällig wurde — bleibt, bis es da ist oder erlassen wird. */
@@ -61,6 +63,9 @@ export interface DashboardAlertsProps {
   /** Governing timezone of the data owner (sub). Defaults to APP_TZ (Europe/Zurich). */
   tz?: string;
 }
+
+/** Das Orgasmus-Formular — Ziel des Banners in beiden Formen. */
+const ORGASM_FORM_HREF = "/dashboard/new/orgasmus";
 
 export default async function DashboardAlerts({
   pendingInspections,
@@ -119,6 +124,10 @@ export default async function DashboardAlerts({
           label={offeneOrgasmusAnf.label}
           message={offeneOrgasmusAnf.message}
           deadlineLabel={offeneOrgasmusAnf.windowLabel}
+          consequence={offeneOrgasmusAnf.consequence}
+          // Wie Kontrolle und Einschliessen: der Weg ins Formular steht am Banner, nicht nur hinter (+).
+          href={ORGASM_FORM_HREF}
+          actionLabel={t("captureNow")}
         />
       )}
 
@@ -150,13 +159,18 @@ export default async function DashboardAlerts({
           />
         </Link>
       )}
+      {/* Wie die Verschluss-Zeile darüber: die ganze Zeile führt ins Formular. Ohne Frist steht die
+          Orgasmus-Anforderung fast nie zuoberst — Weg und Folge gehören deshalb auch hierher. */}
       {lead !== "orgasm" && offeneOrgasmusAnf && (
-        <LockRequestBanner
-          variant="compact"
-          colorScheme="orgasm"
-          label={offeneOrgasmusAnf.label}
-          deadlineLabel={offeneOrgasmusAnf.windowLabel}
-        />
+        <Link href={ORGASM_FORM_HREF} className={`block ${rowHoverCls}`}>
+          <LockRequestBanner
+            variant="compact"
+            colorScheme="orgasm"
+            label={offeneOrgasmusAnf.label}
+            deadlineLabel={offeneOrgasmusAnf.windowLabel}
+            consequence={offeneOrgasmusAnf.consequence}
+          />
+        </Link>
       )}
 
       {boxPhotoDue && <BoxPhotoDueCard entryId={boxPhotoDue.entryId} mobileDesktopMode={boxPhotoDue.mobileDesktopMode} deadlineLabel={boxPhotoDue.deadlineLabel} />}

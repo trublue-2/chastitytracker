@@ -20,6 +20,9 @@ import { fetchWithTimeout, parseApiErrorCode } from "@/lib/apiClient";
  * diese Fassung bedient die mit eigener Route (Vergehens-Regeln). `NotificationToggles` hat sein
  * eigenes `fetch` noch von früher — es gehört hierher, ist aber nicht Teil dieser Änderung.
  *
+ * Ein angenommener Patch meldet sich mit „Gespeichert": die Schalter speichern ohne Knopf, und
+ * ohne Rückmeldung blieb offen, ob die Änderung angekommen ist.
+ *
  * `refresh: false` für Abschnitte, deren Anzeige rein lokal ist: der Refresh rendert die ganze
  * Einstellungs-Seite samt ihrer Server-Queries neu, und wenn die Komponente den frischen Prop-Wert
  * ohnehin nicht übernimmt, ist das Arbeit ohne jede Wirkung.
@@ -29,6 +32,7 @@ export function useSettingsSave(url: string, { refresh = true }: { refresh?: boo
   const toast = useToast();
   const apiError = useApiError();
   const tc = useTranslations("common");
+  const ts = useTranslations("settings");
   const [saving, setSaving] = useState(false);
 
   async function save(patch: Record<string, unknown>): Promise<boolean> {
@@ -48,6 +52,7 @@ export function useSettingsSave(url: string, { refresh = true }: { refresh?: boo
       // Nur nach einer angenommenen Änderung neu laden — ein abgelehnter Patch hat den Server-Stand
       // nicht angefasst, ein Refresh wäre ein RSC-Rerender (inkl. DB-Queries) ohne jede Wirkung.
       if (refresh) router.refresh();
+      toast.success(ts("saved"));
       return true;
     } catch {
       toast.error(tc("networkError"));
@@ -57,7 +62,16 @@ export function useSettingsSave(url: string, { refresh = true }: { refresh?: boo
     }
   }
 
-  return { saving, save };
+  /** Einen Schalter speichern: sofort umlegen, bei Ablehnung zurück. Ohne das Zurück stand der
+   *  Schalter nach einem Fehler auf einem Wert, den der Server nie übernommen hat — der Toast
+   *  sagte „Fehler", das Bild sagte „gespeichert". Dieselbe Idee wie {@link useOptimisticSave}, aber
+   *  ohne dessen Fehlerzeile: `save` meldet den Fehler hier schon selbst als Toast. */
+  async function saveToggle(field: string, checked: boolean, set: (v: boolean) => void): Promise<void> {
+    set(checked);
+    if (!(await save({ [field]: checked }))) set(!checked);
+  }
+
+  return { saving, save, saveToggle };
 }
 
 /** {@link useSettingsSave} auf der Sammel-Route der Sub-Einstellungen (PATCH /api/admin/users/[id]). */

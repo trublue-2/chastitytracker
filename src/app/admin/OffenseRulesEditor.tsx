@@ -56,7 +56,7 @@ export default function OffenseRulesEditor({
   const [rules, setRules] = useState(initialRules);
   // Eigener Schreibweg: der Schalter ist ein Feld am Träger, keine Zeile in der Regel-Historie
   // (`OffenseRuleChange`) — die beantwortet, welche ART wann zählte.
-  const { saving: savingStatements, save: saveStatements } = useUserSettingsSave(userId);
+  const { saving: savingStatements, saveToggle } = useUserSettingsSave(userId);
   const [statementsAllowed, setStatementsAllowed] = useState(initialStatementsAllowed);
 
   // Die Nachbar-Sektion kann diese Liste ändern: schaltet die Keyholderin das Gewichtstracking ab,
@@ -82,10 +82,7 @@ export default function OffenseRulesEditor({
   }
 
   /** Wie `setMode`: sofort umlegen, bei Ablehnung zurück. */
-  async function toggleStatements(checked: boolean) {
-    setStatementsAllowed(checked);
-    if (!(await saveStatements({ offenseStatementsAllowed: checked }))) setStatementsAllowed(!checked);
-  }
+  const toggleStatements = (checked: boolean) => saveToggle("offenseStatementsAllowed", checked, setStatementsAllowed);
 
   return (
     <div className="flex flex-col gap-3">

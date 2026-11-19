@@ -2,11 +2,13 @@ import { getTranslations, getLocale } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { assertKeyholderOrAdmin } from "@/lib/authGuards";
 import { logAccess } from "@/lib/serverLog";
-import { APP_TZ, formatDateTimeDual, toDateLocale } from "@/lib/utils";
-import { userRowCached } from "@/lib/dashboardData";
+import { APP_TZ, formatDateTimeDual, nowDatetimeLocal, toDateLocale } from "@/lib/utils";
+import { keyholderLockPeriodCached, latestKgEntryCached, userRowCached } from "@/lib/dashboardData";
 import { renderStack } from "@/lib/blockStack";
 import { viewerLayout } from "@/lib/viewerLayout";
 import BlockStack from "@/app/components/BlockStack";
+import DashboardBlock from "@/app/components/DashboardBlock";
+import SubActionChips from "@/app/admin/SubActionChips";
 import { KEYHOLDER_SUB_BLOCK_TABLE, type KeyholderSubCtx } from "./keyholderSubBlocks";
 
 /**
@@ -54,7 +56,32 @@ export default async function AdminUserOverview({ params }: { params: Promise<{ 
 
   // Die Konfiguration der KEYHOLDERIN, nicht die des angezeigten Trägers.
   const layout = await viewerLayout("keyholderSub", session?.user?.id);
-  const nodes = await renderStack(layout, ctx, KEYHOLDER_SUB_BLOCK_TABLE);
+  // Beide gecacht: die Blöcke laden dieselben Zeilen (Box-Karte, Session), es entsteht keine
+  // zweite Abfrage. „Verschlossen" ist der jüngste wirksame KG-Eintrag — dieselbe Regel wie `getIsLocked`.
+  const [nodes, latest, lockPeriod] = await Promise.all([
+    renderStack(layout, ctx, KEYHOLDER_SUB_BLOCK_TABLE),
+    latestKgEntryCached(id),
+    keyholderLockPeriodCached(id),
+  ]);
+  const isLocked = latest?.type === "VERSCHLUSS";
 
-  return <BlockStack layout={layout} nodes={nodes} />;
+  // Die Hauptaktionen über dem Stapel, wie in jeder Zeile der Übersicht. Bewusst KEIN Block: sie
+  // sind keine Auskunft, die man umsortiert oder ausblendet, sondern der Grund, die Seite zu öffnen.
+  return (
+    <>
+      <DashboardBlock>
+        <div className="flex flex-wrap items-center gap-2">
+          <SubActionChips
+            userId={id}
+            hasEmail={!!user.email}
+            isLocked={isLocked}
+            hasActiveLockPeriod={!!lockPeriod}
+            tz={subjectTz}
+            minNow={nowDatetimeLocal(subjectTz)}
+          />
+        </div>
+      </DashboardBlock>
+      <BlockStack layout={layout} nodes={nodes} />
+    </>
+  );
 }

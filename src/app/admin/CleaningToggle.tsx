@@ -32,7 +32,7 @@ export default function CleaningToggle({
 }) {
   const t = useTranslations("admin");
   const tc = useTranslations("common");
-  const { saving, save } = useUserSettingsSave(userId);
+  const { saving, save, saveToggle } = useUserSettingsSave(userId);
   const [allowed, setAllowed] = useState(initialAllowed);
   const [maxMin, setMaxMin] = useState(initialMaxMinutes);
   const [maxPerDay, setMaxPerDay] = useState(initialMaxPerDay);
@@ -58,11 +58,6 @@ export default function CleaningToggle({
     return ok;
   }
 
-  function handleToggle(checked: boolean) {
-    setAllowed(checked);
-    save({ cleaningAllowed: checked });
-  }
-
   return (
     <div className="flex flex-col gap-3">
       <Toggle
@@ -70,7 +65,7 @@ export default function CleaningToggle({
         description={t("reinigungPausenDesc")}
         checked={allowed}
         disabled={saving}
-        onChange={handleToggle}
+        onChange={(checked) => saveToggle("cleaningAllowed", checked, setAllowed)}
       />
       {allowed && (
         <>

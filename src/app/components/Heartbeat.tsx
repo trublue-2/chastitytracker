@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import useToast from "@/app/hooks/useToast";
 import { activateWaitingSw } from "@/lib/swMessages";
 import Button from "@/app/components/Button";
 import { fetchWithTimeout } from "@/lib/apiClient";
+import { isEntryFormRoute } from "@/lib/entryFormRoute";
 
 const POLL_INTERVAL_MS = 30_000;
 /** Takt, solange der Server eine laufende Erkennung meldet (`settling`). Die KI-Urteile fallen in
@@ -29,6 +30,7 @@ const SETTLING_POLL_MS = 3_000;
  */
 export default function Heartbeat({ buildDate, initialUserId }: { buildDate: string; initialUserId: string | null }) {
   const router = useRouter();
+  const pathname = usePathname();
   const tv = useTranslations("versionChecker");
   const ts = useTranslations("sessionGuard");
   const toast = useToast();
@@ -133,7 +135,11 @@ export default function Heartbeat({ buildDate, initialUserId }: { buildDate: str
     };
   }, [router, toast, ts]);
 
-  if (!outdated) return null;
+  // Auf den Erfassungs-Formularen gehört der Boden der fixen Speichern-Leiste (`FormActions`) — dort
+  // in Nav-Höhe verankert, lag das Banner genau über „Eintrag speichern". Es tritt dort zurück wie
+  // das Installations-Banner: oben stehen die Toasts, und ein Neuladen mitten im Formular nähme die
+  // Eingaben mit. Nach dem Speichern erscheint es wieder.
+  if (!outdated || isEntryFormRoute(pathname)) return null;
 
   return (
     <div className="fixed bottom-[var(--bottom-nav-space)] left-4 right-4 sm:left-auto sm:right-6 sm:w-80 z-50">

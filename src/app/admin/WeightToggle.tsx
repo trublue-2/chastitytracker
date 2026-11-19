@@ -45,7 +45,7 @@ export default function WeightToggle({
   const t = useTranslations("admin");
   const locale = useLocale();
   const tc = useTranslations("common");
-  const { saving, save } = useUserSettingsSave(userId);
+  const { saving, save, saveToggle } = useUserSettingsSave(userId);
   const [enabled, setEnabled] = useState(initialEnabled);
   const [windows, setWindows] = useState<WeighingWindow[]>(initialWindows);
   const [target, setTarget] = useState(weightFieldValue(initialTargetKg, unitSystem));
@@ -53,10 +53,6 @@ export default function WeightToggle({
   const unitLabel = unitSystem === "imperial" ? tc("unitLbs") : tc("unitKg");
   const parsedTarget = parseDecimalInput(target);
 
-  function handleToggle(checked: boolean) {
-    setEnabled(checked);
-    save({ weightTrackingEnabled: checked });
-  }
 
   // Fenster erst lokal übernehmen, wenn der Server den Stand angenommen hat — sonst zeigte die
   // Liste nach einem abgelehnten Patch weiter den ungespeicherten Zustand (Muster: CleaningToggle).
@@ -77,7 +73,7 @@ export default function WeightToggle({
         description={t("weightTrackingDesc")}
         checked={enabled}
         disabled={saving}
-        onChange={handleToggle}
+        onChange={(checked) => saveToggle("weightTrackingEnabled", checked, setEnabled)}
       />
 
       {enabled && (

@@ -75,10 +75,18 @@ const VERIFIKATION_KEYS: Record<string, string> = {
  * Label = beide Stati verbunden mit " – ", Farbe nach Kombinationslogik.
  * t = Übersetzungsfunktion aus getTranslations("admin") bzw. useTranslations("admin")
  */
+/** Wer eine Kontroll-Pille liest — davon hängt ab, ob „Nicht geprüft" ein Auftrag ist. */
+export type PillViewer = "sub" | "keyholder";
+
 export function getKombinierterPill(
   anforderungStatus: string | null,
   verifikationStatus: string | null,
   t: (key: string) => string,
+  /** WER liest. Die Keyholderin liest „Nicht geprüft" als „wartet auf dein Urteil", in Koralle statt
+   *  grau — es ist das Einzige auf ihrer Liste, das auf SIE wartet. Der Träger liest weiter „Nicht
+   *  geprüft": für ihn ist es kein Auftrag. Pflicht und ohne Vorgabe: eine neue Keyholder-Liste fiele
+   *  sonst still in die Träger-Beschriftung. */
+  viewer: PillViewer,
 ): KontrollePill | null {
   // Offene / Überfällige / Versäumte / Zurückgezogene: keine Verifikation vorhanden
   if (anforderungStatus === "open")      return { label: t("pillOpen"),         cls: ORANGE };
@@ -89,6 +97,9 @@ export function getKombinierterPill(
 
   const aKey = anforderungStatus ?? "selfcontrol";
   const aLabel = t(ANFORDERUNG_KEYS[aKey] ?? "pillSelfcontrol");
+  if (viewer === "keyholder" && verifikationStatus === "unverified") {
+    return { label: `${aLabel} – ${t("pillAwaitingReview")}`, cls: ORANGE };
+  }
   const vLabel = verifikationStatus ? t(VERIFIKATION_KEYS[verifikationStatus] ?? "pillUnverified") : null;
   const label = vLabel ? `${aLabel} – ${vLabel}` : aLabel;
 
@@ -172,12 +183,15 @@ export function entryInspectionPill(
   /** Übersetzer aus dem `admin`-Namensraum — dort wohnen die `pill*`-Schlüssel. */
   t: (key: string) => string,
   now: Date,
+  /** Siehe {@link getKombinierterPill}. */
+  viewer: PillViewer,
 ): KontrollePill | null {
   if (e.type !== "PRUEFUNG") return null;
   return getKombinierterPill(
     e.kontrollAnforderung ? mapAnforderungStatus(e.kontrollAnforderung, now) : null,
     mapVerifikationStatus(e.verifikationStatus),
     t,
+    viewer,
   );
 }
 

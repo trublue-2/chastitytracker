@@ -52,6 +52,7 @@ import * as mailModule from "@/lib/mail";
 import * as pushModule from "@/lib/push";
 import * as telegramModule from "@/lib/telegram";
 import { APP_NAME } from "@/lib/constants";
+import { appBaseUrl } from "@/lib/mail";
 
 type Spy = ReturnType<typeof vi.fn>;
 
@@ -111,7 +112,7 @@ describe("notifyUser", () => {
     expect(mails()[0][1]).toBe(`${APP_NAME} – taskReviewSubjectKeyholder`);
     expect(mails()[0][2]).toContain("lockRequestBody");
     expect(pushes()[0]).toEqual(["u1", "taskReviewSubjectKeyholder", "lockRequestBody", "/dashboard/x", 3]);
-    expect(telegrams()[0]).toEqual([CHAT, "taskReviewSubjectKeyholder\n\nlockRequestBody"]);
+    expect(telegrams()[0]).toEqual([CHAT, `taskReviewSubjectKeyholder\n\nlockRequestBody\n\n${appBaseUrl()}/dashboard/x`]);
   });
 
   it.each(CHANNEL_CASES)("%s", async (_name, channels) => {
@@ -155,7 +156,7 @@ describe("Verschluss-Direktive", () => {
     expect([id, title, url, badge]).toEqual(["u1", "lockPushPeriodTitle", "/dashboard", 3]);
     expect(body).toContain("lockPushUntil");
     expect(body.endsWith("Hinweis")).toBe(true);
-    expect(telegrams()[0]).toEqual([CHAT, `${title}\n\n${body}`]);
+    expect(telegrams()[0]).toEqual([CHAT, `${title}\n\n${body}\n\n${appBaseUrl()}${url}`]);
   });
 
   it("reicht die geladene Zeile des Empfängers durch", async () => {
@@ -211,7 +212,7 @@ describe("Orgasmus-Direktive", () => {
     const [id, title, body, url, badge] = pushes()[0];
     expect([id, title, url, badge]).toEqual(["u1", "orgasmAnweisungSubject", "/dashboard", 3]);
     expect(body.endsWith("Hinweis")).toBe(true);
-    expect(telegrams()[0]).toEqual([CHAT, `${title}\n\n${body}`]);
+    expect(telegrams()[0]).toEqual([CHAT, `${title}\n\n${body}\n\n${appBaseUrl()}${url}`]);
   });
 });
 
@@ -240,6 +241,6 @@ describe("Kontrolle", () => {
     const [id, title, body, url, badge] = pushes()[0];
     expect([id, badge]).toEqual(["u1", 3]);
     expect(url).toContain("12345");
-    expect(telegrams()[0]).toEqual([CHAT, `${title}\n\n${body}`]);
+    expect(telegrams()[0]).toEqual([CHAT, `${title}\n\n${body}\n\n${appBaseUrl()}${url}`]);
   });
 });

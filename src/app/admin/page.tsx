@@ -6,11 +6,9 @@ import { redirect } from "next/navigation";
 import { getControlledSubs } from "@/lib/keyholder";
 import Link from "next/link";
 
-import KontrolleButton from "./KontrolleButton";
-import VerschlussAnforderungButton from "./VerschlussAnforderungButton";
+import SubActionChips from "./SubActionChips";
 import EditLockRequestButton from "./EditLockRequestButton";
 import EditLockPeriodButton from "./EditLockPeriodButton";
-import ReleaseNowButton from "./ReleaseNowButton";
 import QuickSettingChip from "./QuickSettingChip";
 import WithdrawButton from "./WithdrawButton";
 import ExtendInspectionButton from "./ExtendInspectionButton";
@@ -656,22 +654,14 @@ export default async function AdminPage() {
                                 value={quickSettingValue(u, qs)}
                               />
                             ))}
-                          {isLocked && (
-                            <KontrolleButton userId={u.id} hasEmail={!!u.email} />
-                          )}
-                          <VerschlussAnforderungButton
+                          <SubActionChips
                             userId={u.id}
+                            hasEmail={!!u.email}
                             isLocked={isLocked}
                             hasActiveLockPeriod={u.stats.hasActiveLockPeriod}
                             tz={rowTz}
                             minNow={rowMinNow}
                           />
-                          {/* Das Gegenstück zur Sperrzeit steht NEBEN ihr, nicht in einem Menü —
-                              das war die Rückmeldung, aus der es entstand. Die Sichtbarkeit
-                              entscheidet der Aufrufer, wie beim `KontrolleButton` darüber. */}
-                          {isLocked && (
-                            <ReleaseNowButton userId={u.id} hasActiveLockPeriod={u.stats.hasActiveLockPeriod} />
-                          )}
                         </div>
                     </div>
                   </div>

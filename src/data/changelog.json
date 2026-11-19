@@ -1,5 +1,32 @@
 [
   {
+    "version": "6.6.4",
+    "date": "2026-11-19",
+    "changes": [
+      {
+        "type": "ui",
+        "text": {
+          "de": "Klarere Bedienung an vielen Stellen: Formulare werden nicht mehr von Hinweisen verdeckt, Orgasmus-Anforderungen sagen, ob sie Pflicht sind, und Fehlermeldungen nennen Ursache und nächsten Schritt.",
+          "en": "Clearer handling in many places: forms are no longer covered by notices, orgasm requests say whether they are mandatory, and error messages name the cause and the next step."
+        }
+      },
+      {
+        "type": "ui",
+        "text": {
+          "de": "Für Keyholder: Hauptaktionen jetzt auch auf der Seite des Subs, „Kontrollen“ zeigt was auf dein Urteil wartet, Schalter bestätigen das Speichern, und Sperrzeit aufheben fragt vorher nach.",
+          "en": "For keyholders: main actions now also on the sub’s page, “Inspections” shows what awaits your judgment, switches confirm saving, and ending a lock period asks first."
+        }
+      },
+      {
+        "type": "fix",
+        "text": {
+          "de": "Telegram-Meldungen enthalten jetzt einen Link in die App.",
+          "en": "Telegram notifications now include a link into the app."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.6.1",
     "date": "2026-11-15",
     "changes": [

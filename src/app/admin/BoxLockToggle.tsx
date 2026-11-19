@@ -30,13 +30,9 @@ export default function BoxLockToggle({
   alwaysOn?: boolean;
 }) {
   const t = useTranslations("admin");
-  const { saving, save } = useUserSettingsSave(userId);
+  const { saving, saveToggle } = useUserSettingsSave(userId);
   const [enabled, setEnabled] = useState(initialEnabled);
 
-  function handleToggle(checked: boolean) {
-    setEnabled(checked);
-    save({ lockRequiresBolt: checked });
-  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -45,7 +41,7 @@ export default function BoxLockToggle({
         description={t("boltGateDesc")}
         checked={alwaysOn || enabled}
         disabled={alwaysOn || saving}
-        onChange={handleToggle}
+        onChange={(checked) => saveToggle("lockRequiresBolt", checked, setEnabled)}
       />
       {alwaysOn
         ? <p className="text-xs text-foreground-faint">{t("boltGateAlways")}</p>
