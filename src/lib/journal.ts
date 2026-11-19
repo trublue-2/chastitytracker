@@ -295,8 +295,7 @@ export function toCardEntry(r: (JournalRow | KeyholderJournalRow) & JournalDurat
 }
 
 /** Wo das eigene Tagebuch liegt — eine Quelle für Kopfzeile, Formulare und Rücksprünge. Die
- *  Formulare liegen unter `/dashboard/new` bzw. `/dashboard/edit`, damit die Bottom-Nav dort der
- *  Aktionsleiste weicht (`isEntryFormRoute`). */
+ *  Formulare liegen unter `/dashboard/new` bzw. `/dashboard/edit`, neben den übrigen Erfassungen. */
 export const JOURNAL_HREF = "/dashboard/tagebuch";
 export const JOURNAL_NEW_HREF = "/dashboard/new/tagebuch";
 export const journalEditHref = (id: string) => `/dashboard/edit/tagebuch/${id}`;

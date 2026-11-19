@@ -1,5 +1,6 @@
 import AdminHeader from "@/app/AdminHeader";
 import AdminBottomNav from "@/app/components/AdminBottomNav";
+import BottomNavSpacer from "@/app/components/BottomNavSpacer";
 import AdminDesktopSidebar from "@/app/components/AdminDesktopSidebar";
 import ThemeRootSync from "@/app/components/ThemeRootSync";
 import AutoRefresh from "@/app/components/AutoRefresh";
@@ -47,10 +48,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           EINE Zeile und gibt den Übersichtslisten Raum. Der DETAIL-Inhalt einer Träger-Seite wird
           im Träger-Layout wieder auf `wideColCls` (768) gekappt — die Reiter- und Kopfzeile behalten
           die volle Breite, die Zeilen darunter das Lesemass. */}
-      <div className="lg:ml-64 2xl:pr-64 min-h-screen pb-[var(--bottom-nav-space)] lg:pb-0">
+      <div className="lg:ml-64 2xl:pr-64 min-h-screen">
         <div className={`${adminShellColCls} [--block-col:100%] [--block-gutter:0px]`}>
           <PhotoAnalysisScope notice={{ userId: user?.id, isAdmin: isGlobalAdmin }}>{children}</PhotoAnalysisScope>
         </div>
+        {/* Der Platz der Navigation als eigenes Element statt als Padding: auf einem Formular tritt
+            er mit der Navigation zurück (`data-yields-to-form`), dort reserviert die Formular-Hülle. */}
+        <BottomNavSpacer />
       </div>
 
       <AdminBottomNav version={pkg.version} isGlobalAdmin={isGlobalAdmin} hideOwnTracker={hideOwnTracker} />

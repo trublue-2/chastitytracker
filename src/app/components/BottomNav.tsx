@@ -7,7 +7,6 @@ import ViewTransitionLink from "@/app/components/ViewTransitionLink";
 import useViewTransition from "@/app/hooks/useViewTransition";
 import AppFooterMeta from "@/app/components/AppFooterMeta";
 import { adminNavEntry } from "@/lib/adminNavEntry";
-import { isEntryFormRoute } from "@/lib/entryFormRoute";
 import { hapticLight } from "@/lib/haptics";
 
 interface BottomNavProps {
@@ -22,15 +21,8 @@ export default function BottomNav({ isAdmin, isKeyholder, onNewEntry, version }:
   const t = useTranslations("nav");
   const pathname = usePathname();
   // EINMAL für die ganze Leiste, nicht je Verknüpfung — Begründung an der `navigate`-Prop von
-  // `ViewTransitionLink`. Muss VOR dem `return null` unten stehen: Hooks dürfen nicht bedingt
-  // laufen.
+  // `ViewTransitionLink`.
   const { navigateWithTransition } = useViewTransition();
-
-  // Auf den Erfassungs-/Bearbeitungs-Seiten die fixe Leiste ausblenden. Sonst verdeckte sie am
-  // unteren Rand (Mobile) den „Speichern"-Button, der dort selbst in einer fixen Aktionsleiste sitzt.
-  // Zum Verlassen gibt es dort Abbrechen + „← Neu"; die Weg-Navigation ist während der fokussierten
-  // Eingabe ohnehin überflüssig. `BottomNavSpacer` lässt hier passend den reservierten Platz weg.
-  if (isEntryFormRoute(pathname)) return null;
 
   const tabs = [
     { href: "/dashboard", icon: Home, label: t("overview"), exact: true },
@@ -43,7 +35,7 @@ export default function BottomNav({ isAdmin, isKeyholder, onNewEntry, version }:
   return (
     // Der Name der Landmarke: ohne ihn heisst sie in der Landmarken-Liste nur „Navigation" — und
     // die Seite trägt mehrere davon (Seitenleiste, Reiter des Trägers).
-    <nav aria-label={t("mainNavLabel")} className="lg:hidden fixed bottom-0 left-0 right-0 bg-nav-bg border-t border-nav-border z-40 pb-safe">
+        <nav data-yields-to-form aria-label={t("mainNavLabel")} className="lg:hidden fixed bottom-0 left-0 right-0 bg-nav-bg border-t border-nav-border z-40 pb-safe">
       <div className="flex h-16">
         {tabs.map((tab) => {
           if ("action" in tab && tab.action) {

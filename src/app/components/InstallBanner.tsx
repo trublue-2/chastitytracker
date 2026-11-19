@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
 import { X, Download, Share } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { nativePlatformNow } from "@/lib/nativeApp";
-import { isEntryFormRoute } from "@/lib/entryFormRoute";
 
 type Platform = "android" | "ios" | null;
 
@@ -22,7 +20,6 @@ interface BeforeInstallPromptEvent extends Event {
 export default function InstallBanner() {
   const t = useTranslations("installBanner");
   const tc = useTranslations("common");
-  const pathname = usePathname();
   const [platform, setPlatform] = useState<Platform>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(true); // start hidden to avoid flash
@@ -75,13 +72,10 @@ export default function InstallBanner() {
     else dismiss();
   }
 
-  // Auf den Erfassungs-Formularen steht unten die fixe Speichern-Leiste (`FormActions`) — das
-  // Banner lag genau darüber und verdeckte „Eintrag speichern". Dieselbe Routen-Regel, nach der
-  // dort auch die Bottom-Nav weicht.
-  if (dismissed || !platform || isEntryFormRoute(pathname)) return null;
+  if (dismissed || !platform) return null;
 
   return (
-    <div className="fixed bottom-[var(--bottom-nav-space)] sm:bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 z-40 bg-foreground text-background rounded-xl shadow-xl p-4 flex items-start gap-3">
+    <div data-yields-to-form className="fixed bottom-[var(--bottom-nav-space)] sm:bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 z-40 bg-foreground text-background rounded-xl shadow-xl p-4 flex items-start gap-3">
       <div className="flex-1">
         <p className="font-semibold text-sm">{t("title")}</p>
         {platform === "android" ? (
