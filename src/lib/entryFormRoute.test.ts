@@ -1,20 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { expectImportFree } from "@/test/importFree";
-import { isEntryFormRoute, inspectionHref, taskFormHref, openInspections, pendingInspection, type PendingInspectionLike } from "./entryFormRoute";
+import { inspectionHref, taskFormHref, openInspections, pendingInspection, type PendingInspectionLike } from "./entryFormRoute";
 
-// Client-Komponenten (`BottomNav`, `NewEntrySheet`) UND server-only Code
+// Client-Komponenten (`NewEntrySheet`) UND server-only Code
 // (`kontrolleService` → Mail/Push) importieren dieses Modul — Begründung in `expectImportFree`.
 describe("entryFormRoute.ts bleibt importfrei", () => {
   it("enthält keine import-/require-Anweisung", () => {
     expectImportFree("src/lib/entryFormRoute.ts");
-  });
-});
-
-describe("isEntryFormRoute", () => {
-  it("erkennt Erfassen- und Bearbeiten-Routen", () => {
-    expect(isEntryFormRoute("/dashboard/new/pruefung")).toBe(true);
-    expect(isEntryFormRoute("/dashboard/edit/abc")).toBe(true);
-    expect(isEntryFormRoute("/dashboard")).toBe(false);
   });
 });
 

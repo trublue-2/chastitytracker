@@ -28,6 +28,9 @@ export default function FormActions({
 }) {
   return (
     <div
+      // Das Merkmal, vor dem unten schwebende Elemente zurücktreten (globals.css, `data-yields-to-form`).
+      // Die Regel dort gilt unterhalb von `sm` — derselbe Bruch wie `sm:static` hier; mitziehen.
+      data-form-actions
       className={
         "fixed inset-x-0 bottom-0 z-30 flex flex-col gap-2 border-t border-border bg-background px-4 pt-3 " +
         "pb-[calc(0.75rem+env(safe-area-inset-bottom))] " +

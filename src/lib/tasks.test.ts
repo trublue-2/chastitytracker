@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  evaluateTask, intersectAll, coversContinuously, startDeadline, taskAnchor, minHoldMs, isTaskOpen, isTaskOffense,
+  evaluateTask, proofDecidedByCode, intersectAll, coversContinuously, startDeadline, taskAnchor, minHoldMs, isTaskOpen, isTaskOffense,
   type Interval, type TaskLike, type TaskRequirementLike,
 } from "./tasks";
 
@@ -646,5 +646,13 @@ describe("evaluateTask — terminierte Aufgabe (wirksamAb)", () => {
     const frueh = evaluateTask(dauer, [HALSBAND], [[iv("2026-07-25T18:00:00Z", "2026-07-25T20:00:00Z")]], d("2026-07-25T19:20:00Z"));
     expect(frueh.holdUntil).toEqual(d("2026-07-25T18:45:00Z"));
     expect(frueh.holdUntil.getTime()).toBeLessThanOrEqual(dauer.holdUntil.getTime());
+  });
+});
+
+describe("proofDecidedByCode — wer den Nachweis annimmt", () => {
+  it("nur ein Code-Foto ohne Text entscheidet die Maschine", () => {
+    expect(proofDecidedByCode({ requireCode: true, requiresText: false })).toBe(true);
+    expect(proofDecidedByCode({ requireCode: true, requiresText: true })).toBe(false);
+    expect(proofDecidedByCode({ requireCode: false, requiresText: false })).toBe(false);
   });
 });

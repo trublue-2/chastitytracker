@@ -54,6 +54,8 @@ interface CompactProps {
    *  wie bei `label`). Weglassen = nicht anzeigen — der Sub, der grundsätzlich nicht reinigen darf,
    *  soll keine Zeile über etwas lesen, das seine Einstellung ohnehin verbietet. */
   cleaningNote?: string | null;
+  /** Siehe {@link LargeProps.consequence} — dieselbe Angabe in der Zeilenform. */
+  consequence?: string | null;
 }
 
 interface LargeProps {
@@ -65,6 +67,10 @@ interface LargeProps {
   deadlineLabel?: string | null;
   /** Siehe {@link CompactProps.cleaningNote}. */
   cleaningNote?: string | null;
+  /** Was die Anforderung verbindlich macht bzw. was ein Versäumen kostet („Pflicht: … Vergehen",
+   *  „Erlaubnis, keine Pflicht"). Fertig übersetzt beim Aufrufer — dort ist bekannt, ob die
+   *  Vergehens-Regel für diesen Sub gilt. */
+  consequence?: string | null;
   /** Frist verstrichen → Warnfarbe statt der ruhigen Schema-Farbe. Die compact-Variante konnte das
    *  von Anfang an, die grosse nicht: um 23 Uhr sah eine Anforderung „bis 20 Uhr" aus wie um
    *  Mittag, obwohl seit drei Stunden ein Vergehen läuft. */
@@ -80,7 +86,7 @@ type Props = CompactProps | LargeProps;
 
 export default function LockRequestBanner(props: Props) {
   if (props.variant === "compact") {
-    const { colorScheme, label, overdue, endsAt, untilLabel, locale, deadlineLabel, tz = APP_TZ, viewerTz, subTimePrefix, withdrawAction, showRemaining, cleaningNote } = props;
+    const { colorScheme, label, overdue, endsAt, untilLabel, locale, deadlineLabel, tz = APP_TZ, viewerTz, subTimePrefix, withdrawAction, showRemaining, cleaningNote, consequence } = props;
     const c = overdue ? WARN : COLORS[colorScheme];
     const Icon = SCHEME_ICON[colorScheme];
 
@@ -106,6 +112,8 @@ export default function LockRequestBanner(props: Props) {
           {cleaningNote && (
             <span className={`text-xs opacity-70 flex-shrink-0 ${c.accent}`}>· {cleaningNote}</span>
           )}
+          {/* Eigene Zeile: ein ganzer Satz, kein Anhängsel wie die Reinigungs-Angabe. */}
+          {consequence && <span className={`basis-full text-xs opacity-70 ${c.accent}`}>{consequence}</span>}
         </div>
         {withdrawAction && <div className="relative z-20 flex-shrink-0">{withdrawAction}</div>}
       </div>
@@ -113,7 +121,7 @@ export default function LockRequestBanner(props: Props) {
   }
 
   // Large variant (dashboard)
-  const { colorScheme, label, message, deadlineLabel, cleaningNote, overdue, href, actionLabel } = props;
+  const { colorScheme, label, message, deadlineLabel, cleaningNote, consequence, overdue, href, actionLabel } = props;
   const c = overdue ? WARN : COLORS[colorScheme];
   const Icon = SCHEME_ICON[colorScheme];
 
@@ -138,6 +146,7 @@ export default function LockRequestBanner(props: Props) {
       {message && <p className={`text-neben ${c.accent}`}>{message}</p>}
       {deadlineLabel && <p className="text-neben text-foreground-muted">{deadlineLabel}</p>}
       {cleaningNote && <p className="text-neben text-foreground-muted">{cleaningNote}</p>}
+      {consequence && <p className="text-neben text-foreground-muted">{consequence}</p>}
       {href && actionLabel && (
         <Link href={href} className={`${filledActionCls(tone)} self-start mt-1`}>
           {actionLabel}

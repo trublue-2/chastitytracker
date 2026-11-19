@@ -46,7 +46,7 @@ export default function AdminBottomNav({ version, isGlobalAdmin, hideOwnTracker 
   };
 
   return (
-    <nav aria-label={t("mainNavLabel")} className="lg:hidden fixed bottom-0 left-0 right-0 bg-nav-bg border-t border-nav-border z-40 pb-safe">
+    <nav data-yields-to-form aria-label={t("mainNavLabel")} className="lg:hidden fixed bottom-0 left-0 right-0 bg-nav-bg border-t border-nav-border z-40 pb-safe">
       <div className="flex h-16 items-center">
         {leftTabs.map(renderTab)}
         <AdminFAB isGlobalAdmin={isGlobalAdmin} />

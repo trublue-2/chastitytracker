@@ -48,7 +48,10 @@ export default function NewUserPage() {
         setError(apiError(await parseApiErrorCode(res)));
         return;
       }
-      router.push("/admin/users");
+      // Weiter auf die Einstellungen des neuen Kontos — dort fängt die Einrichtung an. Die Liste,
+      // auf die es vorher ging, sagte nicht einmal, ob das Anlegen geklappt hatte.
+      const created = (await res.json().catch(() => null)) as { id?: string } | null;
+      router.push(created?.id ? `/admin/users/${created.id}/einstellungen` : "/admin/users");
     } catch {
       setError(tc("networkError"));
     } finally {
@@ -84,6 +87,7 @@ export default function NewUserPage() {
             type={showPassword ? "text" : "password"}
             required
             autoComplete="new-password"
+            hint={t("newUserPasswordHint")}
             icon={
               <button type="button" onClick={() => setShowPassword(v => !v)}
                 aria-label={showPassword ? tc("hidePassword") : tc("showPassword")}

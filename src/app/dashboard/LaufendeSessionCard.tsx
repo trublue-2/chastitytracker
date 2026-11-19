@@ -239,6 +239,8 @@ export default async function LaufendeSessionCard({
                 ev.kontrolleAnforderungStatus ?? null,
                 ev.kontrolleVerifikationStatus ?? null,
                 ta,
+                // Gesetztes `subjectId` = Keyholder-Sicht, wie beim `review` unten.
+                subjectId ? "keyholder" : "sub",
               )
             : null;
           return {

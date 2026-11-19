@@ -184,7 +184,7 @@ export default async function SessionList({ pairs, orgasmusEntries, userHasDevic
       ...kontrollen
         .filter(isSubVisibleKontrolle)
         .map((k) => {
-          const pill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta);
+          const pill = getKombinierterPill(k.anforderungStatus, k.verifikationStatus, ta, keyholderView ? "keyholder" : "sub");
           const corrected = isTimeCorrected(k.time, k.submittedAt);
           return {
             type: "kontrolle" as const,

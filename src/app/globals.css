@@ -415,6 +415,18 @@
   --bottom-nav-space: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
 }
 
+/* Unten gehört der Speichern-Leiste. Solange eine Seite die fixe Aktions-Zeile eines Formulars
+   (`FormActions`, Merkmal `data-form-actions`) zeigt, treten alle anderen Elemente zurück, die unten
+   schweben (Merkmal `data-yields-to-form`): die Admin-Navigation, Installations- und Versions-Banner.
+   Ein Merkmal statt einer Pfadliste: es gilt für jede Seite, die die Leiste zeigt, egal unter
+   welchem Pfad. `FormMarker` setzt es schon im Lade-Zustand, damit die Navigation nicht aufblitzt.
+   Nur unterhalb von `sm` — darüber steht die Leiste im Fluss des Formulars und verdeckt nichts. */
+@media (max-width: 39.99rem) {
+  html:has([data-form-actions]) [data-yields-to-form] {
+    display: none;
+  }
+}
+
 
 /* ─────────────────────────────────────────────
    ANIMATION TOKENS

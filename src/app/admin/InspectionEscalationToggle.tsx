@@ -43,7 +43,7 @@ export default function InspectionEscalationToggle({
   initialJokerMinutes: number;
 }) {
   const t = useTranslations("admin");
-  const { saving, save } = useUserSettingsSave(userId);
+  const { saving, save, saveToggle } = useUserSettingsSave(userId);
   const [reminderEnabled, setReminderEnabled] = useState(initialReminderEnabled);
   const [reminderDelayMinutes, setReminderDelayMinutes] = useState(initialReminderDelayMinutes);
   const [autoMarkEnabled, setAutoMarkEnabled] = useState(initialAutoMarkEnabled);
@@ -66,7 +66,7 @@ export default function InspectionEscalationToggle({
         description={t("inspectionReminderDesc")}
         checked={reminderEnabled}
         disabled={saving}
-        onChange={(checked) => { setReminderEnabled(checked); save({ inspectionReminderEnabled: checked }); }}
+        onChange={(checked) => saveToggle("inspectionReminderEnabled", checked, setReminderEnabled)}
       />
       {reminderEnabled && (
         <NumberSettingInput
@@ -83,7 +83,7 @@ export default function InspectionEscalationToggle({
           description={t("inspectionAutoMarkDesc")}
           checked={autoMarkEnabled}
           disabled={saving}
-          onChange={(checked) => { setAutoMarkEnabled(checked); save({ inspectionAutoMarkEnabled: checked }); }}
+          onChange={(checked) => saveToggle("inspectionAutoMarkEnabled", checked, setAutoMarkEnabled)}
         />
         {autoMarkEnabled && (
           <NumberSettingInput

@@ -682,6 +682,15 @@ export function proofResubmittable(p: { submitted: boolean; requiresPhoto: boole
 }
 
 /**
+ * Kann die Maschine diesen Nachweis allein abschliessen? Nur ein Code-Foto ohne Text-Pflicht — ein
+ * Text hat keine Maschinen-Prüfung. Die EINE Fassung der Regel: Auswertung ({@link evaluateProofs}),
+ * Wartezustand ({@link proofAwaitingVerdict}) und der Hinweis im Aufgaben-Formular lesen sie hier.
+ */
+export function proofDecidedByCode(p: { requireCode: boolean; requiresText: boolean }): boolean {
+  return p.requireCode && !p.requiresText;
+}
+
+/**
  * Wartet dieser Nachweis auf ein URTEIL — eingereicht, aber noch nicht entschieden?
  *
  * Damit pollt der Heartbeat dichter, solange der Träger auf die Reaktion wartet (siehe
@@ -696,8 +705,7 @@ export function proofAwaitingVerdict(
   p: Pick<ProofLike, "submittedAt" | "reviewAccepted" | "requireCode" | "verifikationStatus" | "requiresText">,
 ): boolean {
   if (p.submittedAt === null || p.reviewAccepted !== null) return false;
-  const codeConfirmed = p.requireCode && p.verifikationStatus !== null;
-  return !(codeConfirmed && !p.requiresText);
+  return !(proofDecidedByCode(p) && p.verifikationStatus !== null);
 }
 
 /**
@@ -998,7 +1006,7 @@ export function evaluateProofs(
   // hat keine Maschinen-Prüfung; verlangt der Nachweis zusätzlich zum (per Code bestätigten) Foto
   // einen Text, muss ihn trotzdem ein Mensch lesen. Alles andere („Foto mit zwei Rechnungen") ist
   // ohnehin eine Aussage über den Inhalt, die keine Maschine abschliessend trifft.
-  const settled = (p: ProofLike) => p.reviewAccepted === true || (codeConfirmed(p) && !p.requiresText);
+  const settled = (p: ProofLike) => p.reviewAccepted === true || (codeConfirmed(p) && proofDecidedByCode(p));
   if (ordered.every(settled)) return "complete";
 
   // Code gefordert, eingereicht, aber weder bestätigt noch mit Grund versehen: die Prüfung läuft

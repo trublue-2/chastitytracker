@@ -25,6 +25,7 @@ export default function InfoDot({
   label,
   children,
   align = "left",
+  anchor = "self",
 }: {
   /** Was das Zeichen ankündigt — der zugängliche Name des Knopfes, z.B. „Angaben zum Gerät".
    *
@@ -36,6 +37,10 @@ export default function InfoDot({
    *  sonst öffnet sie nach rechts aus dem Bild. Ein Ersatz für echte Kollisionsprüfung, siehe
    *  den Vermerk am Panel. */
   align?: "left" | "right";
+  /** Woran die Fläche hängt. `parent`: am nächsten positionierten Vorfahren statt am Zeichen —
+   *  für ein ⓘ mitten in einer Zeile, dessen Fläche sonst in beide Richtungen aus einem schmalen
+   *  Bildschirm liefe. Der Aufrufer setzt dafür `relative` auf die Zeile. */
+  anchor?: "self" | "parent";
 }) {
   const [open, setOpen] = useState(false);
   const id = useId();
@@ -61,7 +66,7 @@ export default function InfoDot({
   }, [open]);
 
   return (
-    <span ref={wrapRef} className="relative inline-flex align-middle">
+    <span ref={wrapRef} className={`${anchor === "self" ? "relative " : ""}inline-flex align-middle`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -82,7 +87,7 @@ export default function InfoDot({
         // 40 = untere Leiste, 30 = klebender Kopf. Auf 30 öffnete ein Zeichen im unteren
         // Bildschirmdrittel UNTER der Navigationsleiste.
         //
-        // OFFEN: `align` ist eine Handangabe, keine Fähigkeit. Die Fläche ist `absolute`, wird in
+        // OFFEN: `align` (und `anchor`) sind Handangaben, keine Fähigkeit. Die Fläche ist `absolute`, wird in
         // einem Vorfahren mit `overflow-hidden` abgeschnitten und öffnet ganz unten ins Nichts.
         // Für die heutigen Stellen trägt das; VOR dem breiten Einsatz braucht es die berechnete
         // Position, die `RowActionsMenu` bereits vormacht (`fixed` plus Messung).

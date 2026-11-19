@@ -261,14 +261,20 @@ export default function TaskFields({
   // Serie: Frist-Minuten aus der Dauer-Eingabe; „Tragezeit" braucht eine Bedingung, sonst Fenster.
   const effectiveSeriesHoldMode: SeriesHoldMode = seriesHoldMode === "duration" && !hasRequirements ? "window" : seriesHoldMode;
 
+  // Eine Nachweis-Zeile ohne Beschreibung fiel beim Absenden still weg — die Keyholderin hielt die
+  // Aufgabe für eine mit Nachweis. Jetzt hält das Absenden an und nennt die Zeile.
+  const emptyProofIndex = proofs.findIndex((p) => !p.description.trim());
+  const emptyProofError = emptyProofIndex >= 0 ? t("proofDescriptionMissing", { n: emptyProofIndex + 1 }) : null;
+
   function submitSeries() {
     if (holdMinutes == null) { setError(ts("holdRequired")); return; }
+    if (emptyProofError) { setError(emptyProofError); return; }
     const body: Record<string, unknown> = {
       userId,
       title: title.trim(),
       description: description.trim() || undefined,
       requirements,
-      proofs: proofs.filter((p) => p.description.trim()),
+      proofs,
       proofOrderMatters,
       holdDurationMin: effectiveSeriesHoldMode === "duration" ? holdMinutes : undefined,
       holdWindowMin: effectiveSeriesHoldMode === "window" ? holdMinutes : undefined,
@@ -304,7 +310,7 @@ export default function TaskFields({
     const until = endAt(nowMs);
     const grace = hasRequirements ? graceMinAt(anchorMs(nowMs)) : undefined;
     if (grace === null) { setError(graceClockError); return; }
-    const proofRows = proofs.filter((p) => p.description.trim());
+    if (emptyProofError) { setError(emptyProofError); return; }
     if (Number.isNaN(until.getTime())) return;
     void submit({
       url: "/api/admin/tasks",
@@ -317,8 +323,8 @@ export default function TaskFields({
         holdDurationMin: fromStartActive ? holdMinutes : undefined,
         startGraceMin: grace,
         requirements,
-        proofs: proofRows,
-        proofOrderMatters: proofRows.length > 0 ? proofOrderMatters : undefined,
+        proofs,
+        proofOrderMatters: proofs.length > 0 ? proofOrderMatters : undefined,
         isPunishment,
         penaltyReason: isPunishment ? penaltyReason.trim() || undefined : undefined,
         [TASK_FORM_QUERY.offenseRef]: linkedOffense?.refId,

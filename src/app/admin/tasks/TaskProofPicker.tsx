@@ -19,6 +19,7 @@ import {
   clampProofDueOffset, durationToHours, type DurationUnit,
 } from "@/lib/constants";
 import { swapAt } from "@/lib/utils";
+import { proofDecidedByCode } from "@/lib/tasks";
 import type { TaskProofInput } from "@/lib/taskService";
 
 /**
@@ -257,6 +258,16 @@ export default function TaskProofPicker({
                   checked={p.requiresText ?? false}
                   onChange={(e) => update(i, { requiresText: e.target.checked })}
                 />
+                {/* WER den Nachweis annimmt — nur ein Code-Foto ohne Text entscheidet die Maschine,
+                    alles andere wartet auf die Sichtung (docs/funktionsmodell/40-aufgaben.md). */}
+                <span className="text-xs text-foreground-faint">
+                  {proofDecidedByCode({
+                    requireCode: (p.requiresPhoto ?? true) && (p.requireCode ?? false),
+                    requiresText: p.requiresText ?? false,
+                  })
+                    ? t("proofReviewAuto")
+                    : t("proofReviewManual")}
+                </span>
                 {/* WANN dieser Nachweis fällig ist — als Reiter, nicht als leeres Feld.
                     „Am Ende" ist die Vorgabe und der häufige Fall; sie trägt ihren Namen selbst,
                     statt als Absatz unter der Liste erklärt zu werden. Nur „Früher" klappt Zahl und

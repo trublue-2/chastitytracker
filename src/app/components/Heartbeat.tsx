@@ -135,8 +135,10 @@ export default function Heartbeat({ buildDate, initialUserId }: { buildDate: str
 
   if (!outdated) return null;
 
+  // Tritt auf Formularen zurück (`data-yields-to-form`) statt nach oben auszuweichen: dort stehen die
+  // Toasts, und ein Neuladen mitten im Formular nähme die Eingaben mit.
   return (
-    <div className="fixed bottom-[var(--bottom-nav-space)] left-4 right-4 sm:left-auto sm:right-6 sm:w-80 z-50">
+    <div data-yields-to-form className="fixed bottom-[var(--bottom-nav-space)] left-4 right-4 sm:left-auto sm:right-6 sm:w-80 z-50">
       {/* `text-foreground` statt `text-white`: die feste Farbe stammt aus der Zeit, als es genau ein
           dunkles Theme gab. Ein Rahmen dazu, damit die Fläche sich vom Grund abhebt — sie schwebt
           über der Seite und ist die einzige Stelle, an der `surface-raised` ohne Nachbarn steht. */}

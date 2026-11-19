@@ -1,5 +1,5 @@
 import { localeT } from "@/lib/emailI18n";
-import type { InboxMessage, MessageSenderKind } from "@/lib/messageService";
+import type { InboxMessage, MessageRefTarget, MessageSenderKind } from "@/lib/messageService";
 import { messageCategory, type MessageCategory } from "@/lib/messageCategories";
 import { inspectionHref } from "@/lib/entryFormRoute";
 import { offenseCanonicalFromNameKey, withOffenseName } from "@/lib/offenseLabels";
@@ -18,8 +18,10 @@ export interface PresentedMessage {
   refMissing: boolean;
   /** Worum es geht — trägt die Kennzeichnung der Zeile. Abgeleitet, nicht gespeichert. */
   category: MessageCategory;
-  /** Ziel, falls es eine Seite gibt, die etwas dazu sagt (heute: offene Kontrolle). */
-  refHref: string | null;
+  /** Ziel samt Beschriftung, falls es eine Seite gibt, die etwas dazu sagt (heute: offene Kontrolle,
+   *  Code-Vergleich). Die Beschriftung sagt, WOHIN der Link führt — ein Text für alle Ziele hiess
+   *  beim Code-Vergleich der Keyholderin „Kontrolle jetzt erfüllen". */
+  refLink: MessageRefTarget | null;
   /** UM WEN es geht — nur im Keyholder-Posteingang gesetzt (er spannt über mehrere Träger), im
    *  Posteingang des Trägers `null`. Ein NAME, kein Schlüssel: er wird nie übersetzt. */
   subjectUsername: string | null;
@@ -74,8 +76,8 @@ export async function presentMessages(
     // parallel dazu und konnte den Posteingang noch nicht kennen.
     // Mit dem ZIEL (v5.0.1): ohne `categoryId` führte der Link einer Trage-Kontrolle aufs
     // KG-Formular, und die Einreichung von dort erfüllt sie nicht.
-    refHref: m.refActionCode
-      ? inspectionHref(m.refActionCode, { categoryId: m.refActionCategoryId })
+    refLink: m.refActionCode
+      ? { href: inspectionHref(m.refActionCode, { categoryId: m.refActionCategoryId }), labelKey: "openTarget" }
       : m.refTarget,
     subjectUsername: m.subjectUsername,
     senderKind: m.senderKind,

@@ -49,6 +49,8 @@ export default function SettingsForm({ username, email, locale, timezone, startP
   const tc = useTranslations("common");
   const ta = useTranslations("admin");
   const tm = useTranslations("messages");
+  // Wer Subs führt, bekommt auch Meldungen über sie — davon spricht der Hinweis nur dann.
+  const hasSubs = controlledSubs.length > 0;
   const { requestSignOut, signOutDialog } = useSignOut();
   const apiError = useApiError();
   const switchLocale = useLocaleSwitcher();
@@ -425,7 +427,21 @@ export default function SettingsForm({ username, email, locale, timezone, startP
               geschrieben — die Stufe bestimmt nur, was zusätzlich zugestellt wird, und eine Frist
               erreicht den Nutzer notfalls über jeden eingerichteten Kanal. */}
           <div className="px-5 py-3 flex flex-col gap-3">
-            <SettingLabel label={tm("notifyLabel")} description={tm("notifyHint")} />
+            {/* Zwei Fassungen: die Meldungen über Subs betreffen nur, wer welche hat. Was die Stufen
+                auseinanderhält, steht hinter dem ⓘ — die Einteilung lebt in `messageCategories.ts`
+                und war in der Oberfläche nirgends nachzulesen. */}
+            <SettingLabel
+              label={tm("notifyLabel")}
+              description={tm(hasSubs ? "notifyHintKeyholder" : "notifyHint")}
+              infoLabel={tm("notifyLevelsInfoLabel")}
+              info={
+                <span className="flex flex-col gap-1">
+                  <span>{tm("notifyLevelsAll")}</span>
+                  <span>{tm(hasSubs ? "notifyLevelsImportantKeyholder" : "notifyLevelsImportant")}</span>
+                  <span>{tm("notifyLevelsOff")}</span>
+                </span>
+              }
+            />
             <div className="flex flex-col gap-3">
               {channelRows.map((row) => (
                 <div key={row.channel} className="flex items-center justify-between gap-3">

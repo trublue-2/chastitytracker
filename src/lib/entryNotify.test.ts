@@ -120,7 +120,7 @@ describe("notifyControllersAboutEntry", () => {
     const [chatId, text] = telegram.mock.calls[0];
     const dePush = push.mock.calls.find((c) => c[0] === "kh-de")!;
     expect(chatId).toBe("chat-de");
-    expect(text).toBe(`${dePush[1]}\n\n${dePush[2]}`);
+    expect(text).toBe(`${dePush[1]}\n\n${dePush[2]}\n\nhttps://kg.example${dePush[3]}`);
   });
 
   it("Mail trägt den Titel hinter dem Anwendungsnamen und geht nur an Empfänger mit Adresse", async () => {

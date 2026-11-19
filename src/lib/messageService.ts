@@ -25,6 +25,12 @@ import { deliveryChannels, deliveryChannelsForUser, type DeliveryRecipient } fro
  *     ABFRAGE (nicht erst die Anzeige) alles heraus, was `isHiddenFromSub()` verbirgt.
  */
 
+/** Ein festes Link-Ziel einer Meldung und der Schlüssel seiner Beschriftung (`messages.*`). */
+export interface MessageRefTarget {
+  href: string;
+  labelKey: "openTarget" | "openTargetCodeCheck";
+}
+
 /**
  * Schlüssel im `emails`-Namensraum, die als Nachrichten-Text taugen. `NotifyContent.messageKey` ist
  * auf diese Union getypt: ein Schlüssel, den niemand deklariert hat, ist damit ein Compile-Fehler
@@ -398,8 +404,10 @@ export interface InboxMessage {
   /** Referenz gesetzt, Objekt aber nicht (mehr) auflösbar. Muster: `unknownRef` in lib/mcp/notes.ts. */
   refMissing: boolean;
   /** Wohin der Bezug führt, wenn er ein festes Ziel hat (heute: die Codewechsel-Vergleichsansicht,
-   *  #115). Kontrollen bauen ihren Link im Presenter aus `refActionCode`. Sonst null. */
-  refTarget: string | null;
+   *  #115), samt Beschriftung des Links — sie entsteht dort, wo das Ziel gebaut wird, damit ein
+   *  zweites festes Ziel nicht still die Beschriftung des ersten erbt. Kontrollen bauen ihren Link
+   *  im Presenter aus `refActionCode`. Sonst null. */
+  refTarget: MessageRefTarget | null;
   /** Die `refId` des Vergehens, über das diese Zeile berichtet — sonst `null`. Trägt die
    *  Stellungnahme des Trägers (`OffenseStatement`). */
   offenseRefId: string | null;
@@ -664,7 +672,7 @@ type RefDetail = {
   /** Nur bei Kontrollen: das Ziel für den Formular-Link (null = KG bzw. keine Handlung offen). */
   actionCategoryId?: string | null;
   /** Ein festes Ziel des Bezugs, dort gebaut, wo die Zeile ohnehin gelesen wird (→ `refTarget`). */
-  target?: string;
+  target?: MessageRefTarget;
   hidden: boolean;
 };
 
@@ -762,7 +770,7 @@ async function refDetails(rows: RefRow[], scope: InboxScope): Promise<Map<string
   // `hidden: false` mit der Begründung, sie kenne keine Terminierung. Dieselbe Ableitung wie bei
   // Kontrolle und Verschluss-Anforderung, und aus demselben Grund: siehe {@link hiddenRefKeys}.
   for (const t of tasks) details.set(refKey(t.userId, "task", t.id), { text: t.description, actionCode: null, hidden: isHiddenFromSub(t) });
-  for (const e of lockboxEntries) details.set(refKey(e.userId, "lockboxCode", e.id), { text: null, actionCode: null, target: codeCheckPath(e.userId, e.id), hidden: false });
+  for (const e of lockboxEntries) details.set(refKey(e.userId, "lockboxCode", e.id), { text: null, actionCode: null, target: { href: codeCheckPath(e.userId, e.id), labelKey: "openTargetCodeCheck" }, hidden: false });
   return details;
 }
 

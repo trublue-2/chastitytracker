@@ -82,6 +82,14 @@ export default function VerschlussAnforderungFields({
   const locale = useLocale();
   const apiError = useApiError();
   const isLockPeriod = art === "SPERRZEIT";
+  // Die Beschriftungen je Art an EINER Stelle. „Frist" heisst bei der Anforderung „Zeit zum
+  // Einschliessen", bei der Sperrzeit aber „Dauer der Sperre"; und eine Sperrzeit wird nicht
+  // versandt, sie beginnt.
+  const artLabels = isLockPeriod
+    ? { deadline: t("lockPeriodEndLabel"), endHint: t("endetHintSperrzeit"), scheduleLabel: t("lockPeriodStartLabel"),
+        delayHint: t("lockPeriodStartDelayHint"), atHint: t("lockPeriodStartAtHint"), submit: t("setLockDuration") }
+    : { deadline: t("frist"), endHint: t("endetHintAnforderung"), scheduleLabel: undefined,
+        delayHint: t("scheduleDelayHint"), atHint: t("scheduleAtHint"), submit: t("submit") };
 
   const [message, setMessage] = useState(existing?.message ?? "");
   // Bearbeiten startet bei der gespeicherten ABSOLUTEN Frist (Zeitpunkt-Reiter); Neuanlage bei der Dauer.
@@ -290,7 +298,7 @@ export default function VerschlussAnforderungFields({
       )}
 
       {hasDeadline && <DurationOrDatetimeField
-        label={t("frist")}
+        label={artLabels.deadline}
         mode={mode}
         onModeChange={setMode}
         value={deadlineH}
@@ -302,7 +310,7 @@ export default function VerschlussAnforderungFields({
         datetime={endsAt}
         onDatetimeChange={setEndsAt}
         datetimeMin={minNow}
-        datetimeHint={carriedHint ?? (isLockPeriod ? t("endetHintSperrzeit") : t("endetHintAnforderung"))}
+        datetimeHint={carriedHint ?? artLabels.endHint}
         // Die Frist zählt ab JETZT (Neuanlage) bzw. ab dem terminierten Auslöse-Zeitpunkt (Bearbeiten)
         // — anders als beim Orgasmus-Fenster gibt es keinen eigenen Start.
         anchorMs={existing ? () => scheduleAnchorMs(schedule, tz, Date.now()) : () => Date.now()}
@@ -371,8 +379,9 @@ export default function VerschlussAnforderungFields({
         value={schedule}
         onChange={setSchedule}
         minNow={minNow}
-        delayHint={t("scheduleDelayHint")}
-        atHint={t("scheduleAtHint")}
+        delayHint={artLabels.delayHint}
+        atHint={artLabels.atHint}
+        label={artLabels.scheduleLabel}
         allowImmediate={!scheduleOnly}
         atInputRef={scheduleInputRef}
       />
@@ -394,7 +403,7 @@ export default function VerschlussAnforderungFields({
         icon={<LockClosedIcon size={16} />}
         onClick={() => { planNextRef.current = false; }}
       >
-        {saving ? t("sending") : existing ? tc("save") : t("submit")}
+        {saving ? t("sending") : existing ? tc("save") : artLabels.submit}
       </Button>
       {canPlanNext && (
         <Button type="submit" variant="secondary" fullWidth disabled={saving} onClick={() => { planNextRef.current = true; }}>

@@ -56,12 +56,14 @@ export default async function AdminKontrollenPage({
           <BackLink href="/admin">{t("backToOverview")}</BackLink>
         )}
         <h1 className={`${titleCls} mt-1`}>
-          {t("alarmeTitle")}{user ? ` – ${user.username}` : ""}
+          {t("inspectionsTitle")}{user ? ` – ${user.username}` : ""}
         </h1>
-        <p className="text-sm text-foreground-faint mt-1">{t("alarmeCount", { count: items.length })}</p>
+        <p className="text-sm text-foreground-faint mt-1">{t("inspectionsOpenCount", { count: items.length })}</p>
       </div>
 
-      {items.length === 0 ? (
+      {/* Leer nur, wenn es GAR keine Kontrolle gibt. Ohne Offenes zeigt die Liste den Verlauf —
+          vorher stand hier „Noch keine Kontrollen angefordert.", auch nach hundert erledigten. */}
+      {allItems.length === 0 ? (
         <EmptyState
           icon={<ClipboardCheck size={32} />}
           title={t("noKontrollenYet")}

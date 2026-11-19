@@ -85,7 +85,7 @@ export default function MessageRow({
   // Die Stellungnahme macht die Zeile aufklappbar: sie ist der einzige Ort, an dem der Träger
   // etwas zu diesem Vergehen sagen kann. Ohne sie hätte eine Vergehens-Meldung ohne Bezugstext
   // keine Aufklapp-Fläche — und das Feld wäre unerreichbar.
-  const expandable = hasRef || Boolean(m.refHref) || textClamped || Boolean(m.statement);
+  const expandable = hasRef || Boolean(m.refLink) || textClamped || Boolean(m.statement);
 
   const title = (
     <span className="flex items-start gap-2">
@@ -192,12 +192,12 @@ export default function MessageRow({
           <OffenseStatementField refId={m.statement.refId} statement={m.statement}
             onSaved={onStatementSaved} className="pl-4" />
         )}
-        {m.refHref && (
+        {m.refLink && (
           <Link
-            href={m.refHref}
+            href={m.refLink.href}
             className="inline-flex items-center gap-1.5 pl-4 text-sm font-medium text-[var(--color-inspect)] hover:underline"
           >
-            {t("openTarget")}
+            {t(m.refLink.labelKey)}
             <ArrowRight size={14} aria-hidden="true" />
           </Link>
         )}

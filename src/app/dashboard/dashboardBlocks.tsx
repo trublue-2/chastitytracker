@@ -11,7 +11,7 @@ import type { ResolvedLayout } from "@/lib/dashboardLayout";
 import {
   activeVorgabeCached, activeWearCategoryIdsCached, activeWearSessionsCached, cleaningRulesCached,
   deviceCountCached, entriesCached, evaluatedTasksCached, kgVorgabenCached, kgWearPairsCached,
-  latestKeyInBoxCached, latestKgEntryCached, lockRequestCached,
+  latestKeyInBoxCached, latestKgEntryCached, lockRequestCached, offenseRulesCached,
   orgasmConfigCached, orgasmEntriesCached, pendingLockCached, pendingOpenCached, sessionListDataCached, subOrgasmRequestCached, subRunningSessionCached,
   subLockPeriodCached, subVisibleInspectionsNow, taskCardsCached, trackingCategoriesCached,
   userRowCached, wearingHoursCached, wearSessionRowsCached, wearSessionsCached,
@@ -55,7 +55,6 @@ import BoxStatusCard from "@/app/components/BoxStatusCard";
 import WeightReleaseCard from "./WeightReleaseCard";
 import DashboardBlock from "@/app/components/DashboardBlock";
 import OrgasmFreeSection from "@/app/components/OrgasmFreeSection";
-import { getOffenseRules } from "@/lib/offenseRulesService";
 
 /**
  * **Die Blöcke des Träger-Dashboards — jeder mit seiner eigenen Datenbeschaffung.**
@@ -230,10 +229,12 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
   // Anforderungen mit Frist vor allem anderen — auch vor der Box-Karte.
   alerts: block({
     load: async ({ userId, nowMs }) => {
-      const [anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg, latest] = await Promise.all([
+      const [anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg, latest, offenseRules] = await Promise.all([
         subVisibleInspectionsNow(userId), lockRequestCached(userId, nowMs),
         subOrgasmRequestCached(userId, nowMs), userRowCached(userId), orgasmConfigCached(userId),
         latestKgEntryCached(userId),
+        // Für zwei Folgezeilen: Box-Foto-Frist und versäumte Orgasmus-Anweisung.
+        offenseRulesCached(userId, nowMs),
       ]);
       // Das Box-Foto, das nach „Riegel zu" fällig wurde (`boxPhotoDue.ts`). Nur der LAUFENDE Verschluss
       // zählt — `latestKgEntryCached` ist genau der.
@@ -242,14 +243,20 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
         ? {
             entryId: latest.id,
             mobileDesktopMode: user?.mobileDesktopUpload ?? false,
-            deadline: (await getOffenseRules(userId)).box_photo_missing === "on" && user
+            deadline: offenseRules.box_photo_missing === "on" && user
               ? boxPhotoDeadlineAt(latest.boxPhotoDueAt!, user.boxPhotoDeadlineHours)
               : null,
           }
         : null;
-      return { anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg, boxPhotoDue };
+      // Die Anweisung ist eine Pflicht, die Gelegenheit eine Erlaubnis. Ein Vergehen nennt die Zeile
+      // nur, wenn die Regel für diesen Sub gilt — sonst wäre es eine Drohung ohne Folge.
+      let orgasmConsequenceKey: "orgasmConsequenceOptional" | "orgasmConsequenceOffense" | "orgasmConsequenceRequired" = "orgasmConsequenceOptional";
+      if (offeneOrgasmusAnf?.art === "ANWEISUNG") {
+        orgasmConsequenceKey = offenseRules.missed_orgasm === "on" ? "orgasmConsequenceOffense" : "orgasmConsequenceRequired";
+      }
+      return { anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg, boxPhotoDue, orgasmConsequenceKey };
     },
-    render: ({ anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg, boxPhotoDue }, { now, tz, dl, t, tOrgasm }) => {
+    render: ({ anforderungen, offeneVerschlussAnf, offeneOrgasmusAnf, user, orgasmCfg, boxPhotoDue, orgasmConsequenceKey }, { now, tz, dl, t, tOrgasm }) => {
       // ALLE offenen — je Ziel kann eine laufen (v5.0.1). Dringendste zuerst, damit das Banner mit
       // der knappsten Frist oben steht.
       const pendingInspections = openInspections(anforderungen);
@@ -306,6 +313,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
             offeneOrgasmusAnf.message,
           ),
           windowLabel: t("orgasmWindowFromUntil", { from: formatDateTime(offeneOrgasmusAnf.beginsAt, dl, tz), until: formatDateTime(offeneOrgasmusAnf.endsAt, dl, tz) }),
+          consequence: t(orgasmConsequenceKey),
         } : null,
       };
 
@@ -444,7 +452,7 @@ export const SUB_DASHBOARD_BLOCK_TABLE: Record<SubDashboardBlockId, StackBlock<S
         wearingHoursCached(userId, nowMs, tz), deviceCountCached(userId),
         // Für die Folge-Zeile unter der Sperrzeit: OB ein früheres Öffnen geahndet wird, ist je Sub
         // schaltbar. Ohne diese Abfrage behauptete die Karte eine Regel, die abgeschaltet sein kann.
-        getOffenseRules(userId, now),
+        offenseRulesCached(userId, nowMs),
         // Für Woche/Monat/Jahr: ALLE KG-Segmente, nicht nur das aktive Ziel.
         kgVorgabenCached(userId), kgWearPairsCached(userId, nowMs),
         // Die Öffnung, die bei der LockMeBox noch auf „Riegel offen" wartet — der Held zeigt sie samt

@@ -24,6 +24,7 @@ import { prisma } from "@/lib/prisma";
 import { notifyUser } from "@/lib/notify";
 import { sendPushToUser, hasPushTarget } from "@/lib/push";
 import { sendTelegram } from "@/lib/telegram";
+import { appBaseUrl } from "@/lib/mail";
 
 /** Die Zone, in der die Erwartungswerte dieser Datei ausgedrückt sind. Als Konstante, damit der
  *  eine Test, der bewusst eine ANDERE Zone prüft, im Fliesstext sofort auffällt. */
@@ -300,8 +301,8 @@ describe("resendOwnInspectionCode — der selbst gewählte Code", () => {
   /** Die Push ist der Zweck des Knopfes; Telegram folgt seiner Stufe wie jede Meldung. */
   it("Telegram bekommt denselben Text, wenn die Stufe es zulässt", async () => {
     await resendOwnInspectionCode("u1", "70499", TZ);
-    const [, title, body] = pushMock.mock.calls[0];
-    expect(telegramMock).toHaveBeenCalledWith("chat-1", `${title}\n\n${body}`);
+    const [, title, body, url] = pushMock.mock.calls[0];
+    expect(telegramMock).toHaveBeenCalledWith("chat-1", `${title}\n\n${body}\n\n${appBaseUrl()}${url}`);
   });
 
   it("Telegram aus: die Push geht trotzdem, Telegram bleibt stumm", async () => {

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { withOffenseName } from "@/lib/offenseLabels";
 import { withMessageDefaults } from "@/lib/messageDefaults";
-import { sendMailSafe, escHtml, dashboardEmailHtml } from "@/lib/mail";
+import { sendMailSafe, escHtml, dashboardEmailHtml, appBaseUrl } from "@/lib/mail";
 import { emailT, emailGreeting, localeT } from "@/lib/emailI18n";
 import { sendPushToUser } from "@/lib/push";
 import { structuredLog } from "@/lib/serverLog";
@@ -201,7 +201,11 @@ export async function deliverToChannels(
   }
   if (channels.telegram && recipient.telegramChatId) {
     const chatId = recipient.telegramChatId;
-    jobs.push({ channel: "telegram", run: () => sendTelegram(chatId, `${content.title}\n\n${content.body}`) });
+    // Mit Link, wo die Meldung ein Ziel hat: die Texte sagen „in der App", und Telegram ist der
+    // einzige Kanal, der nicht von selbst dorthin führt (die Push tut es beim Antippen, die Mail
+    // trägt den Knopf). `url` ist relativ — wie in der Mail kommt die Basis davor.
+    const link = content.url ? `\n\n${appBaseUrl()}${content.url}` : "";
+    jobs.push({ channel: "telegram", run: () => sendTelegram(chatId, `${content.title}\n\n${content.body}${link}`) });
   }
   await Promise.all(jobs.map(({ channel, run }) => guarded(channel, recipient.id, run)));
 }

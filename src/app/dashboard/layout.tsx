@@ -5,7 +5,7 @@ import OfflineIndicator from "@/app/components/OfflineIndicator";
 import ThemeRootSync from "@/app/components/ThemeRootSync";
 import AutoRefresh from "@/app/components/AutoRefresh";
 import DashboardBottomNav from "./DashboardBottomNav";
-import BottomNavSpacer from "./BottomNavSpacer";
+import BottomNavSpacer from "@/app/components/BottomNavSpacer";
 import { auth } from "@/lib/auth";
 import { bildersafeMenuAction, getLatestKgEntry, pendingLockCallAt } from "@/lib/queries";
 import { subVisibleInspectionsNow } from "@/lib/dashboardData";
@@ -85,8 +85,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       />
 
       {/* Content area: offset for sidebar on desktop. Der Platz für die fixe Bottom-Nav (Mobile)
-          kommt vom BottomNavSpacer am Fluss-Ende — er entfällt auf den Erfassungs-Seiten, wo die Nav
-          ausgeblendet ist, sodass sich dort ihr Platz nicht mit dem der fixen Aktionsleiste stapelt. */}
+          kommt vom BottomNavSpacer am Fluss-Ende — er tritt auf Formularen mit der Nav zurück
+          (`data-yields-to-form`, globals.css), dort reserviert die Formular-Hülle. */}
       {/* **Die Spalte gehört HIERHER, nicht auf jede Seite.**
 
           Sie stand zwanzigmal von Hand in den Seiten darunter — erst als vier verschiedene Masse,

@@ -134,7 +134,7 @@ export default async function AdminUserEintraegePage({
           tz={tz}
           orgasmusLabel={resolveOrgasmusArtDisplay(e.orgasmusArt, orgasmCfg, tOrgasm)}
           openingLabel={e.oeffnenGrund ? resolveReasonLabel(e.oeffnenGrund, openCfg, "opening", tOpen) : null}
-          inspectionPill={entryInspectionPill(e, ta, now)}
+          inspectionPill={entryInspectionPill(e, ta, now, "keyholder")}
           inspectionReview={e.type === "PRUEFUNG"
             ? { entryId: e.id, requested: e.kontrollAnforderung !== null, verifikationStatus: mapVerifikationStatus(e.verifikationStatus) }
             : null}
