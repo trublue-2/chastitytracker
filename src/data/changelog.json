@@ -1,5 +1,18 @@
 [
   {
+    "version": "6.6.3",
+    "date": "2026-11-19",
+    "changes": [
+      {
+        "type": "chore",
+        "text": {
+          "de": "Technische Grundlage auf den neuesten Stand gebracht (Next.js 16.4.6).",
+          "en": "Updated the technical foundation (Next.js 16.4.6)."
+        }
+      }
+    ]
+  },
+  {
     "version": "6.6.1",
     "date": "2026-11-15",
     "changes": [

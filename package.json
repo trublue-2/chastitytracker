@@ -1,6 +1,6 @@
 {
   "name": "kg-app",
-  "version": "6.6.1",
+  "version": "6.6.3",
   "private": true,
   "license": "SEE LICENSE IN LICENSE.md",
   "scripts": {
@@ -32,7 +32,7 @@
     "exifr": "^7.1.3",
     "lucide-react": "^0.577.0",
     "mcp-handler": "2.3.0",
-    "next": "~16.4.3",
+    "next": "~16.4.6",
     "next-auth": "^5.0.0-beta.32",
     "next-intl": "^4.8.3",
     "nodemailer": "^10.2.1",
